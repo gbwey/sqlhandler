@@ -1,0 +1,56 @@
+name: sqlhandler
+version: '0.1.0.0'
+author: Grant Weyburne
+maintainer: gbwey9@gmail.com
+license: BSD3
+dependencies:
+- tagged
+- base 
+- bytestring
+- containers
+- contravariant
+- foldl
+- Frames
+- generics-sop
+- HDBC ==2.4.0.3
+- lens
+- mtl
+- predicate
+- profunctors
+- safe
+- shakespeare
+- table-layout == 0.9.0.0
+- text
+- these
+- time
+- typelevel
+- vector
+- vinyl >= 0.10.0.1
+default-extensions: []
+library:
+  source-dirs: 
+  - src
+  ghc-options:
+  - -Wall
+  - -Wcompat
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wredundant-constraints
+
+tests:
+  spec:
+    main: "Spec.hs"
+    ghc-options: "-threaded -O0"
+    source-dirs:
+      - test
+    dependencies:
+      - sqlhandler
+      - pipes
+      - hspec 
+      - QuickCheck
+      - should-not-typecheck
+      - deepseq
+      - easytest
+      - generic-lens
+
+data-files: []

@@ -1,0 +1,6 @@
+id,first_name,last_name,email,gender,ip_address,birthdate,int1,tot,flag,int2
+1,Dagny,Jendrusch,djendrusch0@columbia.edu,Male,111.15.60.154,10/26/1987,100,-106.65,true,895
+2,Rodolph,Keble,rkeble1@google.ru,Male,170.86.135.169,1/14/1981,71,-300.64,true,-283
+3,Fin,Jurczak,fjurczak2@angelfire.com,Male,75.70.223.2,7/5/1968,18,-914.19,false,-364
+4,Marsha,Delacote,mdelacote3@newyorker.com,Female,207.37.1.22,11/17/1962,23,255.12,false,701
+5,Zeb,Ockleshaw,zockleshaw4@boston.com,Male,5.41.101.176,9/2/1969,33,913.38,false,-648

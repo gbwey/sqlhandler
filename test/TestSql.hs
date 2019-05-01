@@ -1,0 +1,324 @@
+-- V.Const has no applicative instance!
+-- use V.Identity where possibly cos nicer display instance and makes life easier
+{-
+-- gets you back to [HRet]
+>:kind! SingleOut (Alle (Upd :+: SelRaw))
+SingleOut (Alle (Upd :+: SelRaw)) :: *
+= [Either Int [[SqlValue]]]
+
+>:i HRet
+type HRet = Either Int [[SqlValue]]     -- Defined in `Sql'
+
+>:t UpdP 0 :: SingleIn Upd
+UpdP 0 :: SingleIn Upd :: SingleIn Upd
+
+>:t AlleP (UpdP 0 :+: SelRawP 0) 0 :: SingleIn (Alle (Upd :+: SelRaw))
+AlleP (UpdP 0 :+: SelRawP 0) 0 :: SingleIn (Alle (Upd :+: SelRaw))
+  :: SingleIn (Alle (Upd :+: SelRaw))
+-}
+
+{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE QuasiQuotes #-}
+module TestSql where
+import qualified Data.Vinyl.Functor as V
+import Data.Vinyl
+import Data.Vinyl.Functor hiding (Identity,Const,Compose)
+import Data.Vinyl.TypeLevel hiding (Nat)
+--import qualified Control.Lens as L -- hiding (rmap,Identity)
+import Control.Lens hiding (rmap,Identity,Const)
+import Data.Text (Text)
+import Text.Shakespeare.Text
+import Sql
+import TablePrinter
+import PredState
+import EasyTest
+import Test.Hspec
+import Database.HDBC.ColTypes (SqlTypeId (SqlUnknownT))
+import GHC.TypeLits
+import qualified PCombinators as P
+import Control.Arrow
+
+data R1 = R1 { r1 :: String, r2 :: Bool, r3 :: Char } deriving (Show,Eq)
+
+decR1 :: Dec R1
+decR1 = R1 <$> defDec <*> defDec <*> defDec
+
+instance DefDec (Dec R1) where
+  defDec = decR1
+
+encR1 :: Enc R1
+encR1 = Enc $ \(R1 x y z) -> [SqlString x, SqlBool y, SqlChar z]
+
+instance DefEnc (Enc R1) where
+  defEnc = encR1
+
+{-
+>(unDec @R1) defDec $ unEnc defEnc $ R1 "abc" True 'x'
+Right (R1 {r1 = "abc", r2 = True, r3 = 'x'},[])
+it :: Either DE (R1, [SqlValue])
+-}
+
+-- anyOf (traverse . suShort) (=="Update") (xes @SelUpdE e)
+suite :: Test ()
+suite = tests
+  [ scope "simpleret1" $ expectEq (ext <$> processRet (E1 (SelOneP @Bool ptrue defDec)) [Right [[SqlBool True]]]) (Right True)
+  , scope "simpleret2" $ expectEq (ext <$> processRet (E2 (SelP @Bool ptrue defDec) (UpdP ptrue)) [Right [[SqlBool False],[SqlBool True]], Left 23]) (Right ([False,True],23))
+  , scope "single.fail1" $ expect (hasError @SingleE (processRet (E1 (SelOneP @Bool ptrue defDec)) [Right []]))
+  , scope "single.fail2" $ expect (hasError @SelUpdE (processRet (E1 (SelOneP @Bool ptrue defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
+  , scope "single.fail3" $ expect (hasError @SingleE (processRet (E1 (SelOneP @Bool ptrue defDec)) [Right []])) -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
+  , scope "encodemultiple" $ expectEq (encodeVals (E2 (defEnc @(Enc Int)) (defEnc @(Enc (Bool,String)))) (I2 1 (True,"xxx"))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
+  , scope "encodesingle" $ expectEq (encodeVals (E1 (defEnc @(Enc (Int, (Bool,String))))) (I1 (1,(True,"xxx")))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
+  , scope "single.fail4" $ expect (hasError @ConvE (processRet (E1 (SelOneP @Bool ptrue defDec)) [Right [[SqlInt32 112]]]))
+  , scope "single.fail5" $ expect (anyOf (_Left . to (xes @ConvE) . traverse . to _cvType) (=="Bool") (processRet (E1 (SelOneP @Bool ptrue defDec)) [Right [[SqlInt32 112]]]))
+  , scope "single.fail2a" $ expect (hasn't (_Left . to (xes @SelUpdE) . _Empty) (processRet (E1 (SelOneP @Bool ptrue defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
+  , scope "single.fail2b" $ expect (has (_Left . to (xes @SelUpdE) . _head) (processRet (E1 (SelOneP @Bool ptrue defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
+  , scope "gtest1" $ expect (xes'' @NoResultSetE gtest1)
+  , scope "gtest2" $ expectEq (ext <$> gtest2) (Right (123,[(11,True),(22,False)]))
+  , scope "gtest3" $ expectEq (ext <$> gtest3) (Right (123,[("dude",True),("zzz",False)]))
+  , scope "gtest4" $ expectEq (ext <$> gtest4) (Right [123,999,-8])
+  , scope "gtest5" $ expectEq (ext <$> gtest5) (Right (Left 123))
+  , scope "gtest5'" $ expectEq (ext <$> gtest5') (Right (Right 123))
+  , scope "gtest5''" $ expect (xes'' @SelUpdE gtest5'')
+  , scope "gtest5'''" $ expect (xes'' @UnconsumedE gtest5''')
+--  , scope "gtest5'''" $ expect (xes'' @NoResultSetE gtest5'''')
+
+  ]
+{- these 3 are the same
+hasn't (_Left . to (xes @SelUpdE) . _Empty
+has (_Left . to (xes @SelUpdE) . _head)
+-}
+spec :: SpecWith ()
+spec =
+  describe "Type Tests" $ do
+    it "should allow combined Some and Alle with no Alle data" $
+      ext <$> processRet valid1 [Left 123, Left 999] `shouldBe` Right ([123,999],[])
+--    it "should fail cos expecting an Upd but got a select type" $
+--      processRet valid1 [Right [[]]] `shouldBe` Left ()
+    it "should allow combined Some and Alle with Alle data" $
+      ext <$> processRet valid1 [Left 123,Left 999, Right [[SqlBool True]], Right [[SqlBool False]]] `shouldBe` Right ([123,999],[True,False])
+    it "should allow Upd and SelOne " $
+      ext <$> processRet valid3 [Left 123,Right [[SqlInt32 3]]] `shouldBe` Right (123,3)
+    it "should allow :+: without any Alle data" $
+      ext <$> processRet valid2 [Left 123] `shouldBe` Right (Left 123)
+    it "should allow :+: without any Alle data" $
+      ext <$> processRet valid2 [Right [[SqlInt32 3]]] `shouldBe` Right (Right 3)
+    it "tst2' good" $
+      ext' <$> tst2' @4 2 1 `shouldBe` Right ([(True,'x'),(False,'y')], (4, ([R1 "xx" True 'a'],())))
+    it "tst2' fail" $
+      ext' <$> tst2' @3 2 1 `shouldSatisfy` (Left 2==) . left (length . xes @SingleE)
+    it "tst21' good" $
+      ext' <$> tst21' @3 `shouldBe` Right ([5,12,7,3,4,99,22],())
+
+
+main :: IO ()
+main = do
+ hspec $
+  describe "Type Tests" $ do
+    it "should allow combined Some and Alle with no Alle data" $
+      ext <$> processRet valid1 [Left 123, Left 999] `shouldBe` Right ([123,999],[])
+--    it "should fail cos expecting an Upd but got a select type" $
+--      processRet valid1 [Right [[]]] `shouldBe` Left ()
+    it "should allow combined Some and Alle with Alle data" $
+      ext <$> processRet valid1 [Left 123,Left 999, Right [[SqlBool True]], Right [[SqlBool False]]] `shouldBe` Right ([123,999],[True,False])
+    it "should allow Upd and SelOne " $
+      ext <$> processRet valid3 [Left 123,Right [[SqlInt32 3]]] `shouldBe` Right (123,3)
+    it "should allow :+: without any Alle data" $
+      ext <$> processRet valid2 [Left 123] `shouldBe` Right (Left 123)
+    it "should allow :+: without any Alle data" $
+      ext <$> processRet valid2 [Right [[SqlInt32 3]]] `shouldBe` Right (Right 3)
+ run suite
+
+valid1 :: Rec SingleIn '[Some 2 Upd, Alle (SelOne Bool)]
+valid1 = E2 (SomeP defDec ptrue) (AlleP defDec ptrue)
+
+valid2 :: Rec SingleIn '[Upd :+: SelOne Int]
+valid2 = E1 (UpdP ptrue :+: SelOneP ptrue defDec)
+
+valid3 :: Rec SingleIn '[Upd, SelOne Int]
+valid3 = E2 (UpdP ptrue) (SelOneP ptrue defDec)
+
+rsa :: Either Int [[SqlValue]]
+rsa = Right [[SqlBool True,SqlChar 'x'],[SqlBool False,SqlChar 'y']]
+
+rsb :: Either Int a
+rsb = Left 4
+
+rsc :: Either Int [[SqlValue]]
+rsc = Right [[SqlString "xx",SqlBool True,SqlChar 'a']]
+
+tst1 :: Either SE (Rec ZZZ '[Sel (Bool, Char), Upd, Sel R1])
+tst1 = processRet (E3 (SelP ptrue defDec) (UpdP ptrue) (SelP ptrue defDec)) [rsa,rsb,rsc]
+
+tst2 :: Int -> Int -> Int -> Either SE (Rec ZZZ '[Sel (Bool, Char), Upd, Sel R1])
+tst2 i j k = processRet (E3 (SelP (PLen (peq i)) defDec) (UpdP (peq j)) (SelP (PLen (peq k)) defDec)) [rsa,rsb,rsc]
+
+-- test type level predicate for update: expected @4
+tst2' :: forall n. KnownNat n => Int -> Int -> Either SE (Rec ZZZ '[Sel (Bool, Char), UpdN 'OPEQ n, Sel R1])
+tst2' i k = processRet (E3 (SelP (PLen (peq i)) defDec) defDec (SelP (PLen (peq k)) defDec)) [rsa,rsb,rsc]
+
+-- predicate on length of results and n=0,1,2,3 work but nothing above that
+tst21' :: forall n. KnownNat n => Either SE (Rec ZZZ '[Alle (UpdN 'OPGE n)])
+tst21' = processRet (E1 (AlleP defDec (PLen (pgt 4)))) [Left 5, Left 12, Left 7, Left 3, Left 4, Left 99, Left 22]
+
+-- UGE n == UpdN 'OPGE n
+tst21'' :: forall n. KnownNat n => Either SE (Rec ZZZ '[Alle (UGE n)])
+tst21'' = processRet (E1 (AlleP defDec (PLen (pgt 4)))) [Left 5, Left 12, Left 7, Left 3, Left 4, Left 99, Left 22]
+
+-- invalid string for sqlchar
+tst3 :: Either SE (Rec ZZZ '[Sel (Bool, String), Upd, Sel R1])
+tst3 = processRet (E3 (SelP ptrue defDec) (UpdP ptrue) (SelP ptrue defDec)) [rsa,rsb,rsc]
+
+tst4 :: Int -> Either SE (Rec ZZZ '[Sel (Bool, Char)])
+tst4 i = processRet (E1 (SelP (PLen (peq i)) defDec)) [rsa]
+
+gtestA :: RecAll ZZZ rs SingleZ => [HRet] -> Rec SingleIn rs -> Either SE (Rec ZZZ rs)
+gtestA a b = processRet' (toZZZ b) a
+
+gtest1, gtest2, gtest2' :: Either SE (Rec ZZZ '[Upd, Sel (Int, Bool)])
+gtest1 = gtestA [Left 123] defDec
+gtest2 = gtestA [Left 123, Right [[SqlInt32 11, SqlBool True],[SqlInt32 22, SqlBool False]]] defDec
+gtest2' = gtestA [Left 123, Right [[SqlInt32 11, SqlBool True],[SqlInt32 22, SqlBool False]]] (ueq 124 :& defDec :& RNil)
+
+gtest3 :: Either SE (Rec ZZZ '[Upd, Sel (Text, Bool)])
+gtest3 = gtestA [Left 123, Right [[SqlString "dude", SqlBool True],[SqlString "zzz", SqlBool False]]] defDec
+
+gtest4 :: Either SE (Rec ZZZ '[Alle Upd])
+gtest4 = gtestA [Left 123, Left 999, Left (-8)] defDec
+
+gtest5, gtest5', gtest5'', gtest5''', gtest5'''' :: Either SE (Rec ZZZ '[Upd :+: SelOne Int])
+gtest5 = gtestA [Left 123] defDec
+gtest5' = gtestA [Right [[SqlInt32 123]]] defDec
+gtest5'' = gtestA [Right [[SqlInt32 123], [SqlInt32 456]]] defDec -- fails cos too many rows
+gtest5''' = gtestA [Right [[SqlInt32 123, SqlInt32 456]]] defDec -- fails cos too many values
+gtest5'''' = gtestA [Right []] defDec -- fails cos not enough rows
+
+gtest6, gtest6', gtest6'', gtest6''', gtest6'''' :: Either SE (Rec ZZZ '[SelOne Int :+: Upd])
+gtest6 = gtestA [Right [[SqlInt32 123]]] defDec
+gtest6' = gtestA [Left 4] defDec
+gtest6'' = gtestA [Right [[SqlInt32 123], [SqlInt32 456]]] defDec -- fails cos too many rows
+gtest6''' = gtestA [Right [[SqlInt32 123, SqlInt32 456]]] defDec -- fails cos too many values
+gtest6'''' = gtestA [Right []] defDec -- fails cos not enough rows
+
+
+x1 :: SingleIn Upd
+x1 = UpdP ptrue
+
+x1' :: SingleIn Upd
+x1' = UpdP ptrue
+
+x1'' :: SingleIn (Alle Upd)
+x1'' = AlleP (UpdP ptrue) ptrue
+
+x1''' :: SingleIn (Upd :+: SelOne Int)
+x1''' = UpdP 1 :+: SelOneP 1 defDec
+
+x1'''' :: SingleIn (SelOne Int :+: Upd)
+x1'''' = SelOneP 1 defDec :+: UpdP 1
+
+x2 :: SingleIn (Sel (Int, Bool))
+x2 = SelP ptrue defDec
+
+x2' :: SingleIn (Sel (Int, Bool))
+x2' = SelP ptrue defDec
+
+x3' :: SingleIn (Sel (Text, Bool))
+x3' = SelP ptrue defDec
+
+validx1 :: Rec SingleIn '[Upd :+: SelOne Int]
+validx1 = E1 (UpdP ptrue :+: SelOneP ptrue defDec)
+
+validx2 :: Rec SingleIn '[SelOne Int]
+validx2 = E1 (SelOneP ptrue defDec)
+
+validx3 :: Rec SingleIn '[Upd, Alle Upd]
+validx3 = E2 (UpdP ptrue) (AlleP (UpdP ptrue) ptrue)
+
+validx4 :: Rec SingleIn '[Upd, Upd, Sel (Double,Int)]
+validx4 = E3 (UpdP ptrue) (UpdP ptrue) (SelP ptrue defDec)
+
+s0 :: Sql db '[Int] '[Upd]
+s0 = Sql "zzz" (defEnc :& RNil) (x1 :& RNil) "s0"
+
+s1 :: Sql db '[Int,Double] '[Upd, Sel (Int, Bool)]
+s1 = Sql "abc" (defEnc :& defEnc :& RNil) (x1' :& x2' :& RNil) "s1"
+
+-- same as s1 but dont need to specify each defEnc
+s1a :: Sql db '[Int,Double] '[Upd, Sel (Int, Bool)]
+s1a = Sql "abc" defEnc (x1' :& x2' :& RNil) "s1"
+
+-- Alle is not last but gets detected when used with runSql
+s2 :: Sql db '[] '[Alle Upd, Upd :+: SelOne Int]
+s2 = Sql "def" RNil (x1'' :& x1''' :& RNil) "s2"
+
+s3 :: Sql db '[] '[Upd :+: SelOne Int, Alle Upd]
+s3 = Sql "def" RNil (x1''' :& x1'' :& RNil) "s3"
+
+s4 :: Sql db '[Bool,Text] '[Upd :+: SelOne Int, SelOne Char, Alle (Sel Int)]
+s4 = Sql "def" (defEnc :& defEnc :& RNil) (UpdP (peq 3) :+: SelOneP ptrue defDec
+                  :& SelOneP (PElem ['a'..'h']) defDec
+                  :& AlleP defDec (PNot PNull)
+                  :& RNil) "s4"
+
+gtest0 :: Rec ZZZ '[SelOne (F '["aa" ::: Int])]
+gtest0 = ZZZ (SelOneP ptrue defDec) (SelOne ((#aa =: 123) :& RNil)) ((#aa =: 123) :& RNil) [] :& RNil
+
+gtest00 :: Rec ZZZ '[SelOne (F '["aa" ::: Int, "bb" ::: Bool])]
+gtest00 = ZZZ (SelOneP ptrue defDec) (SelOne ((#aa =: 123) :& (#bb =: True) :& RNil)) ((#aa =: 123) :& (#bb =: True) :& RNil) [] :& RNil
+
+gtest000 :: Rec ZZZ '[Sel (F '["aa" ::: Int, "bb" ::: Bool])]
+gtest000 = ZZZ (SelP ptrue defDec) (Sel [(#aa =: 123) :& (#bb =: True) :& RNil]) [(#aa =: 123) :& (#bb =: True) :& RNil] [] :& RNil
+
+gtest0000 :: Rec ZZZ '[Sel (F '["aa" ::: Int, "bb" ::: Bool])]
+gtest0000 = ZZZ (SelP ptrue defDec) (Sel [(#aa =: 123) :& (#bb =: True) :& RNil, (#aa =: 321) :& (#bb =: False) :& RNil]) [(#aa =: 123) :& (#bb =: True) :& RNil, (#aa =: 321) :& (#bb =: False) :& RNil] [] :& RNil
+
+ys' :: Rec SingleIn '[Upd, SelRaw, Alle (SelOne Int)]
+ys' = UpdP (peq 0) :& SelRawP PNull :& AlleP (SelOneP (peq @Int 0) (defDec @(Dec Int))) PNull :& RNil
+
+-- should always fail cos has an alle but not at the end
+zs' :: Rec SingleIn '[Upd, SelRaw, Alle (SelOne Int), Alle Upd]
+zs' = UpdP (peq 0) :& SelRawP PNull :& AlleP (SelOneP (peq @Int 0) (defDec @(Dec Int))) PNull :& AlleP (UpdP (peq 0)) PNull :& RNil
+
+testColDesc :: String -> (String, SqlColDesc)
+testColDesc s = (s, SqlColDesc (SqlUnknownT "for testing sql.hs") (Just 5) (Just 7) (Just 11) (Just True))
+
+tt1' :: [HRet]
+tt1' = [Left 3, Right [[SqlChar 'c']], Right [[SqlInt32 12],[SqlInt32 456],[SqlInt32 999]]]
+
+tt2' :: [HRetCol]
+tt2' = [Left 3, Right ([testColDesc "a1"], [[SqlChar 'c']]), Right ([testColDesc "b1"], [[SqlInt32 12],[SqlInt32 456],[SqlInt32 999]])]
+
+t11 :: ((
+        SingleOut (Alle (Upd :+: Sel Int)) ~ [Either Int [Int]]
+       ,SingleOut (SelOne Bool :+: Sel Int) ~ Either Bool [Int]
+       ,SingleOut Upd ~ Int
+       ,SingleOut (Sel (Bool,String)) ~ [(Bool, String)]
+       ,SingleOut (SelOne (Bool,String)) ~ (Bool, String)
+       ,SingleOuts '[Upd,Upd,Sel (Bool,String)] ~ (Int, Int, [(Bool, String)])
+       ,SingleOut (Sel (MakeF (Bool,String))) ~ [Rec ElField '["c1" ::: Bool, "c2" ::: String]]
+       ,SingleOut (Sel (MakeF' '[Bool,String])) ~ [Rec ElField '["c1" ::: Bool, "c2" ::: String]]
+       ,SingleOut (Sel (F '["abool" ::: Bool, "astring" ::: String])) ~ [Rec ElField '["abool" ::: Bool, "astring" ::: String]]
+       ,SingleOut (Alle (Upd :+: SelRaw)) ~ [Either Int [[SqlValue]]]
+
+       ) => ()) -> ()
+t11 x = x
+
+
+t12 :: Sql db '[Int] '[UpdN 'OPEQ 0, Sel Int, SelOne Bool]
+t12 =
+  let _a :: String
+      _b :: Rec Enc '[Int]
+      _c :: Rec SingleIn '[UpdN 'OPEQ 0, Sel Int, SelOne Bool]
+      _d :: Text
+      z@(Sql _a _b _c _d) = sqlCombine (mkSql @'[U0] @'[] "[sqlA]" "select 1") (mkSql @'[Sel Int,SelOne Bool] @'[Int] "[sqlB]" "select 2")
+  in z
+

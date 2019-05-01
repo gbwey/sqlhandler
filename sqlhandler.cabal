@@ -1,0 +1,103 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 27b68bf02925e13822aec800024a81badb5116ce39412604d9d8215131f68950
+
+name:           sqlhandler
+version:        0.1.0.0
+author:         Grant Weyburne
+maintainer:     gbwey9@gmail.com
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+
+library
+  exposed-modules:
+      Conv
+      Decoding
+      Encoding
+      One
+      Sql
+      TablePrinter
+      VinylUtils
+  other-modules:
+      Paths_sqlhandler
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+  build-depends:
+      Frames
+    , HDBC ==2.4.0.3
+    , base
+    , bytestring
+    , containers
+    , contravariant
+    , foldl
+    , generics-sop
+    , lens
+    , mtl
+    , predicate
+    , profunctors
+    , safe
+    , shakespeare
+    , table-layout ==0.9.0.0
+    , tagged
+    , text
+    , these
+    , time
+    , typelevel
+    , vector
+    , vinyl >=0.10.0.1
+  default-language: Haskell2010
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      DeferredOrphans
+      TestConv
+      TestDecoding
+      TestEncoding
+      TestSql
+      TestSqlDeferred
+      TestTablePrinter
+      TestVinyl
+      Paths_sqlhandler
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -O0
+  build-depends:
+      Frames
+    , HDBC ==2.4.0.3
+    , QuickCheck
+    , base
+    , bytestring
+    , containers
+    , contravariant
+    , deepseq
+    , easytest
+    , foldl
+    , generic-lens
+    , generics-sop
+    , hspec
+    , lens
+    , mtl
+    , pipes
+    , predicate
+    , profunctors
+    , safe
+    , shakespeare
+    , should-not-typecheck
+    , sqlhandler
+    , table-layout ==0.9.0.0
+    , tagged
+    , text
+    , these
+    , time
+    , typelevel
+    , vector
+    , vinyl >=0.10.0.1
+  default-language: Haskell2010
