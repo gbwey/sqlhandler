@@ -3,7 +3,7 @@ flags: {}
 extra-package-dbs: []
 packages:
 - location: '.'
-- location: ../hdbc_nextresult
+- location: ../hdbc
   extra-dep: true
 - location: ../predicate
   extra-dep: true
