@@ -127,8 +127,10 @@ import qualified Frames as F
 import Data.Foldable
 import qualified PCombinators as P
 
+-- | a type synonym for functions that change the order of columns displayed or even drop columns
 type Fn1 = [(Int, ([String], FType))] -> [Int]
 
+-- | coarse classification of the type of data in a cell
 data FType = Stringy | Numy | Datey | Other deriving (Show,Eq,Bounded,Enum,Ord,G.Generic)
 -- makePrisms ''FType
 
@@ -136,8 +138,11 @@ data FType = Stringy | Numy | Datey | Other deriving (Show,Eq,Bounded,Enum,Ord,G
 data FixData = FWrap | FTrunc deriving (Eq,Show,G.Generic)
 -- makePrisms ''FixData
 
+-- | how to represent multiple result sets
 data Vertical = Vertical | Horizontal deriving (Eq,Show,G.Generic)
 
+
+-- | type synonym used for functions that transform the text of a cell
 type Morph = String -> String
 
 -- | 'Opts' these are the options for displaying resultsets see 'wprintWith'
@@ -221,6 +226,7 @@ hexChar c =
   let (a,b) = quotRem (ord c) 16
   in showHex a (showHex b "")
 
+-- | simple utility for chunking data
 chunksOf :: Int -> [a] -> [[a]]
 chunksOf n = unfoldr f
   where f xs | null xs = Nothing
@@ -233,7 +239,7 @@ prttableRecH o xs =
       (cs,hs,MMM rs) = getConst $ VR.rfoldMap (\(V.Compose (V.Dict x)) -> Const $ zprintH x o) ret
   in tableString cs (_oStyle o) (titlesH hs) (map (colsAllG top) rs)
 
--- more typical: just prints resultsets as they go
+-- | prints resultsets as they appear (vertically)
 prttableRecV :: (V.RecAll ZZZ rs ZPrint) => Opts -> Rec ZZZ rs -> String
 prttableRecV o xs =
   let ret = VR.reifyConstraint (Proxy @ZPrint) xs
@@ -250,6 +256,7 @@ instance Applicative (STI s) where
                                        (s'', a) = sa s'
                                    in (s'', ab a)
 
+-- | describes the information needed for the resultset header
 type FnRSHeader = (String,Int) -> String
 
 prefixMessage :: FnRSHeader -> String -> FnRSHeader
