@@ -44,24 +44,22 @@ import qualified GHC.Generics as G
 import qualified Generics.SOP as GS
 import Control.Lens hiding (from, to)
 import Data.Vinyl
-import qualified Data.Vinyl as V
-import qualified Data.Vinyl.TypeLevel as V
+--import qualified Data.Vinyl as V
+--import qualified Data.Vinyl.TypeLevel as V
 import Data.Vinyl.Syntax ()  -- orphan instance so we can use #abc as a lens!
 import Sql
 import Data.Bool
 import TablePrinter
 import Database.HDBC.ColTypes
 import Test.Hspec
-import GHC.TypeLits
+--import GHC.TypeLits
 import PredState
 import qualified Frames as F
-import Frames ((:->), Frame(..))
+import Frames (Frame(..))
 import qualified Control.Foldl as FL
-import qualified Control.Scanl as FS
+--import qualified Control.Scanl as FS
 import Frames.CSV -- (readTableOpt, rowGen, RowGen(..))
 import qualified Pipes as P -- hiding (Proxy)
-import qualified Control.Monad.State.Strict as S
-import RegexHelper (IP(..))
 
 -- use csv reader from Frames and then manipulate that!
 F.tableTypes "User" "MOCK_DATA_SMALL.csv"
@@ -89,22 +87,22 @@ spec =
 testupd1 :: Rec ZZZ '[Sel (Bool, Char)]
 testupd1 = let xs = [(False,'x'), (True,'y')] in ZZZ (SelP ptrue defDec) (Sel xs) xs [] :& RNil
 
-testeither :: (Show a, Show b) => Bool -> ZZZ a -> ZZZ b -> ZZZ (a :+: b)
+testeither :: Bool -> ZZZ a -> ZZZ b -> ZZZ (a :+: b)
 testeither p (ZZZ a1 a2 a3 a4) (ZZZ b1 b2 b3 b4) = ZZZ (a1 :+: b1) (EitherRS (bool (Left a2) (Right b2) p)) (bool (Left a3) (Right b3) p) (bool a4 b4 p)
 
-testalle :: (Show a, DefDec (SingleIn a)) => [ZZZ a] -> ZZZ (Alle a)
+testalle :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Alle a)
 testalle zs = ZZZ (AlleP defDec ptrue) (Alle (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
 
-testsome :: (KnownNat n, Show a, DefDec (SingleIn a)) => [ZZZ a] -> ZZZ (Some n a)
+testsome :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Some n a)
 testsome zs = ZZZ (SomeP defDec ptrue) (Some (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
 
 testupd :: Int -> ZZZ Upd
 testupd rc = ZZZ (UpdP ptrue) (Upd rc) rc []
 
-testsel :: (Show a, DefDec (Dec a)) => [a] -> ZZZ (Sel a)
+testsel :: DefDec (Dec a) => [a] -> ZZZ (Sel a)
 testsel as = ZZZ (SelP ptrue defDec) (Sel as) as []
 
-testselone :: (Show a, DefDec (Dec a)) => a -> ZZZ (SelOne a)
+testselone :: DefDec (Dec a) => a -> ZZZ (SelOne a)
 testselone a = ZZZ (SelOneP ptrue defDec) (SelOne a) a []
 
 testselraw :: [[SqlValue]] -> ZZZ SelRaw
@@ -147,13 +145,13 @@ testp1 :: Rec ZZZ '[SelOne Bool, SelOne Char]
 testp1 = testselone True :& testselone 'c' :& RNil
 
 testp1a :: Rec ZZZ '[SelOne (Int, String), SelOne (Int, String)]
-testp1a = testselone (1,"hello\nworld and more data") :& testselone (2,"this is a test dude\r\n\tx\n\n\nxx") :& RNil
+testp1a = testselone (1,"hello\nworld and more data") :& testselone (2,"this is a test afield\r\n\tx\n\n\nxx") :& RNil
 
 testp1b :: Rec ZZZ '[Sel (Int, String), Sel (Int, String)]
-testp1b = testsel [(1,"hello\nworld and more data"),(2,"some text")] :& testsel [(99,"this is a test dude\r\n\tx\n\n\nxx"), (100,"some stuff")] :& RNil
+testp1b = testsel [(1,"hello\nworld and more data"),(2,"some text")] :& testsel [(99,"this is a test afield\r\n\tx\n\n\nxx"), (100,"some stuff")] :& RNil
 
 testp1c :: Rec ZZZ '[Sel (String, Int), Sel (String, Int)]
-testp1c = testsel [("hello\nworld and more data",1),("some text",2)] :& testsel [("this is a test dude\r\n\tx\n\n\nxx",99), ("some stuff",100)] :& RNil
+testp1c = testsel [("hello\nworld and more data",1),("some text",2)] :& testsel [("this is a test afield\r\n\tx\n\n\nxx",99), ("some stuff",100)] :& RNil
 
 testp2 :: Rec ZZZ '[Sel (One Bool), Sel (One Char)]
 testp2 = testsel (map One [False,True]) :& testsel (map One ['c','d']) :& RNil
@@ -196,7 +194,7 @@ testp12 = testsel [T2 11, T2 123] :& RNil
 testp13 :: Rec ZZZ '[Sel (One Int)]
 testp13 = testsel [One 11, One 123, One 1233] :& RNil
 
-testp13a :: (Show a, DefDec (Dec a)) => [a] -> Rec ZZZ '[Sel (One a)]
+testp13a :: DefDec (Dec a) => [a] -> Rec ZZZ '[Sel (One a)]
 testp13a xs = testsel (map One xs) :& RNil
 
 testp14 :: Rec ZZZ '[SelRaw]
@@ -263,7 +261,7 @@ z2 = do
        putStrLn $ tableString [fixedLeftCol 50, def, fixedLeftCol 30, numCol]
                        asciiS
                        (titlesH ["title1", "Bool", "title2", "SomeNum"])
-                       [ colsAllG xx [justifyText 50 s1,  ["True"], justifyText 50 ("dude\t\t" ++ s2 ++ "\t\txx"),  ["4444.1"]]
+                       [ colsAllG xx [justifyText 50 s1,  ["True"], justifyText 50 ("afield\t\t" ++ s2 ++ "\t\txx"),  ["4444.1"]]
                        , colsAllG xx [justifyText 50 s1a,  ["False"], justifyText 50 s2a,  ["1.2"]]
                        , colsAllG xx [justifyText 50 s1b,  ["True"], justifyText 50 s2b,  ["2222229"]]
                        ]
@@ -325,7 +323,7 @@ officia deserunt mollit anim id est laborum.|]
 
 z4 = putStrLn $ tableString [fixedLeftCol 50, numCol, numCol]
                           asciiS
-                          (titlesH ["Text", "Length", "dude"])
+                          (titlesH ["Text", "Length", "afield"])
                           [ colsAllG center [ justifyText 50 txt1
                                             , [show $ length txt1]
                                             , ["12345"]
@@ -369,35 +367,37 @@ cols2 = [Left 123, Left 456]
 type TF0 = F '["aa" ::: String]
 
 tf00 :: Rec ZZZ '[Sel TF0]
-tf00 = ZZZ (SelP ptrue defDec) undefined [#aa =: "dude" :& RNil, #aa =: "this" :& RNil, #aa =: "world" :& RNil] [] :& RNil
+tf00 = ZZZ (SelP ptrue defDec) undefined [#aa =: "afield" :& RNil, #aa =: "this" :& RNil, #aa =: "world" :& RNil] [] :& RNil
 
 type TF1 = F '["aa" ::: String, "bb" ::: Int]
 
 tf11 :: Rec ZZZ '[Sel TF1]
-tf11 = ZZZ (SelP ptrue defDec) undefined [#aa =: "dude" :& #bb =: 999 :& RNil] [] :& RNil
+tf11 = ZZZ (SelP ptrue defDec) undefined [#aa =: "afield" :& #bb =: 999 :& RNil] [] :& RNil
 
 type TF2 = F '["aa" ::: (Int, String), "bb" ::: (String,String,String)]
 
 tf11x :: Rec ZZZ '[Sel TF2]
-tf11x = ZZZ (SelP ptrue defDec) undefined [#aa =: (44, "dude") :& #bb =: ("a","b","c") :& RNil] [] :& RNil
+tf11x = ZZZ (SelP ptrue defDec) undefined [#aa =: (44, "afield") :& #bb =: ("a","b","c") :& RNil] [] :& RNil
 
 tf22 :: Rec ZZZ '[Sel (String,Int)]
-tf22 = ZZZ (SelP ptrue defDec) undefined [("dude",999)] [] :& RNil
+tf22 = ZZZ (SelP ptrue defDec) undefined [("afield",999)] [] :& RNil
 
 tf33 :: Rec ZZZ '[Sel (MakeF (String,Int))]
-tf33 = ZZZ (SelP ptrue defDec) undefined [#c1 =: "dude" :& #c2 =: 999 :& RNil, #c1 =: "dude2" :& #c2 =: 1000 :& RNil] [] :& RNil
+tf33 = ZZZ (SelP ptrue defDec) undefined [#c1 =: "afield" :& #c2 =: 999 :& RNil, #c1 =: "afield2" :& #c2 =: 1000 :& RNil] [] :& RNil
 
 tf11a :: Rec ZZZ '[Sel TF1]
-tf11a = ZZZ (SelP ptrue defDec) undefined [#aa =: "dude" :& #bb =: 999 :& RNil, #aa =: "fred" :& #bb =: (-12) :& RNil] [] :& RNil
+tf11a = ZZZ (SelP ptrue defDec) undefined [#aa =: "afield" :& #bb =: 999 :& RNil, #aa =: "fred" :& #bb =: (-12) :& RNil] [] :& RNil
 
 tf11b :: Rec ZZZ '[SelOne TF1]
-tf11b = ZZZ (SelOneP ptrue defDec) undefined (#aa =: "dude" :& #bb =: 999 :& RNil) [] :& RNil
+tf11b = ZZZ (SelOneP ptrue defDec) undefined (#aa =: "afield" :& #bb =: 999 :& RNil) [] :& RNil
 
 tf22b :: Rec ZZZ '[SelOne (String,Int)]
-tf22b = ZZZ (SelOneP ptrue defDec) undefined ("dude",999) [] :& RNil
+tf22b = ZZZ (SelOneP ptrue defDec) undefined ("afield",999) [] :& RNil
 
 tf33b :: Rec ZZZ '[SelOne (MakeF (String,Int))]
-tf33b = ZZZ (SelOneP ptrue defDec) undefined (#c1 =: "dude" :& #c2 =: 999 :& RNil) [] :& RNil
+tf33b = ZZZ (SelOneP ptrue defDec) undefined (#c1 =: "afield" :& #c2 =: 999 :& RNil) [] :& RNil
+
+data IP a = IP {_octet1 :: a, _octet2 :: a, _octet3 :: a, _octet4 :: a} deriving (Show,Read,Eq)
 
 instance Show a => FromField (IP a) where
   fromField = (:[]) . show

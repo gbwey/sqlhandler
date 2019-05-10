@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
@@ -9,10 +10,10 @@ import Data.Text (Text)
 import Database.HDBC (SqlValue(..))
 import EasyTest
 import Encoding
-import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
+import qualified Generics.SOP as GS
+import qualified GHC.Generics as G
 import Test.Hspec
-import Control.Lens
 import Sql
 
 spec :: SpecWith ()
@@ -37,3 +38,23 @@ suite = tests
   , scope "encoding.ex10" $ expectEq (unEnc (encList' encBool) [True,False]) [SqlInt32 1,SqlInt32 0]
   , scope "encoding.ex10" $ expectEq (unEnc (encList' encBoolMS) [True,False]) [SqlChar '\SOH',SqlChar '\NUL']
   ]
+
+
+data T6 = T6 { t66 :: Char, t666 :: Double } deriving (G.Generic, Show)
+instance GS.Generic T6
+instance GS.HasDatatypeInfo T6
+instance DefEnc (Enc T6)
+
+{-
+>GO.gfoldMap @DefE (\s -> unEnc defE s) (T6 'x' 123.45)
+[SqlChar 'x',SqlDouble 123.45]
+it :: [SqlValue]
+
+>unEnc defE (T6 'x' 1233.5)
+[SqlChar 'x',SqlDouble 1233.5]
+it :: [SqlValue]
+-}
+
+
+
+

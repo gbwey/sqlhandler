@@ -1,13 +1,30 @@
+{-
+SqlBool True -> "select ?" postgres fails unless you cast ? to the type you want
+so the type doesnt help
+
+way too complex to inline gfoldmap
+to use defEnc need 4 things
+1. deriving G.Generic
+2. instance GS.Generic LogCmd
+3. instance GS.HasDatatypeInfo LogCmd
+4. instance DefEnc (Enc LogCmd)
+
+-- could do this but may have to move code around cos of TH
+import qualified Generics.SOP.TH as GS
+GS.deriveGeneric ''LogCmd
+-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS -Wall #-}
 {- |
 Module      : Encoding
@@ -35,9 +52,19 @@ import qualified Data.Vinyl.Recursive as VR
 import qualified Control.Lens as L
 import VinylUtils
 import Data.Function
+import qualified Generics.OneLiner as GO
 
 -- | 'Enc' encodes a haskell value to a list of sqlvalues
 newtype Enc a = Enc { unEnc :: a -> [SqlValue] } deriving Generic
+
+class DefEnc (Enc a) => DefE a where
+  defE :: Enc a
+  defE = defEnc
+
+instance DefEnc (Enc a) => DefE a
+
+gencode :: forall t. (GO.ADT t, GO.Constraints t DefE) => t -> [SqlValue]
+gencode = GO.gfoldMap @DefE (unEnc defE)
 
 newtype RawEnc = RawEnc { unRawEnc :: [SqlValue] } deriving (Show, Generic)
 
@@ -118,11 +145,6 @@ encBoolMS = Enc $ \b -> [SqlChar (if b then '\1' else '\0')]
 encBool :: Enc Bool
 encBool = Enc $ \b -> [SqlInt32 (if b then 1 else 0)]
 
--- for databases that support real booleans SqlBool eg postgres. encBool will work fine in context
-newtype Bool' = Bool' { unBool' :: Bool } deriving (Show,Eq)
-encBool' :: Enc Bool'
-encBool' = Enc ((:[]) . SqlBool . unBool')
-
 encChar :: Enc Char
 encChar = Enc $ \c -> [SqlChar c]
 
@@ -157,15 +179,12 @@ encHMSRev = Enc $ \i  ->
 instance Show (Enc a) where
   show Enc {} = "Enc<fn>"
 
--- saves having to type defEnc @(Enc String) == defE @String
--- | 'defE' is a convenience method for defDec using typeapplications
-defE :: forall a. DefEnc (Enc a) => Enc a
-defE = defEnc
-
 -- | 'DefEnc' is the default class for encoding input
--- this will mostly do the right thing and return the right encoder
 class DefEnc a where
   defEnc :: a
+  default defEnc :: (a ~ Enc t, GO.ADT t, GO.Constraints t DefE) => a
+  defEnc = Enc gencode
+
 
 instance DefEnc (Enc ()) where
   defEnc = conquer
@@ -207,18 +226,15 @@ instance DefEnc (Enc a) => DefEnc (Enc (Maybe a)) where
 instance DefEnc (Enc a) => DefEnc (Enc (EncList a)) where
   defEnc = unEncList >$< encList' defEnc
 
+-- only defined in one-liner for tuples of size seven but defined in SOP for higher stuff: although there are instances higher than that???
+-- could inline gfoldMap and then could get rid of the one-liner dependency and use the bigger tuple sizes of sop but gfoldMap is complex
 instance (DefEnc (Enc a1),DefEnc (Enc a2)) => DefEnc (Enc (a1,a2)) where
-  defEnc = divided defEnc defEnc
 instance (DefEnc (Enc a1),DefEnc (Enc a2),DefEnc (Enc a3)) => DefEnc (Enc (a1,a2,a3)) where
-  defEnc = divide (\(a1,a2,a3) -> (a1,(a2,a3))) defEnc defEnc
 instance (DefEnc (Enc a1),DefEnc (Enc a2),DefEnc (Enc a3),DefEnc (Enc a4)) => DefEnc (Enc (a1,a2,a3,a4)) where
-  defEnc = divide (\(a1,a2,a3,a4) -> (a1,(a2,a3,a4))) defEnc defEnc
 instance (DefEnc (Enc a1),DefEnc (Enc a2),DefEnc (Enc a3),DefEnc (Enc a4),DefEnc (Enc a5)) => DefEnc (Enc (a1,a2,a3,a4,a5)) where
-  defEnc = divide (\(a1,a2,a3,a4,a5) -> (a1,(a2,a3,a4,a5))) defEnc defEnc
 instance (DefEnc (Enc a1),DefEnc (Enc a2),DefEnc (Enc a3),DefEnc (Enc a4),DefEnc (Enc a5),DefEnc (Enc a6)) => DefEnc (Enc (a1,a2,a3,a4,a5,a6)) where
-  defEnc = divide (\(a1,a2,a3,a4,a5,a6) -> (a1,(a2,a3,a4,a5,a6))) defEnc defEnc
 instance (DefEnc (Enc a1),DefEnc (Enc a2),DefEnc (Enc a3),DefEnc (Enc a4),DefEnc (Enc a5),DefEnc (Enc a6),DefEnc (Enc a7)) => DefEnc (Enc (a1,a2,a3,a4,a5,a6,a7)) where
-  defEnc = divide (\(a1,a2,a3,a4,a5,a6,a7) -> (a1,(a2,a3,a4,a5,a6,a7))) defEnc defEnc
+
 instance (DefEnc (Enc a1),DefEnc (Enc a2),DefEnc (Enc a3),DefEnc (Enc a4),DefEnc (Enc a5),DefEnc (Enc a6),DefEnc (Enc a7),DefEnc (Enc a8)) => DefEnc (Enc (a1,a2,a3,a4,a5,a6,a7,a8)) where
   defEnc = divide (\(a1,a2,a3,a4,a5,a6,a7,a8) -> (a1,(a2,a3,a4,a5,a6,a7,a8))) defEnc defEnc
 instance (DefEnc (Enc a1),DefEnc (Enc a2),DefEnc (Enc a3),DefEnc (Enc a4),DefEnc (Enc a5),DefEnc (Enc a6),DefEnc (Enc a7),DefEnc (Enc a8),DefEnc (Enc a9)) => DefEnc (Enc (a1,a2,a3,a4,a5,a6,a7,a8,a9)) where

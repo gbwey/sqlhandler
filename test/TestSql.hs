@@ -30,14 +30,14 @@ AlleP (UpdP 0 :+: SelRawP 0) 0 :: SingleIn (Alle (Upd :+: SelRaw))
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 module TestSql where
-import qualified Data.Vinyl.Functor as V
+--import qualified Data.Vinyl.Functor as V
 import Data.Vinyl
-import Data.Vinyl.Functor hiding (Identity,Const,Compose)
+--import Data.Vinyl.Functor hiding (Identity,Const,Compose)
 import Data.Vinyl.TypeLevel hiding (Nat)
 --import qualified Control.Lens as L -- hiding (rmap,Identity)
 import Control.Lens hiding (rmap,Identity,Const)
 import Data.Text (Text)
-import Text.Shakespeare.Text
+--import Text.Shakespeare.Text
 import Sql
 import TablePrinter
 import PredState
@@ -45,7 +45,7 @@ import EasyTest
 import Test.Hspec
 import Database.HDBC.ColTypes (SqlTypeId (SqlUnknownT))
 import GHC.TypeLits
-import qualified PCombinators as P
+--import qualified PCombinators as P
 import Control.Arrow
 
 data R1 = R1 { r1 :: String, r2 :: Bool, r3 :: Char } deriving (Show,Eq)
@@ -84,7 +84,7 @@ suite = tests
   , scope "single.fail2b" $ expect (has (_Left . to (xes @SelUpdE) . _head) (processRet (E1 (SelOneP @Bool ptrue defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
   , scope "gtest1" $ expect (xes'' @NoResultSetE gtest1)
   , scope "gtest2" $ expectEq (ext <$> gtest2) (Right (123,[(11,True),(22,False)]))
-  , scope "gtest3" $ expectEq (ext <$> gtest3) (Right (123,[("dude",True),("zzz",False)]))
+  , scope "gtest3" $ expectEq (ext <$> gtest3) (Right (123,[("afield",True),("zzz",False)]))
   , scope "gtest4" $ expectEq (ext <$> gtest4) (Right [123,999,-8])
   , scope "gtest5" $ expectEq (ext <$> gtest5) (Right (Left 123))
   , scope "gtest5'" $ expectEq (ext <$> gtest5') (Right (Right 123))
@@ -190,7 +190,7 @@ gtest2 = gtestA [Left 123, Right [[SqlInt32 11, SqlBool True],[SqlInt32 22, SqlB
 gtest2' = gtestA [Left 123, Right [[SqlInt32 11, SqlBool True],[SqlInt32 22, SqlBool False]]] (ueq 124 :& defDec :& RNil)
 
 gtest3 :: Either SE (Rec ZZZ '[Upd, Sel (Text, Bool)])
-gtest3 = gtestA [Left 123, Right [[SqlString "dude", SqlBool True],[SqlString "zzz", SqlBool False]]] defDec
+gtest3 = gtestA [Left 123, Right [[SqlString "afield", SqlBool True],[SqlString "zzz", SqlBool False]]] defDec
 
 gtest4 :: Either SE (Rec ZZZ '[Alle Upd])
 gtest4 = gtestA [Left 123, Left 999, Left (-8)] defDec

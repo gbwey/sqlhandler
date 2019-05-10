@@ -28,7 +28,7 @@ import PredHelper
 --deriving instance Generic1 V.Identity
 --instance NFData1 V.Identity
 
--- dude we need this else invalidNested1 fails [handled by Frames
+-- we need this else invalidNested1 fails [handled by Frames]
 --instance NFData a => NFData (V.Identity a)
 
 deriving instance Generic ConvE

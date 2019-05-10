@@ -227,7 +227,7 @@ data ElFieldDec (field :: (Symbol, Type)) where
 class DecList rs where
   decList :: Rec Dec rs -> Dec (DecTuples rs)
 instance TypeError ('Text "DecList not defined for the empty list") => DecList '[] where
-  decList RNil = error "dude"
+  decList RNil = error "decList empty case!"
 instance DecList '[d1] where
   decList (d1 :& RNil) = One <$> d1
 instance DecList '[d1,d2] where
@@ -317,7 +317,6 @@ instance TypeError ('Text "end of the universe"
               ':$$: 'Text "restaurant is closed"
               ':$$: 'Text "did you not see the signs back there"
               ':$$: 'Text "hmmm ..."
-              ':$$: 'Text "ok dude here we go "
               ':<>: 'Text "I do not know what type you want"
               ':$$: 'Text "somehow GHC has bounced you here: DefDec (Dec ())"
                     ) => DefDec (Dec ()) where

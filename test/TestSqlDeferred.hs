@@ -73,7 +73,7 @@ C:\haskell\sqlhandler\src\OrphanInstances.hs:24:102: error:
 invalidNested1 :: Rec SingleIn '[Alle Upd :+: Alle Upd]
 invalidNested1 = E1 (AlleP (UpdP ptrue) ptrue :+: AlleP (UpdP ptrue) ptrue)
 
--- oops!! dude this is bad
+-- nested alle which is wrong
 invalidNested2 :: Rec SingleIn '[Alle (Alle Upd)]
 invalidNested2 = E1 (AlleP (AlleP (UpdP ptrue) ptrue) ptrue)
 

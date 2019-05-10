@@ -351,8 +351,8 @@ getFieldNames p =
 fNms :: HasCallStack => GS.NP GS.ConstructorInfo a -> [String]
 fNms (GS.Record _ xs GS.:* _) = fNmsRec xs
 fNms ((GS.Constructor _ :: GS.ConstructorInfo z) GS.:* _) = let ll = GS.lengthSList (Proxy @z) in map (("?"++).show) [0..ll-1]
-fNms GS.Nil = error "dude fNms Nil"
-fNms (GS.Infix {} GS.:* _) = error "dude fNms Infix"
+fNms GS.Nil = error "impossible case: fNms Nil"
+fNms (GS.Infix {} GS.:* _) = error "impossible case: fNms Infix"
 
 fNmsRec :: GS.NP GS.FieldInfo a -> [String]
 fNmsRec GS.Nil = []
@@ -561,7 +561,7 @@ toRow o a =
   case GS.from a of
     GS.SOP (GS.Z xs) -> let ret = GS.hcollapse (GS.hcliftA ff (\(GS.I v) -> GS.K (coltype (_oRC o ^. _2) v, convstring o v, fieldtype (v <$ Proxy) v)) xs)
                   in concatMap (\(as,bs,cs) -> SE.zip3Exact as bs cs) ret
-    GS.SOP (GS.S _) -> error "dude: toRow SOP S"
+    GS.SOP (GS.S _) -> error "impossible case: toRow SOP S"
   where ff = Proxy :: Proxy FromField
 
 toColSqlValue :: Opts -> SqlValue -> (ColSpec, [String], FType)
@@ -804,7 +804,7 @@ padMat (ld,rd) xs ys
       f (Just a) (Just b) = a ++ b
       f Nothing (Just b) = replicate lcols ld ++ b
       f (Just a) Nothing = a ++ replicate rcols rd
-      f Nothing Nothing = error "dude" -- this cannot happen but it did!
+      f Nothing Nothing = error "impossible case: padMat" -- this cannot happen but it did!
   in A.padZipWith f xs ys
 
 -- cant use semigroup instance for MMM cos rfoldMap expects a monoid
