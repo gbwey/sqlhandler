@@ -1,4 +1,6 @@
 {-
+--use generic oneliner instead of generics-sop to make this easier
+
 can wprint 3 different types
 Rec ElField rs ie with fields
 Rec V.Identity rs  ie without fields
@@ -86,7 +88,7 @@ instance (V.RecAll ZZZ rs ZPrint) => Printer (Rec ZZZ rs)
 -- {-# OPTIONS -Wno-redundant-constraints #-}
 {- |
 Module      : TablePrinter
-Description : utilities for displaying resultsets
+Description : utilities for displaying resultsets in tabular form.
 Copyright   : (c) Grant Weyburne, 2016
 License     : GPL-3
 Maintainer  : gbwey9@gmail.com
@@ -336,11 +338,11 @@ instance (ZPrint (ZZZ a), ZPrint (ZZZ b)) => ZPrint (ZZZ (a :+: b)) where
 -- need to prefix Alle info for each zprint
 instance ZPrint (ZZZ a) => ZPrint (ZZZ (Alle a)) where
   zprintH (ZZZ (AlleP x _) (Alle xs) ys _ ) o = mconcat $ zipWith (\a b -> zprintH (ZZZ x a b []) o) xs ys
-  zprintV (ZZZ (AlleP x _) (Alle xs) ys _ ) o fn pos = (pos+length xs,) $ mconcat $ map snd $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn "Alle ") i) xs ys [pos..]
+  zprintV (ZZZ (AlleP x _) (Alle xs) ys _ ) o fn pos = (pos+length xs,) $ foldMap snd $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn "Alle ") i) xs ys [pos..]
 
-instance (KnownNat n, ZPrint (ZZZ a)) => ZPrint (ZZZ (Some n a)) where
+instance (P.GetBool rev, KnownNat n, ZPrint (ZZZ a)) => ZPrint (ZZZ (Some rev n a)) where
   zprintH (ZZZ (SomeP x _) (Some xs) ys _ ) o = mconcat $ zipWith (\a b -> zprintH (ZZZ x a b []) o) xs ys
-  zprintV (ZZZ (SomeP x _) (Some xs) ys _ ) o fn pos = (pos+length xs,) $ mconcat $ map snd $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn ("Some " <> show (P.pnat @n) <> " ")) i) xs ys [pos..]
+  zprintV (ZZZ (SomeP x _) (Some xs) ys _ ) o fn pos = (pos+length xs,) $ foldMap snd $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn ("Some " <> (if P.getBool @rev then "Reverse " else "") <> show (P.pnat @n) <> " ")) i) xs ys [pos..]
 
 getFieldNames :: GS.HasDatatypeInfo a => proxy a -> [String]
 getFieldNames p =
@@ -671,6 +673,7 @@ whatcoltype i x | x `elem` [SqlCharT, SqlVarCharT, SqlLongVarCharT, SqlWCharT, S
                    = def
                 | otherwise = def
 
+-- | 'wprint'' displays sql output to the screen using ascii
 wprint' :: Printer a => a -> IO ()
 wprint' = wprintWith (poAscii defT)
 

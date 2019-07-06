@@ -5,6 +5,13 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS -Wall #-}
+{- |
+Module      : Conv
+Description : Provides default converters from sql values to haskell values
+Copyright   : (c) Grant Weyburne, 2016
+License     : GPL-3
+Maintainer  : gbwey9@gmail.com
+-}
 module Conv where
 import qualified Data.ByteString.Char8 as B
 import Data.ByteString (ByteString)
@@ -25,7 +32,7 @@ type EE = NonEmpty ConvE
 failCE :: String -> String -> [SqlValue] -> Either EE a
 failCE a b c = Left (ConvE a b c :| [])
 
-data ConvE = ConvE { _cvType :: !String, _cvMessage :: !String, _cvSqlValue :: ![SqlValue] } deriving (Eq,Typeable)
+data ConvE = ConvE { _cvType :: !String, _cvMessage :: !String, _cvSqlValue :: ![SqlValue] } deriving Eq
 -- makeLenses ''ConvE
 
 instance Show ConvE where

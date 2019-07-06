@@ -27,7 +27,7 @@ Copyright   : (c) Grant Weyburne, 2016
 License     : GPL-3
 Maintainer  : gbwey9@gmail.com
 
-'Dec' defines a decoder and 'DefDec' has the default decoder for a given type
+'Dec' defines a decoder and 'DefDec' has the default decoder for a given type.
 -}
 module Decoding where
 import Control.Lens
@@ -72,7 +72,7 @@ liftCE = fmap (CoRec . V.Identity)
 failDE :: String -> String -> [SqlValue] -> Either DE a
 failDE a b c = Left (CoRec (V.Identity (DecodingE a b c)) :| [])
 
-data DecodingE = DecodingE { _deMethod :: !String, _deMessage :: !String, _deSqlValues :: ![SqlValue] } deriving (Eq,Typeable)
+data DecodingE = DecodingE { _deMethod :: !String, _deMessage :: !String, _deSqlValues :: ![SqlValue] } deriving Eq
 -- makeLenses ''DecodingE
 instance Show DecodingE where
   show (DecodingE a b c) = "DecodingE method=" ++ a ++ " msg=" ++ b ++ " sqlvalues=" ++ intercalate "," (map show c)

@@ -33,7 +33,7 @@ Copyright   : (c) Grant Weyburne, 2016
 License     : GPL-3
 Maintainer  : gbwey9@gmail.com
 
-'Enc' defines an encoder and 'DefEnc' has the default encoder for a given type
+'Enc' defines an encoder and 'DefEnc' has the default encoder for a given type. Used for converting input from haskell values to sql values.
 -}
 module Encoding where
 import Data.ByteString (ByteString)

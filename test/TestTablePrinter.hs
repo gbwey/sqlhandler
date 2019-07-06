@@ -190,6 +190,13 @@ testp11 = testsome (replicate 5 (testsel [(False,'x'), (True,'y')])) :& RNil
 testp12 :: Rec ZZZ '[Sel T2]
 testp12 = testsel [T2 11, T2 123] :& RNil
 
+-- | test multiple values using generics-sop
+testp12a :: Rec ZZZ '[Sel T4]
+testp12a = testsel [T4 'x' 11, T4 'y' 123] :& RNil
+
+testp12b :: Rec ZZZ '[Sel (Char, Double)]
+testp12b = testsel [('x',11), ('y',123)] :& RNil
+
 -- singles dont print without One
 testp13 :: Rec ZZZ '[Sel (One Int)]
 testp13 = testsel [One 11, One 123, One 1233] :& RNil

@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.0.
+-- This file has been generated from package.yaml by hpack version 0.31.1.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 27b68bf02925e13822aec800024a81badb5116ce39412604d9d8215131f68950
+-- hash: 3cdd7007e29d864cb4d2ad6d1143ac4b65bb8b3b675b862614d18337456c12c5
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -39,6 +39,7 @@ library
     , generics-sop
     , lens
     , mtl
+    , one-liner
     , predicate
     , profunctors
     , safe
@@ -85,6 +86,7 @@ test-suite spec
     , hspec
     , lens
     , mtl
+    , one-liner
     , pipes
     , predicate
     , profunctors

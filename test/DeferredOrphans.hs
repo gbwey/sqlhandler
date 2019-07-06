@@ -91,11 +91,11 @@ instance NFData a => NFData (Alle a)
 deriving instance Generic1 Alle
 instance NFData1 Alle
 
---deriving instance Generic (Some n a)
-instance NFData a => NFData (Some n a)
+--deriving instance Generic (Some rev n a)
+instance NFData a => NFData (Some rev n a)
 
-deriving instance Generic1 (Some n)
-instance NFData1 (Some n)
+deriving instance Generic1 (Some rev n)
+instance NFData1 (Some rev n)
 
 --deriving instance Generic (a :+: b)
 instance (NFData a, NFData b) => NFData (a :+: b)
@@ -114,7 +114,7 @@ instance NFData (SingleIn a) => NFData (SingleIn (Alle a)) where
   rnf (AlleP a p) = rnf a `seq` p `seq` ()
 instance (NFData (SingleIn a), NFData (SingleIn b)) => NFData (SingleIn (a :+: b)) where
   rnf (a :+: b) = rnf a `seq` rnf b
-instance NFData (SingleIn a) => NFData (SingleIn (Some n a)) where
+instance NFData (SingleIn a) => NFData (SingleIn (Some rev n a)) where
   rnf (SomeP a p) = rnf a `seq` p `seq` ()
 instance NFData (SingleIn SelRaw) where
   rnf (SelRawP _p) = ()
