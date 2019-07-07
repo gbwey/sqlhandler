@@ -93,7 +93,7 @@ invalidAlle2 = E3 (SelOneP ptrue defDec) (AlleP (UpdP ptrue) ptrue) (UpdP ptrue)
 invalidAlle3 :: Rec SingleIn '[Alle Upd, Alle Upd]
 invalidAlle3 = E2 (AlleP (UpdP ptrue) ptrue) (AlleP (UpdP ptrue) ptrue)
 
-invalidAlle4 :: Rec SingleIn '[Alle Upd, Some 2 Upd]
+invalidAlle4 :: Rec SingleIn '[Alle Upd, Some 'False 2 Upd]
 invalidAlle4 = E2 (AlleP (UpdP ptrue) ptrue) (SomeP (UpdP ptrue) ptrue)
 
 {-

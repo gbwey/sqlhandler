@@ -52,7 +52,6 @@ import Data.Vinyl.CoRec (CoRec(..))
 import qualified Data.Vinyl.Functor as V
 import qualified Data.Vinyl.CoRec as VC
 import GHC.Stack
-import Data.Typeable
 import qualified Data.Functor.Identity as L
 import qualified PCombinators as P
 import Data.Kind (Type)

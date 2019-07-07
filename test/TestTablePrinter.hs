@@ -93,7 +93,7 @@ testeither p (ZZZ a1 a2 a3 a4) (ZZZ b1 b2 b3 b4) = ZZZ (a1 :+: b1) (EitherRS (bo
 testalle :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Alle a)
 testalle zs = ZZZ (AlleP defDec ptrue) (Alle (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
 
-testsome :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Some n a)
+testsome :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Some 'False n a)
 testsome zs = ZZZ (SomeP defDec ptrue) (Some (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
 
 testupd :: Int -> ZZZ Upd
@@ -183,7 +183,7 @@ testp9b = testeither True (testsel [(False,'x'), (True,'y')]) (testsel [(1,False
 testp10 :: Rec ZZZ '[Alle (Sel (Bool, Char))]
 testp10 = testalle (replicate 4 (testsel [(False,'x'), (True,'y')])) :& RNil
 
-testp11 :: Rec ZZZ '[Some 3 (Sel (Bool, Char))]
+testp11 :: Rec ZZZ '[Some 'False 3 (Sel (Bool, Char))]
 testp11 = testsome (replicate 5 (testsel [(False,'x'), (True,'y')])) :& RNil
 
 -- this works even tho a single value but it is wrapped in T2

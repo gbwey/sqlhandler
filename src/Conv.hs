@@ -25,7 +25,6 @@ import Database.HDBC (SqlValue(..))
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as N
 import Data.List
-import Data.Typeable
 
 type EE = NonEmpty ConvE
 

@@ -138,7 +138,7 @@ main = do
       ext <$> processRet valid2 [Right [[SqlInt32 3]]] `shouldBe` Right (Right 3)
  run suite
 
-valid1 :: Rec SingleIn '[Some 2 Upd, Alle (SelOne Bool)]
+valid1 :: Rec SingleIn '[Some 'False 2 Upd, Alle (SelOne Bool)]
 valid1 = E2 (SomeP defDec ptrue) (AlleP defDec ptrue)
 
 valid2 :: Rec SingleIn '[Upd :+: SelOne Int]
@@ -181,8 +181,8 @@ tst3 = processRet (E3 (SelP ptrue defDec) (UpdP ptrue) (SelP ptrue defDec)) [rsa
 tst4 :: Int -> Either SE (Rec ZZZ '[Sel (Bool, Char)])
 tst4 i = processRet (E1 (SelP (PLen (peq i)) defDec)) [rsa]
 
-gtestA :: RecAll ZZZ rs SingleZ => [HRet] -> Rec SingleIn rs -> Either SE (Rec ZZZ rs)
-gtestA a b = processRet' (toZZZ b) a
+gtestA :: (ValidateNested rs, RecAll ZZZ rs SingleZ) => [HRet] -> Rec SingleIn rs -> Either SE (Rec ZZZ rs)
+gtestA a b = processRet b a
 
 gtest1, gtest2, gtest2' :: Either SE (Rec ZZZ '[Upd, Sel (Int, Bool)])
 gtest1 = gtestA [Left 123] defDec

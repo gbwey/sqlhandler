@@ -505,13 +505,13 @@ instance ShowOp 'OPGT where
 instance ShowOp 'OPNE where
   getPred = pne
 
-{-
+
 processRet
   :: (RecAll ZZZ rs SingleZ
     , ValidateNested rs
     ) => Rec SingleIn rs -> [HRet] -> Either SE (Rec ZZZ rs)
 processRet decRec = processRet' (toZZZ decRec)
--}
+
 -- | 'processRet'' evaluates all the resultsets without metadata making sure that the promised resultset type matches the actual resultset type and that the predicates for each pass and stuff is decoded correctly
 processRet'
   :: (RecAll ZZZ rs SingleZ
@@ -524,14 +524,13 @@ processRet' xs rss =
     Right ((pos,rss'), w) | null rss' -> Right w
                           | otherwise -> failUC "processRet'" pos "Unconsumed" rss'
 
-{-
 processRetCol
   :: (RecAll ZZZ rs SingleZ
     , ValidateNested rs
     ) => Rec SingleIn rs -> [HRetCol] -> Either SE (Rec ZZZ rs)
 processRetCol decRec = processRetCol' (toZZZ decRec)
--}
--- | 'processRetCol'' is the same as 'processRet' but additionally includes metadata
+
+-- | 'processRetCol'' is the same as 'processRet'' but additionally includes metadata
 processRetCol'
   :: (RecAll ZZZ rs SingleZ
     , ValidateNested rs
