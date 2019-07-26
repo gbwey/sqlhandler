@@ -7,5 +7,5 @@
 * the TablePrinter module is used for pretty printing SQL resultsets in tabular form
 * fully support SQL output predicates to ensure the data is valid
 
-see sqlhandler-odbc for the HDBC-odbc database implementations
+see [sqlhandler-odbc](https://github.com/gbwey/sqlhandler-odbc) for the HDBC-odbc database implementations
 

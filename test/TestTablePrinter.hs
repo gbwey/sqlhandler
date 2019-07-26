@@ -1,18 +1,3 @@
--- doctests for testa etc
-{-
-:set -package semigroupoids
-:m + Data.Semigroupoid
-exposes 'o' which is composition ie dot for categories without id [ie semigroup category without identity
-
-class Semigroupoid (c :: k -> k -> *) where
-  o :: forall (j :: k) (k1 :: k) (i :: k). c j k1 -> c i j -> c i k1
-
--}
--- FWrap seems to work for HRet only?
--- wprintWith defT { _oFixData = FWrap, _oRC = (20,7), _oStyle = asciiS } cols00
-
--- FTrunc is more common than FWrap
--- todo: wprint (SelRaw?) just bangs everything into 1 field cos of FromField: we need FromField to be called multiple times instead of using FromField [SqlValue] which is crap
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -33,8 +18,6 @@ class Semigroupoid (c :: k -> k -> *) where
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
 module TestTablePrinter where
---import qualified Data.ByteString.Char8 as B8
---import Data.ByteString (ByteString)
 import Data.Data
 import Text.Shakespeare.Text
 import qualified Data.Text as T
@@ -44,20 +27,16 @@ import qualified GHC.Generics as G
 import qualified Generics.SOP as GS
 import Control.Lens hiding (from, to)
 import Data.Vinyl
---import qualified Data.Vinyl as V
---import qualified Data.Vinyl.TypeLevel as V
 import Data.Vinyl.Syntax ()  -- orphan instance so we can use #abc as a lens!
 import Sql
 import Data.Bool
 import TablePrinter
 import Database.HDBC.ColTypes
 import Test.Hspec
---import GHC.TypeLits
 import PredState
 import qualified Frames as F
 import Frames (Frame(..))
 import qualified Control.Foldl as FL
---import qualified Control.Scanl as FS
 import Frames.CSV -- (readTableOpt, rowGen, RowGen(..))
 import qualified Pipes as P -- hiding (Proxy)
 
@@ -95,6 +74,9 @@ testalle zs = ZZZ (AlleP defDec ptrue) (Alle (map _zzz2 zs)) (map _zzz3 zs) (con
 
 testsome :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Some 'False n a)
 testsome zs = ZZZ (SomeP defDec ptrue) (Some (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
+
+testemos :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Some 'True n a)
+testemos zs = ZZZ (SomeP defDec ptrue) (Some (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
 
 testupd :: Int -> ZZZ Upd
 testupd rc = ZZZ (UpdP ptrue) (Upd rc) rc []
@@ -185,6 +167,9 @@ testp10 = testalle (replicate 4 (testsel [(False,'x'), (True,'y')])) :& RNil
 
 testp11 :: Rec ZZZ '[Some 'False 3 (Sel (Bool, Char))]
 testp11 = testsome (replicate 5 (testsel [(False,'x'), (True,'y')])) :& RNil
+
+testp11a :: Rec ZZZ '[Some 'True 1 (Sel (Bool, Char)), SelOne (Char, Bool)]
+testp11a = testemos (replicate 5 (testsel [(False,'x'), (True,'y')])) :& (testselone ('x', False)) :& RNil
 
 -- this works even tho a single value but it is wrapped in T2
 testp12 :: Rec ZZZ '[Sel T2]
@@ -410,10 +395,5 @@ instance Show a => FromField (IP a) where
   fromField = (:[]) . show
   coltype i = const [upto i]
   fieldtype _ = const [Stringy]
-
-
-avgf :: Fractional a => FL.Fold a a
-avgf = FL.Fold (\(n,t) a -> (n+1,t+a)) (0,0) (\(n,t) -> t/n)
-
 
 

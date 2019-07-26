@@ -1,69 +1,3 @@
-{-
---use generic oneliner instead of generics-sop to make this easier
-
-can wprint 3 different types
-Rec ElField rs ie with fields
-Rec V.Identity rs  ie without fields
-or tuples [One for single values] -- more restrictive than Rec version cos supports One and tuples of size 2..8
-
-'[(Symbol,*)] ie with fields
-----------------------------
-   Sel (Rec ElField '["c1" ::: Int, "c2" ::: Bool])
-== Sel (F '["c1" ::: Int, "c2" ::: Bool]) -- type synonym
-== Sel (ToFields' '[Int, Bool])   --- type family to add fields to '[*]  -- max of 8
-== Sel (ToFields'' '[Int, Bool])  --- type family to add fields to '[*]  -- no maximum!! but the columnnames are dumb: eg c1 c11 c111 c1111 etc (at least they are distinct but only have GS.AppendSymbol to work with!
-== Sel (ToFields (Int, Bool))     --- type family to add fields to One and tuples (upto 8)
-
-'[*] ie without fields
-----------------------
-   Sel (Rec V.Identity '[Int, Bool])
-== Sel (W '[Int,Bool])  -- type synonym
-
-simple One and tuples 2..8  [can do without the One but then doesnt wprint!
---------------------------
-Sel (Int,Bool)
-
-the code here works with any Foldable t => t (F rs) which includes Frame (F rs) and [F rs] etc
-
-Frame is Foldable but not traversable as it would need the 'a' to be Traversable to be efficient unless you use toList which is not very efficient
-toList ie [F rs] is foldable and since [a] is traversable we can use this with Control.Scanl
-
-eg
-a <- loadUsers
-wprint $ FS.scan (postscanF @"totx" (FL.premap (V.rvalf #tot) FL.mean)) (toList a)
-
-not sure what implications of overlapping instances are for ZPrint Sel and SelOne
-also got rid of qprint: everything runs through wprint but overlapping instances for Sel and SelOne for the fields and no fields version ie new vs old style eg '[Sel (Int,Bool)] vs '[Sel (F '["aa" ::: Int, "bb" ::: Bool])]
-
-wprint
-  runSqlRaw         [HRet]
-  runSqlRawCol      [HRetCol]
-  runSql/runSqlCol  Rec ZZZ rs   -- without fields  eg ZZZ (Sel rs), ZZZ (SelOne rs)  using generic-sop and supporting tuples and One
-  Frames [use runSql/runSqlCol with fields then use toFrames to convert to a Frame -- F.Frame (F rs)
-
--- FIXED with overlapping instance handles all the cases except cant differentiate between Rec ZZZ rs where rs is without fields or with fields
--- this drives wprint
-instance Printer [HRet]
-instance Printer [HRetCol]
-instance Printer (F.Frame (F rs))
-instance (V.RecAll ZZZ rs ZPrint) => Printer (Rec ZZZ rs)
-
--- coltype is only used in toRow : do we need it?
-
--- singles eg Sel Char doesnt print but Sel (One Char) does!
-
--- only these tablestyles work: unicodeDdoubleFrameS / unicodeS / asciiS / asciiRoundS
--- the other ones crash on windows cos cant output certain chars
--- need to add a stopper to prttable stuff so we dont try to create a massive string and kill memory:so truncate option on #of rows in a resultset
-
--- hmap == hliftA hcollapse busts stuff out
--- hcliftA just adds a constraint for all 'a' so hcliftA == hliftA Proxy    thus hclift (Proxy @Show) will work forall a
-
--- doesnt handle nested tuples eg [(ColDataType, ColumnMeta)] -- we need to cascade down somehow: this is a generics sop thing! look at toRow
- -- tricky: how do we know to go down a level? do we need to call another method that will drop down one level
- -- to distinguish simple tuples from complex ones
--}
--- allow user to take a slice:ie only include certain columns by column number
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
@@ -629,7 +563,7 @@ prttableHSelRaw o meta ts =
          ,MMM (map (\z -> map (view _2 . Safe.atNote "prttableHSelRaw MMM" z) is) zs))
     _ -> error "prttableHSelRaw empty list!"
 
-prttableH :: forall xs a . (GS.HasDatatypeInfo a, GS.Generic a, GS.Code a ~ '[xs], GS.All FromField xs, HasCallStack)
+prttableH :: forall xs a . (GS.HasDatatypeInfo a, GS.Code a ~ '[xs], GS.All FromField xs, HasCallStack)
   => Opts -> [HMeta] -> [a] -> ([ColSpec], [String], MMM [String])
 prttableH _ _ [] = ([upto 20], ["oops"], MMM [[["no data"]]])
 prttableH o meta ts =
@@ -643,7 +577,7 @@ prttableH o meta ts =
          ,MMM (map (\z -> map (view _2 . Safe.atNote "prttableH MMM" z) is) zs))
     _ -> error "prttableH empty list!"
 
-prttableV :: forall xs a . (GS.HasDatatypeInfo a, GS.Generic a, GS.Code a ~ '[xs], GS.All FromField xs, HasCallStack)
+prttableV :: forall xs a . (GS.HasDatatypeInfo a, GS.Code a ~ '[xs], GS.All FromField xs, HasCallStack)
   => Opts -> [HMeta] -> [a] -> String
 prttableV _ _ [] = "*** no data ***"
 prttableV o meta ts =

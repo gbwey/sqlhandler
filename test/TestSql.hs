@@ -1,7 +1,7 @@
 -- V.Const has no applicative instance!
 -- use V.Identity where possibly cos nicer display instance and makes life easier
 {-
--- gets you back to [HRet]
+-- AnyRaw gets you back to [HRet]
 >:kind! SingleOut (Alle (Upd :+: SelRaw))
 SingleOut (Alle (Upd :+: SelRaw)) :: *
 = [Either Int [[SqlValue]]]
@@ -30,14 +30,10 @@ AlleP (UpdP 0 :+: SelRawP 0) 0 :: SingleIn (Alle (Upd :+: SelRaw))
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 module TestSql where
---import qualified Data.Vinyl.Functor as V
 import Data.Vinyl
---import Data.Vinyl.Functor hiding (Identity,Const,Compose)
 import Data.Vinyl.TypeLevel hiding (Nat)
---import qualified Control.Lens as L -- hiding (rmap,Identity)
 import Control.Lens hiding (rmap,Identity,Const)
 import Data.Text (Text)
---import Text.Shakespeare.Text
 import Sql
 import TablePrinter
 import PredState
@@ -45,7 +41,6 @@ import EasyTest
 import Test.Hspec
 import Database.HDBC.ColTypes (SqlTypeId (SqlUnknownT))
 import GHC.TypeLits
---import qualified PCombinators as P
 import Control.Arrow
 
 data R1 = R1 { r1 :: String, r2 :: Bool, r3 :: Char } deriving (Show,Eq)

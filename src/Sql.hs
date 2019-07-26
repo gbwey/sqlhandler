@@ -1,6 +1,4 @@
--- replace weakenCoRec . weakenCoRec . .. with a class: need a proof that ts is in ts'
--- use a dsl to create sql value with encoding decoding or use defaults as part of the dsl
-{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns #-}
+{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
 -- {-# OPTIONS -Wno-redundant-constraints #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
