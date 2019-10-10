@@ -6,13 +6,15 @@ packages:
   extra-dep: true
 - location: ../predicate
   extra-dep: true
+- location: ../predicate-typed
+  extra-dep: true
 - location: ../table-layout
   extra-dep: true
 - location: ../typelevel
   extra-dep: true
 - location: ../easytest
   extra-dep: true
-extra-deps: 
+extra-deps:
 - pretty-terminal-0.1.0.0
 - pretty-tree-0.1.0.0
 - tree-view-0.5
@@ -21,3 +23,5 @@ extra-deps:
 - discrimination-0.4
 arch: x86_64
 resolver: lts-13.25
+
+# ghc-options: {"$locals": -ddump-to-file -ddump-hi}

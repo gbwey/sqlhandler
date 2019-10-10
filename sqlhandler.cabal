@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3cdd7007e29d864cb4d2ad6d1143ac4b65bb8b3b675b862614d18337456c12c5
+-- hash: 82f24bae075d7170f8b860168b521ad83858779ff587288fe4d877d9dce90ac4
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -20,6 +20,7 @@ library
       Decoding
       Encoding
       One
+      Raw
       Sql
       TablePrinter
       VinylUtils
@@ -27,7 +28,7 @@ library
       Paths_sqlhandler
   hs-source-dirs:
       src
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fomit-interface-pragmas
   build-depends:
       Frames
     , HDBC ==2.4.0.3
@@ -41,16 +42,15 @@ library
     , mtl
     , one-liner
     , predicate
+    , predicate-typed
     , profunctors
     , safe
     , shakespeare
     , table-layout ==0.9.0.0
-    , tagged
     , text
     , these
     , time
     , typelevel
-    , vector
     , vinyl >=0.10.0.1
   default-language: Haskell2010
 
@@ -69,7 +69,7 @@ test-suite spec
       Paths_sqlhandler
   hs-source-dirs:
       test
-  ghc-options: -threaded -O0
+  ghc-options: -threaded -O0 -fomit-interface-pragmas
   build-depends:
       Frames
     , HDBC ==2.4.0.3
@@ -89,17 +89,16 @@ test-suite spec
     , one-liner
     , pipes
     , predicate
+    , predicate-typed
     , profunctors
     , safe
     , shakespeare
     , should-not-typecheck
     , sqlhandler
     , table-layout ==0.9.0.0
-    , tagged
     , text
     , these
     , time
     , typelevel
-    , vector
     , vinyl >=0.10.0.1
   default-language: Haskell2010

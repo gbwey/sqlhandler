@@ -48,8 +48,8 @@ statictests1  =
           , removeTypes @Bool tst13 == tst13a
           ] `seq` ()
 
-main :: IO ()
-main = run suite
+doit :: IO ()
+doit = run suite
 
 -- rix rind makef reclen recget postscanF prescanF uniqueRec
 suite :: Test ()
@@ -76,8 +76,8 @@ suite = tests
   , scope "fold" $ expectEq (FL.fold (FL.premap (rvalf #c) FL.sum) tst8) 15
   , scope "scan1" $ expectEq tst8a tst8a'
   , scope "scan2" $ expectEq tst8b tst8b'
-  , scope "ellens" $ expectEq ((#a =: True) & elLens  %~ show . not) (#a =: "False")
-  , scope "ellens1" $ expectEq ((#a =: True) & elLens1 @"b" %~ show . not) (#b =: "False") -- if wrong symbol will fail with compile time error!
+  , scope "ellens1" $ expectEq ((#a =: True) & elLens  %~ show . not) (#a =: "False")
+  , scope "ellens2" $ expectEq ((#a =: True) & elLens1 @"b" %~ show . not) (#b =: "False") -- if wrong symbol will fail with compile time error!
   , scope "defval1" $ expectEq (defVal :: Rec ElField '["aa" ::: Bool]) (#aa =: False :& RNil)
   , scope "defval2" $ expectEq (defVal :: Rec ElField '["aa" ::: Bool, "bb" ::: Int, "cc" ::: String, "dd" ::: Maybe Int]) (#aa =: False :& #bb =: 0 :& #cc =: "" :& #dd =: Nothing :& RNil)
   , scope "defval3" $ expectEq (defVal :: Rec V.Identity '[Int,Bool,Maybe String]) (V.Identity 0 :& V.Identity False :& V.Identity Nothing :& RNil)

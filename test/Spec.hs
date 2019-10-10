@@ -13,7 +13,7 @@ import EasyTest
 main :: IO ()
 main = do
   hspec spec
-  TestSqlDeferred.main
+  TestSqlDeferred.doit
   mapM_ run [TestConv.suite
             ,TestEncoding.suite
             ,TestDecoding.suite

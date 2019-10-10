@@ -50,7 +50,8 @@ import Data.Vinyl
 import Data.Vinyl.TypeLevel
 import qualified Data.Vinyl.Functor as V
 import Data.Proxy
-import GHC.TypeLits hiding (natVal, natVal') -- (TypeError,ErrorMessage(..))
+import GHC.TypeLits (ErrorMessage((:<>:)),Symbol,KnownSymbol)
+import qualified GHC.TypeLits as GL -- (GL.GL.GL.TypeError,ErrorMessage(..))
 import GHC.TypeNats
 import GHC.Natural
 import Data.Type.Equality
@@ -73,7 +74,7 @@ import qualified Data.Set as Set
 import Data.These
 
 type F = Rec ElField -- :: [(Symbol, Type)] -> Type
-type W = Rec V.Identity -- :: [Type] -> Type
+type WW = Rec V.Identity -- :: [Type] -> Type
 
 -- if you cant be bothered naming the fields manually then this will do it for you
 -- useful if you want to convert to a Frame and run stats on the frame
@@ -95,7 +96,7 @@ type family ToFields (a :: Type) = (ret :: [(Symbol,Type)]) | ret -> a where
   ToFields (a1,a2,a3,a4,a5,a6)       = '["c1" ::: a1, "c2" ::: a2, "c3" ::: a3, "c4" ::: a4, "c5" ::: a5, "c6" ::: a6]
   ToFields (a1,a2,a3,a4,a5,a6,a7)    = '["c1" ::: a1, "c2" ::: a2, "c3" ::: a3, "c4" ::: a4, "c5" ::: a5, "c6" ::: a6, "c7" ::: a7]
   ToFields (a1,a2,a3,a4,a5,a6,a7,a8) = '["c1" ::: a1, "c2" ::: a2, "c3" ::: a3, "c4" ::: a4, "c5" ::: a5, "c6" ::: a6, "c7" ::: a7, "c8" ::: a8]
-  --ToFields a                         = TypeError ('Text "only caters for (One a) and tuples up to size 8!")
+  --ToFields a                         = GL.TypeError ('GL.Text "only caters for (One a) and tuples up to size 8!")
 
 --  ToFields' as = ToFieldsImpl (XSS X999) as  -- X9 for small X99 for medium and X999 for very large
 
@@ -105,7 +106,7 @@ type family ToFields' (as :: [Type]) :: [(Symbol, Type)] where
     '[ '(P.BetweenSym2 0 9, ToFields'ImplSym2 'SMALL as)
      , '(P.BetweenSym2 10 99, ToFields'ImplSym2 'MEDIUM as)
      , '(P.BetweenSym2 100 999, ToFields'ImplSym2 'LARGE  as)
-     ] (TypeError ('Text "ToFields' too many fields length=" ':<>: 'ShowType (Length as)))
+     ] (GL.TypeError ('GL.Text "ToFields' too many fields length=" ':<>: 'GL.ShowType (Length as)))
      (Length as)
 
 data ToFields'ImplSym0 :: SZ ~> [Type] ~> Bool ~> [(Symbol,Type)]
@@ -123,7 +124,7 @@ type family ToFields'Impl (sz :: SZ) (as :: [Type]) (b :: Bool) :: [(Symbol, Typ
   ToFields'Impl 'SMALL as 'True = ToFieldsImpl (XSS X9) as
   ToFields'Impl 'MEDIUM as 'True = ToFieldsImpl (XSS X99) as
   ToFields'Impl 'LARGE as 'True = ToFieldsImpl (XSS X999) as
-  ToFields'Impl x as 'False = TypeError ('Text "ToFields'Impl: shouldnt be called")
+  ToFields'Impl x as 'False = GL.TypeError ('GL.Text "ToFields'Impl: shouldnt be called")
 
 data SZ = SMALL | MEDIUM | LARGE
 

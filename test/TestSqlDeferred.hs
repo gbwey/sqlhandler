@@ -1,4 +1,3 @@
--- DONE: need to fix this one!
 {-
 this fixed it: defined for Data.Functor.Identity but not vinyl Identity
 deriving instance Generic1 V.Identity
@@ -15,22 +14,22 @@ D:\haskell\sqlhandler\test\TestSqlDeferred.hs:75:7: warning: [-Wdeferred-type-er
                         Control.DeepSeq.NFData (Data.Functor.Identity.Identity a)
           -- Defined in `Control.DeepSeq'
     * In the second argument of `($)', namely
-        `shouldNotTypecheck (processRet invalidNested1 [])'
+        `shouldNotTypecheck (processRetCol invalidNested1 [])'
       In a stmt of a 'do' block:
         it "should not allow Alle within :+: or Some or Alle"
-          $ shouldNotTypecheck (processRet invalidNested1 [])
+          $ shouldNotTypecheck (processRetCol invalidNested1 [])
       In the second argument of `($)', namely
         `do it "should not allow an Int to be a String"
               $ shouldNotTypecheck (4 :: String)
             it "should not allow Alle within :+: or Some or Alle"
-              $ shouldNotTypecheck (processRet invalidNested1 [])
+              $ shouldNotTypecheck (processRetCol invalidNested1 [])
             it "should not allow Alle within :+: or Some or Alle"
-              $ shouldNotTypecheck (processRet invalidNested2 [])
+              $ shouldNotTypecheck (processRetCol invalidNested2 [])
             it "should not allow Alle within :+: or Some or Alle"
-              $ shouldNotTypecheck (processRet invalidNested3 [])
+              $ shouldNotTypecheck (processRetCol invalidNested3 [])
             ....'
    |
-75 |       shouldNotTypecheck (processRet invalidNested1 [])
+75 |       shouldNotTypecheck (processRetCol invalidNested1 [])
    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -}
 
@@ -100,29 +99,29 @@ invalidAlle4 = E2 (AlleP (UpdP ptrue) ptrue) (SomeP (UpdP ptrue) ptrue)
 on machine at home i get a segfault -- could be ghc or my crazy instances of NFData instead of using Generic more
 -}
 
-main :: IO ()
-main = hspec $
+doit :: IO ()
+doit = hspec $
   describe "Type Tests" $ do
     it "should not allow an Int to be a String" $
       shouldNotTypecheck (4 :: String)
     it "should not allow Alle within :+: or Some or Alle" $
-      shouldNotTypecheck (processRet invalidNested1 [])
+      shouldNotTypecheck (processRetCol invalidNested1 [])
     it "should not allow Alle within :+: or Some or Alle" $
-      shouldNotTypecheck (processRet invalidNested2 [])
+      shouldNotTypecheck (processRetCol invalidNested2 [])
     it "should not allow Alle within :+: or Some or Alle" $
-      shouldNotTypecheck (processRet invalidNested3 [])
+      shouldNotTypecheck (processRetCol invalidNested3 [])
     it "should not allow Alle within :+: or Some or Alle" $
-      shouldNotTypecheck (processRet invalidNested4 [])
+      shouldNotTypecheck (processRetCol invalidNested4 [])
 
     it "should not allow Alle/Some unless last and only one" $
-      shouldNotTypecheck (processRet invalidAlle1 [])
+      shouldNotTypecheck (processRetCol invalidAlle1 [])
     it "should not allow Alle/Some unless last and only one" $
-      shouldNotTypecheck (processRet invalidAlle2 [])
+      shouldNotTypecheck (processRetCol invalidAlle2 [])
     it "should not allow Alle/Some unless last and only one" $
-      shouldNotTypecheck (processRet invalidAlle3 [])
+      shouldNotTypecheck (processRetCol invalidAlle3 [])
     it "should not allow Alle/Some unless last and only one" $
-      shouldNotTypecheck (processRet invalidAlle4 [])
+      shouldNotTypecheck (processRetCol invalidAlle4 [])
 
 --    it "should not allow Alle/Some unless last and only one" $
---       shouldNotTypecheck $ processRet valid6 []
+--       shouldNotTypecheck $ processRetCol valid6 []
 

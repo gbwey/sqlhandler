@@ -1,8 +1,11 @@
+{-# OPTIONS -Wall #-}
+{-# OPTIONS -Wcompat #-}
+{-# OPTIONS -Wincomplete-record-updates #-}
+{-# OPTIONS -Wincomplete-uni-patterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -14,12 +17,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns #-}
--- {-# OPTIONS -Wno-redundant-constraints #-}
+{-# LANGUAGE PolyKinds #-}
 {- |
 Module      : TablePrinter
 Description : utilities for displaying resultsets in tabular form.
@@ -62,7 +63,9 @@ import GHC.Stack
 import qualified Frames as F
 import Data.Foldable
 import qualified PCombinators as P
-
+import Refined
+import Refined3
+import Predicate
 -- | a type synonym for functions that change the order of columns displayed or even drop columns
 type Fn1 = [(Int, ([String], FType))] -> [Int]
 
@@ -91,6 +94,16 @@ data Opts = Opts { _oFile       :: !(Maybe FilePath) -- ^ optionally print to a 
                  , _oMorph :: Morph -- ^ transform the text of a cell: used for handling control characters
                  }
 
+instance Show Opts where
+  show o = "Opts:"
+              ++ " _oRC=" ++ show (_oRC o)
+              ++ " _oFile=" ++ show (_oFile o)
+              ++ " _oFixData=" ++ show (_oFixData o)
+              ++ " _oVertical=" ++ show (_oVertical o)
+              ++ " _oStyle=?"
+              ++ " _oFn1=?"
+              ++ " _oMorph=?"
+
 makeLenses ''Opts
 
 -- | 'defT' default options
@@ -100,7 +113,7 @@ defT = Opts { _oFile = Nothing
              , _oFixData = FTrunc
              , _oFn1 = defFn1
              , _oVertical = Vertical
-             , _oRC = (5,40)
+             , _oRC = (5,50)
              , _oMorph = defMorph1
              }
 
@@ -250,15 +263,19 @@ instance {-# OVERLAPPABLE #-}(GS.HasDatatypeInfo a, GS.Generic a, GS.Code a ~ '[
 
 instance ZPrint (ZZZ SelRaw) where
   zprintH (ZZZ _ _ a meta) o = prttableHSelRaw o meta a -- globs stuff into one field but not used much anyway!
-  zprintV (ZZZ _ _ a meta) o fn pos = (pos+1, fn ("SelRaw",pos) <> concat (if null meta then prtHRet o [Right @Int a] else prtHRetCol o [Right @Int (head meta, a)])) -- delegate to wprint ie prtHRet
+  zprintV (ZZZ _ _ a meta) o fn pos =
+    (pos+1, fn ("SelRaw",pos) <> concat (if null meta then prtHRetCol o [Right @Int ([],a)]
+                                         else prtHRetCol o [Right @Int (head meta, a)]
+                                         )
+    )
 
 instance ZPrint (ZZZ Upd) where
   zprintH (ZZZ _ _ rc _) _ = ([upto 20], ["Upd"], MMM [[["Upd rc=" ++ show rc]]])
   zprintV (ZZZ _ _ rc _) _ fn pos = (pos+1, fn ("Upd",pos) <> "Upd " <> show rc)
 
 instance (ShowOp op, KnownNat val) => ZPrint (ZZZ (UpdN op val)) where
-  zprintH (ZZZ _ _ rc _) _ = ([upto 20], [show (getPred @op (P.pnat @val))], MMM [[["UpdN rc=" ++ show rc]]])
-  zprintV (ZZZ _ _ rc _) _ fn pos = (pos+1, fn (show (getPred @op (P.pnat @val)), pos) <> "UpdN " <> show rc)
+  zprintH (ZZZ _ _ rc _) _ = ([upto 20], [show (getPredOp @op (P.pnat @val))], MMM [[["UpdN rc=" ++ show rc]]])
+  zprintV (ZZZ _ _ rc _) _ fn pos = (pos+1, fn (show (getPredOp @op (P.pnat @val)), pos) <> "UpdN " <> show rc)
 
 instance (ZPrint (ZZZ a), ZPrint (ZZZ b)) => ZPrint (ZZZ (a :+: b)) where
   zprintH (ZZZ (x :+: _) (EitherRS (Left w)) (Left a) _) o = zprintH (ZZZ x w a []) o
@@ -271,12 +288,22 @@ instance (ZPrint (ZZZ a), ZPrint (ZZZ b)) => ZPrint (ZZZ (a :+: b)) where
 
 -- need to prefix Alle info for each zprint
 instance ZPrint (ZZZ a) => ZPrint (ZZZ (Alle a)) where
-  zprintH (ZZZ (AlleP x _) (Alle xs) ys _ ) o = mconcat $ zipWith (\a b -> zprintH (ZZZ x a b []) o) xs ys
-  zprintV (ZZZ (AlleP x _) (Alle xs) ys _ ) o fn pos = (pos+length xs,) $ foldMap snd $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn "Alle ") i) xs ys [pos..]
+  zprintH (ZZZ (AlleP x _) (Alle xs) ys _ ) o =
+    mconcat
+    $ zipWith (\a b -> zprintH (ZZZ x a b []) o) xs ys
+  zprintV (ZZZ (AlleP x _) (Alle xs) ys _ ) o fn pos =
+    (pos+length xs,)
+    $ foldMap snd
+    $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn "Alle ") i) xs ys [pos..]
 
 instance (P.GetBool rev, KnownNat n, ZPrint (ZZZ a)) => ZPrint (ZZZ (Some rev n a)) where
-  zprintH (ZZZ (SomeP x _) (Some xs) ys _ ) o = mconcat $ zipWith (\a b -> zprintH (ZZZ x a b []) o) xs ys
-  zprintV (ZZZ (SomeP x _) (Some xs) ys _ ) o fn pos = (pos+length xs,) $ foldMap snd $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn ("Some " <> (if P.getBool @rev then "Reverse " else "") <> show (P.pnat @n) <> " ")) i) xs ys [pos..]
+  zprintH (ZZZ (SomeP x _) (Some xs) ys _ ) o =
+    mconcat
+    $ zipWith (\a b -> zprintH (ZZZ x a b []) o) xs ys
+  zprintV (ZZZ (SomeP x _) (Some xs) ys _ ) o fn pos =
+    (pos+length xs,)
+    $ foldMap snd
+    $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn ("Some " <> (if P.getBool @rev then "Reverse " else "") <> show (P.pnat @n) <> " ")) i) xs ys [pos..]
 
 getFieldNames :: GS.HasDatatypeInfo a => proxy a -> [String]
 getFieldNames p =
@@ -488,6 +515,17 @@ instance FromField a => FromField (Maybe a) where
   coltype i = maybe [def] (coltype i) -- can we use numCol even if "null"
   fieldtype _ = const (fieldtype (Proxy @a) undefined)
 
+-- needs PolyKinds else 'True for p won't work! W 'True will work cos is kind Type
+instance FromField a => FromField (Refined p a) where
+  fromField (Refined a) = fromField a
+  coltype i (Refined a) = coltype i a
+  fieldtype _ (Refined a) = fieldtype Proxy a
+
+instance (Show (PP fmt (PP ip i)), Show (PP ip i)) => FromField (Refined3 ip op fmt i) where
+  fromField (Refined3 a b) = fromField ("R3:" ++ show (a,b))
+  coltype i (Refined3 a b) = coltype i (show (a,b))
+  fieldtype _ (Refined3 a b) = fieldtype Proxy (show (a,b))
+
 upto :: Int -> ColSpec
 upto i = column (expandUntil i) Text.Layout.Table.left def def
 
@@ -548,8 +586,8 @@ flattenCell o s1 =
 -- has to be at the end of the previous line
 
 prttableHSelRaw :: HasCallStack
-  => Opts -> [HMeta] -> [[SqlValue]] -> ([ColSpec], [String], MMM [String])
-prttableHSelRaw _ _ [] = ([upto 20], ["oops"], MMM [[["no data"]]])
+  => Opts -> [RMeta] -> [[SqlValue]] -> ([ColSpec], [String], MMM [String])
+prttableHSelRaw _ _ [] = ([upto 20], ["no data"], MMM [[["no data"]]])
 prttableHSelRaw o meta ts =
   case (fmap.fmap) (toColSqlValue o) ts of
     zs@(z' : _) ->
@@ -564,28 +602,30 @@ prttableHSelRaw o meta ts =
     _ -> error "prttableHSelRaw empty list!"
 
 prttableH :: forall xs a . (GS.HasDatatypeInfo a, GS.Code a ~ '[xs], GS.All FromField xs, HasCallStack)
-  => Opts -> [HMeta] -> [a] -> ([ColSpec], [String], MMM [String])
-prttableH _ _ [] = ([upto 20], ["oops"], MMM [[["no data"]]])
+  => Opts -> [RMeta] -> [a] -> ([ColSpec], [String], MMM [String])
+prttableH _ _ [] = ([upto 20], ["no data"], MMM [[["no data"]]])
 prttableH o meta ts =
   case map (toRow o) ts of
     zs@(z' : _) ->
       let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "prttableH cols" z') is
-          flds = if null meta then getFieldNames (Proxy @a) else map fst $ head meta
+          flds = if null meta then getFieldNames (Proxy @a)
+                 else map fst $ head meta
       in (cols
          ,map (Safe.atNote ("prttableH flds=" ++ show flds ++ " is=" ++ show is) flds) is
          ,MMM (map (\z -> map (view _2 . Safe.atNote "prttableH MMM" z) is) zs))
     _ -> error "prttableH empty list!"
 
 prttableV :: forall xs a . (GS.HasDatatypeInfo a, GS.Code a ~ '[xs], GS.All FromField xs, HasCallStack)
-  => Opts -> [HMeta] -> [a] -> String
+  => Opts -> [RMeta] -> [a] -> String
 prttableV _ _ [] = "*** no data ***"
 prttableV o meta ts =
   case map (toRow o) ts of
     zs@(z' : _) ->
       let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "prttableV cols" z') is
-          flds' = if null meta then getFieldNames (Proxy @a) else map fst $ head meta
+          flds' = if null meta then getFieldNames (Proxy @a)
+                  else map fst $ head meta
           flds = if length is > length flds' then take (length is) (zipWith (\i n -> n <> show i) [1::Int ..] (cycle flds'))
                  else flds'
       in tableString cols
@@ -640,9 +680,9 @@ wprintWith o xs = case _oFile o of
 -- | 'Printer' directs the to the implementation that handles printing
 class Printer a where
   wfn :: Opts -> a -> [String]
-instance Printer [HRet] where
-  wfn = prtHRet
-instance Printer [HRetCol] where
+--instance Printer [HRet] where
+--  wfn = prtHRet
+instance Printer [ResultSet] where
   wfn = prtHRetCol
 instance (Foldable t, ReifyConstraint FromField V.Identity rs, RFoldMap rs)
    => Printer (t (Rec V.Identity rs)) where
@@ -658,40 +698,20 @@ instance (V.RecAll ZZZ rs ZPrint) => Printer (Rec ZZZ rs) where
   wfn o a = [(if _oVertical o == Vertical then prttableRecV else prttableRecH) o a]
 
 -- | 'prtHRetCol' handles printing untyped resultsets with metadata
-prtHRetCol :: Opts -> [HRetCol] -> [String]
+prtHRetCol :: Opts -> [ResultSet] -> [String]
 prtHRetCol _ [] = ["nothing to print"]
 prtHRetCol o lrs =
   let prefix i = "\n" <> show i <> " of " <> show (length lrs) <> " "
   in flip map (zip [1::Int ..] lrs) $ \case
           (i,Left rc) -> prefix i <> "Update rc=" <> show rc
           (i,Right (cs,rss)) ->
---              let cols = map (whatcoltype (_oLens o) . colType . snd) cs
+          -- todo: probably not worth using coltype to get ColSpec:just use info from convstring that tells us the width
               let cols = map (const (upto (_oRC o ^. _2))) cs
                   rows = map (concatMap (convstring o)) rss
---                  rows = flip map rss $ \rs ->
---                            map (map concat . convstring o) rs
               in prefix i <> "Select " <> show (length rows) <> " rows\n"
                           <> tableString cols
                              (_oStyle o)
                              (titlesH $ map fst cs)
-                             (map (colsAllG top) rows)
-
--- | 'prtHRet' handles printing untyped resultsets without metadata
-prtHRet :: Opts -> [HRet] -> [String]
-prtHRet _ [] = ["nothing to print"]
-prtHRet o lrs =
-  let prefix i = show i <> " of " <> show (length lrs) <> " "
-  in flip map (zip [1::Int ..] lrs) $ \case
-          (i,Left rc) -> prefix i <> "Update rc=" <> show rc
-          (i,Right []) -> prefix i <> "Select *** no rows ***"
-          (i,Right rss@(rs:_)) ->
-          -- todo: probably not worth using coltype to get ColSpec:just use info from convstring that tells us the width
-              let cols = map (const (upto (_oRC o ^. _2))) rs
-                  rows = map (concatMap (convstring o)) rss
-              in prefix i <> "Select " <> show (length rows) <> " rows\n"
-                          <> tableString cols
-                             (_oStyle o)
-                             (titlesH $ zipWith (\x v -> v <> "_" <> show x) [1::Int ..] (getColumnTypes rss))
                              (map (colsAllG top) rows)
 
 getColumnTypes :: [[SqlValue]] -> [String]
@@ -765,17 +785,22 @@ emptyMetaColName s | all isSpace s = True -- mssql
 --                   | anyOf _head (=='\'') s = True -- strings: oracle and sqlite
                    | otherwise = False
 
-addMetaToColName :: [String] -> HMeta -> [String]
+addMetaToColName :: [String] -> RMeta -> [String]
 addMetaToColName xs ys =
-  zipWith (\x (y,_) -> if emptyMetaColName y then x else x ++ "(" ++ y ++ ")") xs (ys ++ repeat hMetaNull)
+  zipWith (\x (y,_) ->
+            if emptyMetaColName y then x
+            else x ++ "(" ++ y ++ ")"
+          ) xs (ys ++ repeat hMetaNull)
 
-addColumnNameUsingMeta :: Int -> HMeta -> [String]
+addColumnNameUsingMeta :: Int -> RMeta -> [String]
 addColumnNameUsingMeta n ys =
-  zipWith (\x (y,_) -> if emptyMetaColName y then x else y) (map (\i -> "col_" <> show i)[1..n]) (ys ++ repeat hMetaNull)
+  zipWith (\x (y,_) -> if emptyMetaColName y then x else y)
+          (map (\i -> "col_" <> show i) [1..n])
+          (ys ++ repeat hMetaNull)
 
 qprttableH :: forall rs . (ReifyConstraint FromField V.Identity rs, RFoldMap rs, HasCallStack)
   => Opts -> [String] -> [Rec V.Identity rs] -> ([ColSpec], [String], MMM [String])
-qprttableH _ _ [] = ([upto 20], ["oops"], MMM [[["no data"]]])
+qprttableH _ _ [] = ([upto 20], ["no data"], MMM [[["no data"]]])
 qprttableH o colnames ts =
   let ret = ts <&> \w ->
   -- the dictionary is for V.Identity v not v by itself!

@@ -1,6 +1,5 @@
 {-
 SqlBool True -> "select ?" postgres fails unless you cast ? to the type you want
-so the type doesnt help
 
 way too complex to inline gfoldmap
 to use defEnc need 4 things
@@ -25,6 +24,7 @@ GS.deriveGeneric ''LogCmd
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE PolyKinds #-} -- need this for Refined and Refined3
 {-# OPTIONS -Wall #-}
 {- |
 Module      : Encoding
@@ -53,7 +53,10 @@ import qualified Control.Lens as L
 import VinylUtils
 import Data.Function
 import qualified Generics.OneLiner as GO
-
+import Predicate
+import Refined3
+import Refined
+import Raw
 -- | 'Enc' encodes a haskell value to a list of sqlvalues
 newtype Enc a = Enc { unEnc :: a -> [SqlValue] } deriving Generic
 
@@ -91,6 +94,9 @@ encSqlValue = Enc (:[])
 
 encRawEnc :: Enc RawEnc
 encRawEnc = Enc unRawEnc
+
+encRaw :: Enc Raw
+encRaw = Enc unRaw
 
 encMaybe :: Enc a -> Enc (Maybe a)
 encMaybe (Enc enc) = Enc $ \mb -> maybe [SqlNull] enc mb
@@ -154,6 +160,12 @@ encString = Enc $ \s -> [SqlString s]
 encDouble :: Enc Double
 encDouble = Enc $ \d -> [SqlDouble d]
 
+encRefined :: DefEnc (Enc i) => Enc (Refined p i)
+encRefined = Enc $ \(Refined i) -> unEnc defEnc i
+
+-- do we encode the fmt output
+encRefined3 :: DefEnc (Enc (PP fmt (PP ip i))) => Enc (Refined3 ip op fmt i)
+encRefined3 = Enc $ \(Refined3 _ b) -> unEnc defEnc b
 
 encLocalTime :: Enc LocalTime
 encLocalTime = Enc $ \tm -> [SqlLocalTime tm]
@@ -185,7 +197,6 @@ class DefEnc a where
   default defEnc :: (a ~ Enc t, GO.ADT t, GO.Constraints t DefE) => a
   defEnc = Enc gencode
 
-
 instance DefEnc (Enc ()) where
   defEnc = conquer
 instance DefEnc (Enc ByteString) where
@@ -215,8 +226,16 @@ instance DefEnc (Enc LocalTime) where
 instance DefEnc (Enc Day) where
   defEnc = encDay
 
+instance DefEnc (Enc i) => DefEnc (Enc (Refined p i)) where
+  defEnc = encRefined
+-- only care about the outputted value to be encoded so dont need DefEnc (Enc (PP ip i))
+instance DefEnc (Enc (PP fmt (PP ip i))) => DefEnc (Enc (Refined3 ip op fmt i)) where
+  defEnc = encRefined3
+
 instance DefEnc (Enc RawEnc) where
   defEnc = encRawEnc
+instance DefEnc (Enc Raw) where
+  defEnc = encRaw
 instance DefEnc (Enc SqlValue) where
   defEnc = encSqlValue
 
@@ -284,4 +303,3 @@ encode3 (a,b,c) = encodeVals defEnc (I3 a b c)
 
 encode4 :: (DefEnc (Enc a), DefEnc (Enc b), DefEnc (Enc c), DefEnc (Enc d)) => (a,b,c,d) -> [SqlValue]
 encode4 (a,b,c,d) = encodeVals defEnc (I4 a b c d)
-

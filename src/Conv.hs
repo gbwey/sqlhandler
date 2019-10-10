@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# OPTIONS -Wall #-}
 {- |
 Module      : Conv
@@ -25,13 +25,14 @@ import Database.HDBC (SqlValue(..))
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as N
 import Data.List
+import GHC.Generics (Generic)
 
 type EE = NonEmpty ConvE
 
 failCE :: String -> String -> [SqlValue] -> Either EE a
 failCE a b c = Left (ConvE a b c :| [])
 
-data ConvE = ConvE { _cvType :: !String, _cvMessage :: !String, _cvSqlValue :: ![SqlValue] } deriving Eq
+data ConvE = ConvE { _cvType :: !String, _cvMessage :: !String, _cvSqlValue :: ![SqlValue] } deriving (Generic, Eq)
 -- makeLenses ''ConvE
 
 instance Show ConvE where
@@ -190,8 +191,8 @@ convnum = go
 --         [(a :: a, zs)] | all (=='\0') zs -> failCE "Num" ("convnum: mssql?: invalid number from sqlbytestring has nulls cos truncated? (append with 'e' or cast explicitly) bs=[" ++ B.unpack bs ++ "] reads output=" ++ show o) [z]
          o -> failCE "Num" ("convnum: for oracle?: invalid number from sqlbytestring bs=[" ++ B.unpack bs ++ "] reads output=" ++ show o) [z]
   go z@(SqlDouble d) =
-      let r = d - fromIntegral (floor d :: Integer) -- highly speculative
-      in if r == 0 then return $ fromIntegral (truncate d :: Integer) -- stinkin' oracle!
+      let r = d - fromIntegral (floor d :: Integer) -- yep
+      in if r == 0 then return $ fromIntegral (truncate d :: Integer) 
          else failCE "Num" "convnum:invalid integer even for oracle as it has a fraction" [z]
   go o = failCE "Num" ("convnum:invalid number " ++ getSqlTypeHack o) [o]
 

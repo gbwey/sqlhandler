@@ -36,7 +36,6 @@ import Test.Hspec
 import PredState
 import qualified Frames as F
 import Frames (Frame(..))
-import qualified Control.Foldl as FL
 import Frames.CSV -- (readTableOpt, rowGen, RowGen(..))
 import qualified Pipes as P -- hiding (Proxy)
 
@@ -280,8 +279,7 @@ z2'' ts =
                  (titlesH flds)
                  (flip map zs $ \z -> colsAllG xx (map (view _2) z))
 
-
-z2''' :: forall xs a . (GS.HasDatatypeInfo a, GS.Generic a, GS.Code a ~ '[xs], GS.All FromField xs)
+z2''' :: forall xs a . (GS.HasDatatypeInfo a, GS.Code a ~ '[xs], GS.All FromField xs)
   => [a] -> String
 z2''' ts =
   let xx = top -- center -- vs top bottom
@@ -322,24 +320,7 @@ z4 = putStrLn $ tableString [fixedLeftCol 50, numCol, numCol]
                                             ]
                           ]
 
-cols0 :: [HRet]
-cols0 = [Right [
-       [SqlByteString "abcd\n\r\n\nefg\nhij"]
-      ,[SqlByteString "some text1"]
-      ,[SqlByteString "some text2"]
-      ,[SqlByteString "some text3"]
-      ]]
-
-cols00 :: [HRet]
-cols00 = [Right [
-       [SqlByteString "abcd\n\r\n\nefg\nhij", SqlBool True, SqlNull]
-      ,[SqlByteString "some text1",SqlBool False,SqlString "hello"]
-      ,[SqlByteString "some text2",SqlBool False,SqlString "hello"]
-      ,[SqlByteString "some text3",SqlNull,SqlString "hello"]
-      ]]
-
-
-cols1 :: [HRetCol]
+cols1 :: [ResultSet]
 cols1 = [Right ([("SomeId",SqlColDesc {colType = SqlVarCharT, colSize = Just 20, colOctetLength = Nothing, colDecDigits = Nothing, colNullable = Just False}),("SerialNum",SqlColDesc {colType = SqlIntegerT, colSize = Just 10, colOctetLength = Nothing, colDecDigits = Nothing, colNullable = Just False}),("Guid",SqlColDesc {colType = SqlVarCharT, colSize = Just 100, colOctetLength = Nothing, colDecDigits = Nothing, colNullable = Just False}),("DateAdded",SqlColDesc {colType = SqlTimestampT, colSize = Just 23, colOctetLength = Nothing, colDecDigits = Nothing, colNullable = Just False}),("SomeId2",SqlColDesc {colType = SqlVarCharT, colSize = Just 20, colOctetLength = Nothing, colDecDigits = Nothing, colNullable = Just True})]
       ,[[SqlByteString "1234\n\r\n\n5678",SqlInt32 12345,SqlByteString "888A8AA8-AAAA-BBBB-CCCC--A1111AA1A11A",SqlLocalTime (read "2016-04-18 14:33:12.54"),SqlByteString "012345678"]
       ,[SqlByteString "23456788",SqlInt32 12346,SqlByteString "888A8AA8-AAAA-BBBB-CCCC--A1111AA1A11A",SqlLocalTime (read "2016-04-18 14:33:12.54"),SqlByteString "023456788"]
@@ -353,7 +334,7 @@ cols1 = [Right ([("SomeId",SqlColDesc {colType = SqlVarCharT, colSize = Just 20,
       ,[SqlByteString "890123456",SqlInt32 23495,SqlByteString "888A8AA8-AAAA-BBBB-CCCC--A1111AA1A11A",SqlLocalTime (read "2016-04-18 14:33:12.54"),SqlByteString "890123456"]])
       ]
 
-cols2 :: [HRetCol]
+cols2 :: [ResultSet]
 cols2 = [Left 123, Left 456]
 
 type TF0 = F '["aa" ::: String]

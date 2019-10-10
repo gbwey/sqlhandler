@@ -2,25 +2,18 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PolyKinds #-}
 module DeferredOrphans where
 import Control.DeepSeq
-import GHC.Generics (Generic,Generic1)
+import GHC.Generics (Generic, Generic1)
 import Database.HDBC
---import qualified Data.Vinyl as V
 import Data.Vinyl
---import qualified Data.Vinyl.Functor as V
---import Data.Vinyl.TypeLevel hiding (Nat)
---import Data.Proxy
 import qualified Data.Vinyl.CoRec as VC
---import qualified Data.Vinyl.Recursive as VR
 import Sql
 import PredHelper
 
@@ -31,73 +24,34 @@ import PredHelper
 -- we need this else invalidNested1 fails [handled by Frames]
 --instance NFData a => NFData (V.Identity a)
 
-deriving instance Generic ConvE
-instance NFData ConvE
-
-deriving instance Generic PredE
 instance NFData PredE
-
-deriving instance Generic PredExceptionE
 instance NFData PredExceptionE
 
-deriving instance Generic DecodingE
+instance NFData ConvE
+instance NFData UpdNE
 instance NFData DecodingE
-
-deriving instance Generic SingleE
-instance NFData SingleE
-
-deriving instance Generic SingleColE
 instance NFData SingleColE
-
-deriving instance Generic SelUpdE
-instance NFData SelUpdE
-
-deriving instance Generic UnconsumedE
-instance NFData UnconsumedE
-
-deriving instance Generic UnconsumedColE
+instance NFData UnexpectedResultSetTypeE
 instance NFData UnconsumedColE
-
-deriving instance Generic BadE
 instance NFData BadE
-
-deriving instance Generic NoResultSetE
 instance NFData NoResultSetE
 
---deriving instance Generic (Pred a)
---instance NFData a => NFData (Pred a)
-
---deriving instance Generic (Enc a)
 instance NFData a => NFData (Enc a)
-
---deriving instance Generic (Dec a)
 instance NFData a => NFData (Dec a)
-
---deriving instance Generic (Sel a)
 instance NFData a => NFData (Sel a)
-
---deriving instance Generic (SelOne a)
 instance NFData a => NFData (SelOne a)
-
---deriving instance Generic Upd
 instance NFData Upd
-
---deriving instance Generic (UpdN op val)
 instance NFData (UpdN op val)
-
---deriving instance Generic (Alle a)
 instance NFData a => NFData (Alle a)
 
 deriving instance Generic1 Alle
 instance NFData1 Alle
 
---deriving instance Generic (Some rev n a)
 instance NFData a => NFData (Some rev n a)
 
 deriving instance Generic1 (Some rev n)
 instance NFData1 (Some rev n)
 
---deriving instance Generic (a :+: b)
 instance (NFData a, NFData b) => NFData (a :+: b)
 
 -- todo: how to get rnf working for Pred a and Dec a: to get it working would need NFData a => in the definition of the GADT X itself for each constructor eg SelP SelOneP etc

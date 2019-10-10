@@ -4,15 +4,14 @@ author: Grant Weyburne
 maintainer: gbwey9@gmail.com
 license: BSD3
 dependencies:
-- tagged
-- base 
+- base
 - bytestring
 - containers
 - contravariant
 - foldl
 - Frames
 - generics-sop
-- HDBC ==2.4.0.3
+- HDBC == 2.4.0.3
 - lens
 - mtl
 - one-liner
@@ -25,11 +24,12 @@ dependencies:
 - these
 - time
 - typelevel
-- vector
 - vinyl >= 0.10.0.1
+- predicate-typed
+
 default-extensions: []
 library:
-  source-dirs: 
+  source-dirs:
   - src
   ghc-options:
   - -Wall
@@ -37,17 +37,22 @@ library:
   - -Wincomplete-record-updates
   - -Wincomplete-uni-patterns
   - -Wredundant-constraints
+  - -fomit-interface-pragmas
+
 
 tests:
   spec:
     main: "Spec.hs"
-    ghc-options: "-threaded -O0"
+    ghc-options:
+    - -threaded
+    - -O0
+    - -fomit-interface-pragmas
     source-dirs:
       - test
     dependencies:
       - sqlhandler
       - pipes
-      - hspec 
+      - hspec
       - QuickCheck
       - should-not-typecheck
       - deepseq

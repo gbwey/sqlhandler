@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
@@ -10,10 +9,9 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeInType #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE UndecidableInstances #-} -- need this for TypeError!!!
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE GADTs #-}
@@ -44,7 +42,8 @@ import Database.HDBC (SqlValue(..))
 import Conv
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as N
-import GHC.TypeLits
+import GHC.TypeLits (ErrorMessage((:$$:)),Nat,KnownNat,Symbol,KnownSymbol,symbolVal,natVal)
+import qualified GHC.TypeLits as GL -- (GL.GL.TypeError,ErrorMessage(..))
 import GHC.Generics (Generic)
 import Data.List
 import Data.Vinyl
@@ -55,7 +54,13 @@ import GHC.Stack
 import qualified Data.Functor.Identity as L
 import qualified PCombinators as P
 import Data.Kind (Type)
-
+import Predicate
+import Refined3
+import Refined
+import Data.Typeable
+import Data.Either
+import UtilP (o2)
+import Raw
 -- decoder is associated with a single result set for Selects only
 -- actually for a single row!
 -- need to check if we have consumed everything!!!
@@ -71,10 +76,13 @@ liftCE = fmap (CoRec . V.Identity)
 failDE :: String -> String -> [SqlValue] -> Either DE a
 failDE a b c = Left (CoRec (V.Identity (DecodingE a b c)) :| [])
 
-data DecodingE = DecodingE { _deMethod :: !String, _deMessage :: !String, _deSqlValues :: ![SqlValue] } deriving Eq
+data DecodingE = DecodingE { _deMethod :: !String, _deMessage :: !String, _deSqlValues :: ![SqlValue] } deriving (Eq, Generic)
 -- makeLenses ''DecodingE
 instance Show DecodingE where
-  show (DecodingE a b c) = "DecodingE method=" ++ a ++ " msg=" ++ b ++ " sqlvalues=" ++ intercalate "," (map show c)
+  show (DecodingE a b c) =
+    "DecodingE method=" ++ a
+    ++ " | " ++ b ++ " | "
+    ++ " sqlvalues=" ++ intercalate "," (map show c)
 
 decPrism :: Show s => Prism' s a -> Dec s -> Dec a
 decPrism p (Dec f) =
@@ -153,7 +161,10 @@ decNot (Dec d) =
 -- | 'decAddError' adds context if there is an error
 decAddError :: String -> String -> Dec a -> Dec a
 decAddError s t (Dec d) =
-  Dec $ \xs -> left' (CoRec (V.Identity (DecodingE s t xs)) N.<|) (d xs)
+  Dec $ \xs -> left' (decAddError' s t xs) (d xs)
+
+decAddError' :: String -> String -> [SqlValue] -> DE -> DE
+decAddError' s t xs = (CoRec (V.Identity (DecodingE s t xs)) N.<|)
 
 decSqlNull :: Dec SqlValue
 decSqlNull = decPred (==SqlNull)
@@ -177,13 +188,13 @@ unfoldM f s = do
 -- | convert a single decoder to work on a list
 decAlle :: forall a. Dec a -> Dec (DecAlle a)
 decAlle (Dec d) =
-  Dec $ \hhs -> left' (CoRec (V.Identity (DecodingE "Dec DecAlle" "" hhs)) N.<|) $ do
+  Dec $ \hhs -> left' (decAddError' "Dec DecAlle" "" hhs) $ do
                            as <- unfoldM (\hhs' -> if null hhs' then return Nothing else Just <$> d hhs') hhs
                            return (DecAlle as,[])
 
 decGeneric :: Conv a => Dec a
 decGeneric = Dec $ \case
-                      (c:cs) -> left' liftCE ((,cs) <$> conv [c])
+                      (c:cs) -> left' (decAddError' "decGeneric" "leftovers" (c:cs)) $ left' liftCE ((,cs) <$> conv [c])
                       [] -> failDE "decGeneric" "no data" []
 
 -- | xlates a vinyl record of decoders and returns a single decoder on a vinyl list [sequence]
@@ -225,7 +236,7 @@ data ElFieldDec (field :: (Symbol, Type)) where
 -- | 'DecList' takes a vinyl record of decoders and converts to a decoder of an ntuple
 class DecList rs where
   decList :: Rec Dec rs -> Dec (DecTuples rs)
-instance TypeError ('Text "DecList not defined for the empty list") => DecList '[] where
+instance GL.TypeError ('GL.Text "DecList not defined for the empty list") => DecList '[] where
   decList RNil = error "decList empty case!"
 instance DecList '[d1] where
   decList (d1 :& RNil) = One <$> d1
@@ -250,7 +261,7 @@ instance DecList '[d1,d2,d3,d4,d5,d6,d7,d8,d9,d10] where
 
 -- type family dependency
 type family DecTuples rs = z | z -> rs where
---  DecTuples '[] = TypeError ('Text "no decoding defined for empty list")
+--  DecTuples '[] = GL.TypeError ('GL.Text "no decoding defined for empty list")
   DecTuples '[d1] = One d1
   DecTuples '[d1, d2] = (d1, d2)
   DecTuples '[d1, d2, d3] = (d1, d2, d3)
@@ -298,9 +309,20 @@ instance DefDec (Dec (Rec f '[])) where
 mapDecMessage :: String -> CoRec V.Identity DE' -> CoRec V.Identity DE'
 mapDecMessage s de =
   VC.match de $
-       (VC.H $ \e -> CoRec $ V.Identity $ e { _cvMessage = s ++ ":" ++ _cvMessage e })
-    :& (VC.H $ \e -> CoRec $ V.Identity $ e { _deMethod  = s ++ ":" ++ _deMethod e })
+       VC.H (\e -> CoRec $ V.Identity $ e { _cvMessage = s ++ ":" ++ _cvMessage e })
+    :& VC.H (\e -> CoRec $ V.Identity $ e { _deMethod  = s ++ ":" ++ _deMethod e })
     :& RNil
+
+getDecError :: CoRec V.Identity DE' -> Either ConvE DecodingE
+getDecError co =
+   VC.match co $ VC.H Left
+              :& VC.H Right
+              :& RNil
+
+getDecErrors :: DE -> ([ConvE], [DecodingE])
+getDecErrors de =
+  partitionEithers $ N.toList (getDecError <$> de)
+
 
 instance (DefDec (Dec t), KnownSymbol s) =>
           DefDec (Dec (ElField (s ::: t))) where
@@ -312,20 +334,46 @@ instance (DefDec (Dec t), KnownSymbol s) =>
 instance DefDec (Dec a) => DefDec (Dec (DM a)) where
   defDec = DM . (:[]) <$> defDec
 
-instance TypeError ('Text "end of the universe"
-              ':$$: 'Text "restaurant is closed"
-              ':$$: 'Text "did you not see the signs back there"
-              ':$$: 'Text "hmmm ..."
-              ':<>: 'Text "I do not know what type you want"
-              ':$$: 'Text "somehow GHC has bounced you here: DefDec (Dec ())"
+instance GL.TypeError ('GL.Text "I do not know what type you want"
+                 ':$$: 'GL.Text "somehow GHC has bounced you here: DefDec (Dec ())"
                     ) => DefDec (Dec ()) where
   defDec = error "defDec: unreachable"
+
+decFail :: String -> String -> Dec a
+decFail e s = Dec (failDE e s)
+
+-- decode the output fmt stuff: need to display the errors better
+-- use or create new combinators to stop going inside Dec all the time: we have monads functors etc
+instance (Show i, Typeable i, Refined3C ip op fmt i, DefDec (Dec i), Show (PP ip i))
+   => DefDec (Dec (Refined3 ip op fmt i)) where
+  defDec =
+    let nm = "Refined3"
+        msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
+    in decAddError nm msg (defDec @(Dec i))
+         >>= \a -> let (ret,mr) = eval3 @ip @op @fmt @i o2 a
+                   in case mr of
+                        Nothing -> let m3 = prt3Impl o2 ret
+                                   in decFail (nm <> " " <> m3Desc m3 <> " | " <> m3Short m3) ("\n" ++ m3Long m3 ++ "\n")
+                        Just r -> return r
+
+instance (Typeable i, RefinedC p i, DefDec (Dec i)) => DefDec (Dec (Refined p i)) where
+  defDec =
+    let nm = "Refined"
+        msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
+    in decAddError nm msg (defDec @(Dec i))
+          >>= \i -> let ((bp,e),mr) = runIdentity $ newRefined @p @i o2 i
+                    in case mr of
+                      Nothing -> decFail (nm <> " " <> show bp) ("\n" ++ e ++ "\n")
+                      Just r -> return r
 
 instance DefDec (Dec a) => DefDec (Dec (One a)) where
   defDec = One <$> defDec
 
 instance DefDec (Dec [SqlValue]) where
   defDec = Dec $ \xs -> Right (xs,[])
+
+instance DefDec (Dec Raw) where
+  defDec = Raw <$> defDec
 
 instance DefDec (Dec ByteString)
 instance DefDec (Dec SqlValue)
@@ -342,9 +390,9 @@ instance DefDec (Dec UTCTime)
 instance DefDec (Dec LocalTime)
 -- could write in terms of decMaybe but this is good as is and direct
 instance DefDec (Dec a) => DefDec (Dec (Maybe a)) where
-  defDec = Dec $ \hs -> left' (CoRec (V.Identity (DecodingE "DefDec (Dec Maybe)" "" hs)) N.<|) $
+  defDec = Dec $ \hs -> left' (decAddError' "DefDec (Dec Maybe)" "" hs) $
                        case hs of
-                         (SqlNull:cs) -> Right (Nothing, cs)
+                         SqlNull:cs -> Right (Nothing, cs)
                          cs -> unDec (Just <$> defDec) cs
 
 instance (KnownNat n, DefDec (Dec a)) => DefDec (Dec (DecN n a)) where
@@ -353,7 +401,7 @@ instance (KnownNat n, DefDec (Dec a)) => DefDec (Dec (DecN n a)) where
 decN :: forall n a. KnownNat n => Dec a -> Dec (DecN n a)
 decN (Dec d) =
   let n = fromIntegral (natVal (Proxy @n))
-  in Dec $ \hhs -> left' (CoRec (V.Identity (DecodingE ("Dec (DecN " ++ show n ++ ")") "" hhs)) N.<|) $ do
+  in Dec $ \hhs -> left' (decAddError' ("Dec (DecN " ++ show n ++ ")") "" hhs) $ do
                            (as,lft) <- flip runStateT hhs $ replicateM n (StateT d)
                            return (DecN as,lft)
 
@@ -406,4 +454,3 @@ defD9 x = x <$> defDec <*> defDec <*> defDec <*> defDec <*> defDec <*> defDec <*
 defD10 :: (DefDec (f a1), DefDec (f a2), DefDec (f a3), DefDec (f a4), DefDec (f a5), DefDec (f a6), DefDec (f a7), DefDec (f a8), DefDec (f a9), DefDec (f a10), Applicative f) =>
   (a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> a10 -> ret) -> f ret
 defD10 x = x <$> defDec <*> defDec <*> defDec <*> defDec <*> defDec <*> defDec <*> defDec <*> defDec <*> defDec <*> defDec
-

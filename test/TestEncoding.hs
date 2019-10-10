@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DataKinds #-}
 {-# OPTIONS -Wall #-}
 module TestEncoding where
 import Data.ByteString (ByteString)
@@ -15,6 +16,11 @@ import qualified Generics.SOP as GS
 import qualified GHC.Generics as G
 import Test.Hspec
 import Sql
+import Predicate
+import Refined3
+import Refined3Helper
+import Refined
+import Data.Time
 
 spec :: SpecWith ()
 spec =
@@ -34,9 +40,13 @@ suite = tests
   , scope "encoding.ex8" $ expectEq (encodeVals (E1 (defEnc @(Enc (Int, (Bool,String))))) (I1 (1,(True,"xxx")))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
 --  , scope "encoding.ex9" $ expectEq (unEnc (encLens _1 (defEnc :: Enc Bool)) (True,"1",'x')) [SqlInt32 1]
 --  , scope "encoding.ex10" $ expectEq (unEnc (encLens _1 (Enc $ \i -> [SqlInt32 123])) (True,"1",'x')) [SqlInt32 123]
-  , scope "encoding.ex10" $ expectEq (unEnc (divided (defEnc :: Enc Int) (defEnc :: Enc Bool)) (24,True)) [SqlInt32 24,SqlInt32 1]
-  , scope "encoding.ex10" $ expectEq (unEnc (encList' encBool) [True,False]) [SqlInt32 1,SqlInt32 0]
-  , scope "encoding.ex10" $ expectEq (unEnc (encList' encBoolMS) [True,False]) [SqlChar '\SOH',SqlChar '\NUL']
+  , scope "encoding.ex11" $ expectEq (unEnc (divided (defEnc :: Enc Int) (defEnc :: Enc Bool)) (24,True)) [SqlInt32 24,SqlInt32 1]
+  , scope "encoding.ex12" $ expectEq (unEnc (encList' encBool) [True,False]) [SqlInt32 1,SqlInt32 0]
+  , scope "encoding.ex13" $ expectEq (unEnc (encList' encBoolMS) [True,False]) [SqlChar '\SOH',SqlChar '\NUL']
+  , scope "encoding.ex14" $ expectEq (unEnc defEnc (Refined @'True @String "abc")) [SqlString "abc"]
+  , scope "encoding.ex15" $ expectEq (unEnc defEnc (Refined3 @Id @'True @Id @String "abc" "abc")) [SqlString "abc"]
+  , scope "encoding.ex16" $ expectEq (unEnc defEnc (Refined3 @(ReadBase Int 16) @(Gt 10) @(ShowBase 16) @String 254 "fe")) [SqlString "fe"]
+  , scope "encoding.ex17" $ expectEq (unEnc @(MakeR3 DateN) defEnc (Refined3 (fromGregorian 2001 12 3) "2001-12-03")) [SqlString "2001-12-03"]
   ]
 
 
