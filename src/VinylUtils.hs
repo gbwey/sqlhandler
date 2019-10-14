@@ -40,7 +40,7 @@ ToFields' P.$$ P.Mconcat P.$$ P.Replicate 10 '[Int,Double] :: [(Symbol,
 Module      : VinylUtils
 Description : utilities for holds a singleton value 'One'
 Copyright   : (c) Grant Weyburne, 2016
-License     : GPL-3
+License     : BSD-3
 Maintainer  : gbwey9@gmail.com
 
 handles a tuple of size one

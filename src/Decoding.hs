@@ -22,7 +22,7 @@
 Module      : Decoding
 Description : decode from 'SqlValue's to haskell values
 Copyright   : (c) Grant Weyburne, 2016
-License     : GPL-3
+License     : BSD-3
 Maintainer  : gbwey9@gmail.com
 
 'Dec' defines a decoder and 'DefDec' has the default decoder for a given type.

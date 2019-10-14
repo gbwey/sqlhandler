@@ -33,7 +33,7 @@
 Module      : Sql
 Description : pure functions for describing, prepocessing and postprocessing Sql
 Copyright   : (c) Grant Weyburne, 2016
-License     : GPL-3
+License     : BSD-3
 Maintainer  : gbwey9@gmail.com
 
 -}

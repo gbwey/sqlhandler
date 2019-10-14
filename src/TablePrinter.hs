@@ -25,7 +25,7 @@
 Module      : TablePrinter
 Description : utilities for displaying resultsets in tabular form.
 Copyright   : (c) Grant Weyburne, 2016
-License     : GPL-3
+License     : BSD-3
 Maintainer  : gbwey9@gmail.com
 
 'wprint' is the key function
@@ -517,14 +517,14 @@ instance FromField a => FromField (Maybe a) where
 
 -- needs PolyKinds else 'True for p won't work! W 'True will work cos is kind Type
 instance FromField a => FromField (Refined p a) where
-  fromField (Refined a) = fromField a
-  coltype i (Refined a) = coltype i a
-  fieldtype _ (Refined a) = fieldtype Proxy a
+  fromField = fromField . unRefined
+  coltype i = coltype i . unRefined
+  fieldtype _ = fieldtype Proxy . unRefined
 
 instance (Show (PP fmt (PP ip i)), Show (PP ip i)) => FromField (Refined3 ip op fmt i) where
-  fromField (Refined3 a b) = fromField ("R3:" ++ show (a,b))
-  coltype i (Refined3 a b) = coltype i (show (a,b))
-  fieldtype _ (Refined3 a b) = fieldtype Proxy (show (a,b))
+  fromField r = fromField ("R3:" ++ show (in3 r, out3 r))
+  coltype i r = coltype i (show (in3 r, out3 r))
+  fieldtype _ r = fieldtype Proxy (in3 r, out3 r)
 
 upto :: Int -> ColSpec
 upto i = column (expandUntil i) Text.Layout.Table.left def def

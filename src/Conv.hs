@@ -9,7 +9,7 @@
 Module      : Conv
 Description : Provides default converters from sql values to haskell values
 Copyright   : (c) Grant Weyburne, 2016
-License     : GPL-3
+License     : BSD-3
 Maintainer  : gbwey9@gmail.com
 -}
 module Conv where
@@ -192,7 +192,7 @@ convnum = go
          o -> failCE "Num" ("convnum: for oracle?: invalid number from sqlbytestring bs=[" ++ B.unpack bs ++ "] reads output=" ++ show o) [z]
   go z@(SqlDouble d) =
       let r = d - fromIntegral (floor d :: Integer) -- yep
-      in if r == 0 then return $ fromIntegral (truncate d :: Integer) 
+      in if r == 0 then return $ fromIntegral (truncate d :: Integer)
          else failCE "Num" "convnum:invalid integer even for oracle as it has a fraction" [z]
   go o = failCE "Num" ("convnum:invalid number " ++ getSqlTypeHack o) [o]
 

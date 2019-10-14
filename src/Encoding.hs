@@ -24,13 +24,13 @@ GS.deriveGeneric ''LogCmd
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE PolyKinds #-} -- need this for Refined and Refined3
+{-# LANGUAGE PolyKinds #-}
 {-# OPTIONS -Wall #-}
 {- |
 Module      : Encoding
 Description : encode from a haskell value to 'SqlValue's
 Copyright   : (c) Grant Weyburne, 2016
-License     : GPL-3
+License     : BSD-3
 Maintainer  : gbwey9@gmail.com
 
 'Enc' defines an encoder and 'DefEnc' has the default encoder for a given type. Used for converting input from haskell values to sql values.
@@ -161,11 +161,11 @@ encDouble :: Enc Double
 encDouble = Enc $ \d -> [SqlDouble d]
 
 encRefined :: DefEnc (Enc i) => Enc (Refined p i)
-encRefined = Enc $ \(Refined i) -> unEnc defEnc i
+encRefined = Enc $ unEnc defEnc . unRefined
 
 -- do we encode the fmt output
 encRefined3 :: DefEnc (Enc (PP fmt (PP ip i))) => Enc (Refined3 ip op fmt i)
-encRefined3 = Enc $ \(Refined3 _ b) -> unEnc defEnc b
+encRefined3 = Enc $ unEnc defEnc . out3
 
 encLocalTime :: Enc LocalTime
 encLocalTime = Enc $ \tm -> [SqlLocalTime tm]
