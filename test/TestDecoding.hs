@@ -4,9 +4,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS -Wall #-}
 module TestDecoding where
-import EasyTest
+import Test.Tasty
+import Test.Tasty.HUnit
 import Decoding
 import Database.HDBC (SqlValue(..))
 import Data.Functor
@@ -26,30 +28,30 @@ spec =
     it "should allow combined Some and Alle with no Alle data" $
       unDec (defDec :: Dec Int) [SqlInt32 12] `shouldBe` Right (12,[])
 
-suite :: Test ()
-suite = orderTests allTests
+suite :: IO ()
+suite = defaultMain $ testGroup "TestDecoding" (orderTests allTests)
 
-orderTests :: [Test ()] -> Test ()
-orderTests = tests . zipWith (\i t -> scope (T.pack (show i)) t) [1::Int ..]
+orderTests :: [Assertion] -> [TestTree]
+orderTests = zipWith (\i t -> testCase (show i) t) [1::Int ..]
 
-allTests :: [Test ()]
+allTests :: [IO ()]
 allTests =
-  [ expectEq (unDec (defDec :: Dec Int) [SqlInt32 12]) (Right (12,[]))
-  , expectEq (unDec defDec [SqlInt32 12]) (Right (12::Int,[]))
-  , expectEq (unDec defDec [SqlInteger 12,SqlString "x"]) (Right (12::Int,[SqlString "x"]))
-  , expectEq (unDec defDec [SqlDouble 12.0000]) (Right (12::Double,[]))
-  , expectEq (unDec defDec [SqlDouble 12.33333]) (Right (12.33333::Double,[]))
-  , expectEq (unDec @Float defDec [SqlDouble 12.33333]) (Right (12.33333,[]))
-  , expectEq (unDec defDec [SqlInt32 12, SqlBool True, SqlChar 'c']) (Right ((12::Int,True,'c'),[]))
-  , expectEq (unDec defDec [SqlChar '\0']) (Right (False,[]))
-  , expectEq (unDec defDec [SqlChar '\1']) (Right (True,[]))
+  [ (@?=) (unDec (defDec :: Dec Int) [SqlInt32 12]) (Right (12,[]))
+  , (@?=) (unDec defDec [SqlInt32 12]) (Right (12::Int,[]))
+  , (@?=) (unDec defDec [SqlInteger 12,SqlString "x"]) (Right (12::Int,[SqlString "x"]))
+  , (@?=) (unDec defDec [SqlDouble 12.0000]) (Right (12::Double,[]))
+  , (@?=) (unDec defDec [SqlDouble 12.33333]) (Right (12.33333::Double,[]))
+  , (@?=) (unDec @Float defDec [SqlDouble 12.33333]) (Right (12.33333,[]))
+  , (@?=) (unDec defDec [SqlInt32 12, SqlBool True, SqlChar 'c']) (Right ((12::Int,True,'c'),[]))
+  , (@?=) (unDec defDec [SqlChar '\0']) (Right (False,[]))
+  , (@?=) (unDec defDec [SqlChar '\1']) (Right (True,[]))
   , void $ expectLeft (unDec (defDec :: Dec (DecN 3 Int)) [SqlInt32 1,SqlInt32 4])
-  , expectEq (unDec (defDec :: Dec (DecN 3 Int)) [SqlInt32 1,SqlInt32 4,SqlInt32 555]) (Right (DecN [1,4,555],[]))
-  , expectEq (unDec (defDec :: Dec (DecN 3 Int)) [SqlInt32 1,SqlInt32 4,SqlInt32 555,SqlInt32 12]) (Right (DecN [1,4,555],[SqlInt32 12]))
-  , expectEq (unDec defDec [SqlString "aa",SqlBool True,SqlChar 'x']) (Right (S1 "aa" True 'x', []))
-  , expectEq (unDec (defDec :: Dec (DecAlle Int)) [SqlInteger 1,SqlInt32 4,SqlInteger 555,SqlInt32 12]) (Right (DecAlle [1,4,555,12],[]))
-  , expectEq (unDec (defDec :: Dec (V.ElField ("abc" V.::: Int))) [SqlInteger 123,SqlString "x"]) (Right (V.Field @"abc" 123,[SqlString "x"]))
-  , expectEq (unDec (defDec :: Dec (F '["abc" V.::: Int, "def" V.::: String])) [SqlInteger 123,SqlString "x"]) (Right (V.Field @"abc" 123 :& V.Field @"def" "x" :& RNil,[]))
+  , (@?=) (unDec (defDec :: Dec (DecN 3 Int)) [SqlInt32 1,SqlInt32 4,SqlInt32 555]) (Right (DecN [1,4,555],[]))
+  , (@?=) (unDec (defDec :: Dec (DecN 3 Int)) [SqlInt32 1,SqlInt32 4,SqlInt32 555,SqlInt32 12]) (Right (DecN [1,4,555],[SqlInt32 12]))
+  , (@?=) (unDec defDec [SqlString "aa",SqlBool True,SqlChar 'x']) (Right (S1 "aa" True 'x', []))
+  , (@?=) (unDec (defDec :: Dec (DecAlle Int)) [SqlInteger 1,SqlInt32 4,SqlInteger 555,SqlInt32 12]) (Right (DecAlle [1,4,555,12],[]))
+  , (@?=) (unDec (defDec :: Dec (V.ElField ("abc" V.::: Int))) [SqlInteger 123,SqlString "x"]) (Right (V.Field @"abc" 123,[SqlString "x"]))
+  , (@?=) (unDec (defDec :: Dec (F '["abc" V.::: Int, "def" V.::: String])) [SqlInteger 123,SqlString "x"]) (Right (V.Field @"abc" 123 :& V.Field @"def" "x" :& RNil,[]))
   , expectD (Right ((unsafeRefined3 [127,1,0,199] "127.001.000.199") ,[])) (unDec (defDec :: Dec (Refined3 (Resplit "\\." >> Map (ReadP Int)) (Guard "length" (Len >> Same 4) >> Guard "octet 0-255" (All (Between 0 255)) >> 'True) (Printfnt 4 "%03d.%03d.%03d.%03d") String)) [SqlString "127.1.0.199"])
   , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | octet 0-255") (unDec (defDec :: Dec (Refined3 (Resplit "\\." >> Map (ReadP Int)) (Guard "length" (Len >> Same 4) >> Guard "octet 0-255" (All (Between 0 255)) >> 'True) (Printfnt 4 "%03d.%03d.%03d.%03d") String)) [SqlString "127.1.0.499"])
   , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | octet 3 out of range 0-255 found 499") (unDec (defDec :: Dec (MakeR3 Ip1)) [SqlString "127.1.0.499"])
@@ -62,6 +64,12 @@ allTests =
   , expectD (Right ((unsafeRefined 8), [])) (unDec (defDec :: Dec (Refined (Between 4 10 && Id /= 7) Int)) [SqlInt32 8])
   , expectD (Left "Refined FalseP") (unDec (defDec :: Dec (Refined (Between 4 10 && Id /= 7) Int)) [SqlInt32 2])
   ]
+
+expectLeft :: Show b => Either a b -> IO ()
+expectLeft = \case
+  Left _ -> pure ()
+  Right e -> assertFailure $ "expected Left but found Right " ++ show e
+
 {-
 >evalV @(Resplit "\\." >> Map (ReadP Int)) @(Guard "length" (Len >> Same 4) >> Guard "octet 0-255" (All (Between 0 255)) >> 'True) @(Printfnt 4 "%03d.%03d.%03d.%03d") @String "1.2.3.4"
 Right (Refined3 {in3 = [1,2,3,4], out3 = "001.002.003.004"})
@@ -83,7 +91,7 @@ instance DefDec (Dec S1) where
 expectD :: (HasCallStack, Eq r,Show r)
   => Either String r
   -> Either DE r
-  -> Test ()
+  -> IO ()
 expectD lhs rhs = do
   let rr = case rhs of
             Right r -> Right r
@@ -91,4 +99,4 @@ expectD lhs rhs = do
                          [] -> error "znork! missing DecodingE"
                          [s] -> Left $ _deMethod s
                          o -> error $ "expected only one DecodingE o=" ++ show o
-  expectEq lhs rr
+  lhs @?= rr

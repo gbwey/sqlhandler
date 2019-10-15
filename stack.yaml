@@ -12,8 +12,6 @@ packages:
   extra-dep: true
 - location: ../typelevel
   extra-dep: true
-- location: ../easytest
-  extra-dep: true
 extra-deps:
 - pretty-terminal-0.1.0.0
 - pretty-tree-0.1.0.0

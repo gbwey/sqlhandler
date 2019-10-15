@@ -56,7 +56,9 @@ tests:
       - QuickCheck
       - should-not-typecheck
       - deepseq
-      - easytest
+      - tasty-hunit
+      - tasty-quickcheck
+      - tasty
       - generic-lens
 
 data-files: []

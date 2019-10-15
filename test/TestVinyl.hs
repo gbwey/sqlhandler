@@ -14,12 +14,11 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 module TestVinyl where
+import Test.Tasty
+import Test.Tasty.HUnit
 import qualified Data.Vinyl.Functor as V
 import Data.Vinyl
 import Control.Lens hiding (rmap,Identity,Const)
-import EasyTest
---import GHC.TypeLits hiding (natVal, natVal')
---import GHC.TypeNats
 import qualified PCombinators as P
 import VinylUtils
 import qualified Control.Foldl as FL
@@ -36,7 +35,7 @@ statictests :: ((
        ) => ()) -> ()
 statictests  x = x
 
-statictests1 :: ()
+statictests1 :: [Bool]
 statictests1  =
           [ removeField @"aa" tst11a == tst11b
           , removeField @"zz" tst11 == tst11
@@ -46,42 +45,40 @@ statictests1  =
           , removeType @Double tst11 == tst11c
           , removeType @(Maybe _) tst11 == tst11
           , removeTypes @Bool tst13 == tst13a
-          ] `seq` ()
+          ]
 
-doit :: IO ()
-doit = run suite
 
 -- rix rind makef reclen recget postscanF prescanF uniqueRec
-suite :: Test ()
-suite = tests
-  [ scope "uniq1" $ expectEq (uniqueRec tst9a) tst9a'
-  , scope "uniq2" $ expectEq (uniqueRec tst9) tst9
-  , scope "uniq3" $ expectEq (uniqueRec (#a =: True :& #b =: 'x' :& #a =: "asdf" :& RNil)) (uniqueRec (#a =: True :& #b =: 'x' :& #a_1 =: "asdf" :& RNil))
-  , scope "uniq4" $ expectEq (uniqueRec (#a =: True :& #b =: 'x' :& #c =: "asdf" :& RNil)) (uniqueRec (#a =: True :& #b =: 'x' :& #c =: "asdf" :& RNil))
-  , scope "rind1" $ expectEq (rind' @1 tst9a) (Field @"b" True)
-  , scope "rind2" $ expectEq (rind' @0 tst9a) (Field @"a" 'x')
-  , scope "rix1" $ expectEq (I5 'd' True 14 "hello" 21 ^. rixI @2) 14
-  , scope "rix2" $ expectEq (I5 'd' True 14 "hello" "abc" & rixI @3 <>~ "there") (I5 'd' True 14 "hellothere" "abc")
-  , scope "rix3" $ expectEq (I4 'd' True 14 "hello" ^. rixI @0) 'd'
-  , scope "rix4" $ expectEq (I4 'd' True 14 "hello" & rixI @0 %~ succ) (I4 'e' True 14 "hello")
-  , scope "rix5" $ expectEq (tst10' & rix @1 %~ \(Field x) -> Field (not x)) tst10''
-  , scope "rix6" $ expectEq (tst10' & rixF @1 %~ not) tst10''
-  , scope "rix7" $ expectEq (tst10 & rixI @1 %~ not) tst10A
-  , scope "rix8" $ expectEq (tst10 ^. rixI @1) True
-  , scope "rix9" $ expectEq (tst9a & rix @1 .~ Field False) tst9a''
-  , scope "reclen1" $ expectEq (recLenP tst10) 5
-  , scope "reclen2" $ expectEq (recLen @Tst10T) 5
-  , scope "reclen3" $ expectEq (recLen @'[Int,Char,Bool]) 3
-  , scope "reclen4" $ expectEq (recLen @'["a" ::: Bool, "c" ::: Char]) 2
-  , scope "fold" $ expectEq (FL.fold (FL.premap (rvalf #c) FL.sum) tst8) 15
-  , scope "scan1" $ expectEq tst8a tst8a'
-  , scope "scan2" $ expectEq tst8b tst8b'
-  , scope "ellens1" $ expectEq ((#a =: True) & elLens  %~ show . not) (#a =: "False")
-  , scope "ellens2" $ expectEq ((#a =: True) & elLens1 @"b" %~ show . not) (#b =: "False") -- if wrong symbol will fail with compile time error!
-  , scope "defval1" $ expectEq (defVal :: Rec ElField '["aa" ::: Bool]) (#aa =: False :& RNil)
-  , scope "defval2" $ expectEq (defVal :: Rec ElField '["aa" ::: Bool, "bb" ::: Int, "cc" ::: String, "dd" ::: Maybe Int]) (#aa =: False :& #bb =: 0 :& #cc =: "" :& #dd =: Nothing :& RNil)
-  , scope "defval3" $ expectEq (defVal :: Rec V.Identity '[Int,Bool,Maybe String]) (V.Identity 0 :& V.Identity False :& V.Identity Nothing :& RNil)
---  , scope "removetype4" $ expectEq (removeType @Char tst12) tst12a
+suite :: IO ()
+suite = defaultMain $ testGroup "TestVinyl"
+  [ testCase "uniq1" $ (@?=) (uniqueRec tst9a) tst9a'
+  , testCase "uniq2" $ (@?=) (uniqueRec tst9) tst9
+  , testCase "uniq3" $ (@?=) (uniqueRec (#a =: True :& #b =: 'x' :& #a =: "asdf" :& RNil)) (uniqueRec (#a =: True :& #b =: 'x' :& #a_1 =: "asdf" :& RNil))
+  , testCase "uniq4" $ (@?=) (uniqueRec (#a =: True :& #b =: 'x' :& #c =: "asdf" :& RNil)) (uniqueRec (#a =: True :& #b =: 'x' :& #c =: "asdf" :& RNil))
+  , testCase "rind1" $ (@?=) (rind' @1 tst9a) (Field @"b" True)
+  , testCase "rind2" $ (@?=) (rind' @0 tst9a) (Field @"a" 'x')
+  , testCase "rix1" $ (@?=) (I5 'd' True 14 "hello" 21 ^. rixI @2) 14
+  , testCase "rix2" $ (@?=) (I5 'd' True 14 "hello" "abc" & rixI @3 <>~ "there") (I5 'd' True 14 "hellothere" "abc")
+  , testCase "rix3" $ (@?=) (I4 'd' True 14 "hello" ^. rixI @0) 'd'
+  , testCase "rix4" $ (@?=) (I4 'd' True 14 "hello" & rixI @0 %~ succ) (I4 'e' True 14 "hello")
+  , testCase "rix5" $ (@?=) (tst10' & rix @1 %~ \(Field x) -> Field (not x)) tst10''
+  , testCase "rix6" $ (@?=) (tst10' & rixF @1 %~ not) tst10''
+  , testCase "rix7" $ (@?=) (tst10 & rixI @1 %~ not) tst10A
+  , testCase "rix8" $ (@?=) (tst10 ^. rixI @1) True
+  , testCase "rix9" $ (@?=) (tst9a & rix @1 .~ Field False) tst9a''
+  , testCase "reclen1" $ (@?=) (recLenP tst10) 5
+  , testCase "reclen2" $ (@?=) (recLen @Tst10T) 5
+  , testCase "reclen3" $ (@?=) (recLen @'[Int,Char,Bool]) 3
+  , testCase "reclen4" $ (@?=) (recLen @'["a" ::: Bool, "c" ::: Char]) 2
+  , testCase "fold" $ (@?=) (FL.fold (FL.premap (rvalf #c) FL.sum) tst8) 15
+  , testCase "scan1" $ (@?=) tst8a tst8a'
+  , testCase "scan2" $ (@?=) tst8b tst8b'
+  , testCase "ellens1" $ (@?=) ((#a =: True) & elLens  %~ show . not) (#a =: "False")
+  , testCase "ellens2" $ (@?=) ((#a =: True) & elLens1 @"b" %~ show . not) (#b =: "False") -- if wrong symbol will fail with compile time error!
+  , testCase "defval1" $ (@?=) (defVal :: Rec ElField '["aa" ::: Bool]) (#aa =: False :& RNil)
+  , testCase "defval2" $ (@?=) (defVal :: Rec ElField '["aa" ::: Bool, "bb" ::: Int, "cc" ::: String, "dd" ::: Maybe Int]) (#aa =: False :& #bb =: 0 :& #cc =: "" :& #dd =: Nothing :& RNil)
+  , testCase "defval3" $ (@?=) (defVal :: Rec V.Identity '[Int,Bool,Maybe String]) (V.Identity 0 :& V.Identity False :& V.Identity Nothing :& RNil)
+--  , testCase "removetype4" $ (@?=) (removeType @Char tst12) tst12a
   ]
 
 tst13 :: Rec ElField '[ '("aa", Bool), '("bb", Double), '("cc", Bool), '("aa", String) ]

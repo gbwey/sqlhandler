@@ -18,7 +18,8 @@ import Data.Text (Text)
 import Sql
 import TablePrinter
 import PredState hiding (pe,pe2)
-import EasyTest
+import Test.Tasty
+import Test.Tasty.HUnit
 import Test.Hspec
 import Database.HDBC.ColTypes (SqlTypeId (SqlUnknownT))
 import GHC.TypeLits (KnownNat)
@@ -49,28 +50,28 @@ it :: Either DE (R1, [SqlValue])
 -}
 
 -- anyOf (traverse . suShort) (=="Update") (xes @UnexpectedResultSetTypeE e)
-suite :: Test ()
-suite = tests
-  [ scope "simpleret1" $ expectEq (ext <$> processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Right ([], [[SqlBool True]])]) (Right True)
-  , scope "simpleret2" $ expectEq (ext <$> processRetCol (E2 (SelP @Bool ptrue defDec) (UpdP ptrue)) [Right ([], [[SqlBool False],[SqlBool True]]), Left 23]) (Right ([False,True],23))
-  , scope "single.fail1" $ expect (hasError @SingleColE (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Right ([], [])]))
-  , scope "single.fail2" $ expect (hasError @UnexpectedResultSetTypeE (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
-  , scope "single.fail3" $ expect (hasError @SingleColE (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Right ([], [])])) -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
-  , scope "encodemultiple" $ expectEq (encodeVals (E2 (defEnc @(Enc Int)) (defEnc @(Enc (Bool,String)))) (I2 1 (True,"xxx"))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
-  , scope "encodesingle" $ expectEq (encodeVals (E1 (defEnc @(Enc (Int, (Bool,String))))) (I1 (1,(True,"xxx")))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
-  , scope "single.fail4" $ expect (hasError @ConvE (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Right ([], [[SqlInt32 112]])]))
-  , scope "single.fail5" $ expect (anyOf (_Left . to (xes @ConvE) . traverse . to _cvType) (=="Bool") (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Right ([], [[SqlInt32 112]])]))
-  , scope "single.fail6" $ expect (hasn't (_Left . to (xes @UnexpectedResultSetTypeE) . _Empty) (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
-  , scope "single.fail7" $ expect (has (_Left . to (xes @UnexpectedResultSetTypeE) . _head) (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
-  , scope "gtest1" $ expect (xes'' @NoResultSetE gtest1)
-  , scope "gtest2" $ expectEq (ext <$> gtest2) (Right (123,[(11,True),(22,False)]))
-  , scope "gtest3" $ expectEq (ext <$> gtest3) (Right (123,[("afield",True),("zzz",False)]))
-  , scope "gtest4" $ expectEq (ext <$> gtest4) (Right [123,999,-8])
-  , scope "gtest5" $ expectEq (ext <$> gtest5) (Right (Left 123))
-  , scope "gtest6" $ expectEq (ext <$> gtest5') (Right (Right 123))
-  , scope "gtest7" $ expect (xes'' @UnexpectedResultSetTypeE gtest5'')
-  , scope "gtest8" $ expect (xes'' @UnconsumedColE gtest5''')
---  , scope "gtest9" $ expect (xes'' @NoResultSetE gtest5'''')
+suite :: IO ()
+suite = defaultMain $ testGroup "TestSql"
+  [ testCase "simpleret1" $ (@?=) (ext <$> processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Right ([], [[SqlBool True]])]) (Right True)
+  , testCase "simpleret2" $ (@?=) (ext <$> processRetCol (E2 (SelP @Bool ptrue defDec) (UpdP ptrue)) [Right ([], [[SqlBool False],[SqlBool True]]), Left 23]) (Right ([False,True],23))
+  , testCase "single.fail1" $ assertBool "a1" (hasError @SingleColE (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Right ([], [])]))
+  , testCase "single.fail2" $ assertBool "a2" (hasError @UnexpectedResultSetTypeE (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
+  , testCase "single.fail3" $ assertBool "a3" (hasError @SingleColE (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Right ([], [])])) -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
+  , testCase "encodemultiple" $ (@?=) (encodeVals (E2 (defEnc @(Enc Int)) (defEnc @(Enc (Bool,String)))) (I2 1 (True,"xxx"))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
+  , testCase "encodesingle" $ (@?=) (encodeVals (E1 (defEnc @(Enc (Int, (Bool,String))))) (I1 (1,(True,"xxx")))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
+  , testCase "single.fail4" $ assertBool "a4" (hasError @ConvE (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Right ([], [[SqlInt32 112]])]))
+  , testCase "single.fail5" $ assertBool "a5" (anyOf (_Left . to (xes @ConvE) . traverse . to _cvType) (=="Bool") (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Right ([], [[SqlInt32 112]])]))
+  , testCase "single.fail6" $ assertBool "a6" (hasn't (_Left . to (xes @UnexpectedResultSetTypeE) . _Empty) (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
+  , testCase "single.fail7" $ assertBool "a7" (has (_Left . to (xes @UnexpectedResultSetTypeE) . _head) (processRetCol (E1 (SelOneP @Bool ptrue defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
+  , testCase "gtest1" $ assertBool "a8" (xes'' @NoResultSetE gtest1)
+  , testCase "gtest2" $ (@?=) (ext <$> gtest2) (Right (123,[(11,True),(22,False)]))
+  , testCase "gtest3" $ (@?=) (ext <$> gtest3) (Right (123,[("afield",True),("zzz",False)]))
+  , testCase "gtest4" $ (@?=) (ext <$> gtest4) (Right [123,999,-8])
+  , testCase "gtest5" $ (@?=) (ext <$> gtest5) (Right (Left 123))
+  , testCase "gtest6" $ (@?=) (ext <$> gtest5') (Right (Right 123))
+  , testCase "gtest7" $ assertBool "a9" (xes'' @UnexpectedResultSetTypeE gtest5'')
+  , testCase "gtest8" $ assertBool "a10" (xes'' @UnconsumedColE gtest5''')
+--  , testCase "gtest9" $ assertBool (xes'' @NoResultSetE gtest5'''')
 
   ]
 {- these 3 are the same
@@ -116,7 +117,6 @@ doit = do
       ext <$> processRetCol valid2 [Left 123] `shouldBe` Right (Left 123)
     it "should allow :+: without any Alle data" $
       ext <$> processRetCol valid2 [Right ([], [[SqlInt32 3]])] `shouldBe` Right (Right 3)
- run suite
 
 valid1 :: Rec SingleIn '[Some 'False 2 Upd, Alle (SelOne Bool)]
 valid1 = E2 (SomeP defDec ptrue) (AlleP defDec ptrue)

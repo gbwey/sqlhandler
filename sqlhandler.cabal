@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 82f24bae075d7170f8b860168b521ad83858779ff587288fe4d877d9dce90ac4
+-- hash: 1623bbbe4946d476364025b820684fdb3c2b610131802c77d366506470ca58ab
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -79,7 +79,6 @@ test-suite spec
     , containers
     , contravariant
     , deepseq
-    , easytest
     , foldl
     , generic-lens
     , generics-sop
@@ -96,6 +95,9 @@ test-suite spec
     , should-not-typecheck
     , sqlhandler
     , table-layout ==0.9.0.0
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
     , text
     , these
     , time

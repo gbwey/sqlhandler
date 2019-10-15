@@ -8,13 +8,13 @@ import qualified TestTablePrinter
 import qualified TestSqlDeferred
 import qualified TestVinyl
 import Test.Hspec
-import EasyTest
+import Control.Monad (sequence_)
 
 main :: IO ()
 main = do
   hspec spec
   TestSqlDeferred.doit
-  mapM_ run [TestConv.suite
+  sequence_ [TestConv.suite
             ,TestEncoding.suite
             ,TestDecoding.suite
             ,TestSql.suite
