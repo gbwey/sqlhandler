@@ -17,7 +17,7 @@ spec =
       conv @Bool [SqlBool True] `shouldBe` Right True
 
 suite :: IO ()
-suite = defaultMain $ testGroup "testconv"
+suite = defaultMain $ testGroup "TestConv"
 
   [ testCase "ceq0.ok" $ (@?=) (conv @Bool [SqlBool True]) (Right True)
   , testCase "ceq1.fail" $ expectLeft (conv @Bool [SqlInt32 3])
