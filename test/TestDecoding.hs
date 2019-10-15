@@ -20,7 +20,6 @@ import Predicate
 import Refined3
 import Refined3Helper
 import Refined
-import qualified Data.Text as T
 
 spec :: SpecWith ()
 spec =

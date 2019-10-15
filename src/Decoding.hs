@@ -17,7 +17,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# OPTIONS -Wall #-}
--- {-# OPTIONS -Wno-redundant-constraints #-}
 {- |
 Module      : Decoding
 Description : decode from 'SqlValue's to haskell values

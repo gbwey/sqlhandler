@@ -16,7 +16,6 @@ ToFields' P.$$ P.Mconcat P.$$ P.Replicate 10 '[Int,Double] :: [(Symbol,
     '("c17", Int), '("c18", Double), '("c19", Int), '("c20", Double)]
 -}
 {-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns #-}
--- {-# OPTIONS -Wno-redundant-constraints #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeInType #-} -- data ToFieldsImplSym1 :: ...
 {-# LANGUAGE PolyKinds #-}

@@ -16,7 +16,7 @@ import Data.Vinyl.TypeLevel hiding (Nat)
 import Control.Lens hiding (rmap,Identity,Const)
 import Data.Text (Text)
 import Sql
-import TablePrinter
+import TablePrinter -- leave it for testing
 import PredState hiding (pe,pe2)
 import Test.Tasty
 import Test.Tasty.HUnit
