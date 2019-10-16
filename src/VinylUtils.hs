@@ -17,7 +17,7 @@ ToFields' P.$$ P.Mconcat P.$$ P.Replicate 10 '[Int,Double] :: [(Symbol,
 -}
 {-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeInType #-} -- data ToFieldsImplSym1 :: ...
+-- {-# LANGUAGE TypeInType #-} -- data ToFieldsImplSym1 :: ...
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}

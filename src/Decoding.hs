@@ -7,7 +7,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE TypeInType #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeOperators #-}
@@ -16,7 +15,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DefaultSignatures #-}
-{-# OPTIONS -Wall #-}
+{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
 {- |
 Module      : Decoding
 Description : decode from 'SqlValue's to haskell values
@@ -102,7 +101,7 @@ liftDMs :: [Dec a] -> Dec (DM a)
 liftDMs ds = DM <$> sequenceA ds
 
 -- | 'DM' holds a list of decoders of the same type
-newtype DM a = DM { m1 :: [a] } deriving (Show,Eq)
+newtype DM a = DM { unDM :: [a] } deriving (Show,Eq)
 
 instance Semigroup (DM a) where
   DM xs <> DM ys = DM (xs <> ys)
