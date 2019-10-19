@@ -165,7 +165,7 @@ encRefined = Enc $ unEnc defEnc . unRefined
 
 -- do we encode the fmt output
 encRefined3 :: DefEnc (Enc (PP fmt (PP ip i))) => Enc (Refined3 ip op fmt i)
-encRefined3 = Enc $ unEnc defEnc . out3
+encRefined3 = Enc $ unEnc defEnc . r3Out
 
 encLocalTime :: Enc LocalTime
 encLocalTime = Enc $ \tm -> [SqlLocalTime tm]

@@ -522,9 +522,9 @@ instance FromField a => FromField (Refined p a) where
   fieldtype _ = fieldtype Proxy . unRefined
 
 instance (Show (PP fmt (PP ip i)), Show (PP ip i)) => FromField (Refined3 ip op fmt i) where
-  fromField r = fromField ("R3:" ++ show (in3 r, out3 r))
-  coltype i r = coltype i (show (in3 r, out3 r))
-  fieldtype _ r = fieldtype Proxy (in3 r, out3 r)
+  fromField r = fromField ("R3:" ++ show (r3In r, r3Out r))
+  coltype i r = coltype i (show (r3In r, r3Out r))
+  fieldtype _ r = fieldtype Proxy (r3In r, r3Out r)
 
 upto :: Int -> ColSpec
 upto i = column (expandUntil i) Text.Layout.Table.left def def

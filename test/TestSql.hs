@@ -185,7 +185,7 @@ tst3rbad = processRetCol (E1 (SelP ptrue defDec)) [Right ([], [[SqlString "-123"
 {-
 >tst3rgood
 Right {ZZZ {_zzz1 = SelP PConst TrueP
- Dec<fn>, _zzz2 = Sel {unSel = [One {unOne = Refined3 {in3 = 123, out3 = "123"}}]}, _zzz3 = [One {unOne = Refined3 {in3 = 123, out3 = "123"}}], _zzz4 = []}}
+ Dec<fn>, _zzz2 = Sel {unSel = [One {unOne = Refined3 {r3In = 123, r3Out = "123"}}]}, _zzz3 = [One {unOne = Refined3 {r3In = 123, r3Out = "123"}}], _zzz4 = []}}
 it ::
   Either
     SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int) (Gt 4) ShowP String))])

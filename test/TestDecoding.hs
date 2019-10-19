@@ -71,7 +71,7 @@ expectLeft = \case
 
 {-
 >evalV @(Resplit "\\." >> Map (ReadP Int)) @(Guard "length" (Len >> Same 4) >> Guard "octet 0-255" (All (Between 0 255)) >> 'True) @(Printfnt 4 "%03d.%03d.%03d.%03d") @String "1.2.3.4"
-Right (Refined3 {in3 = [1,2,3,4], out3 = "001.002.003.004"})
+Right (Refined3 {r3In = [1,2,3,4], r3Out = "001.002.003.004"})
 it ::
   Either
     (RResults [Int])
