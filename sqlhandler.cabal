@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1623bbbe4946d476364025b820684fdb3c2b610131802c77d366506470ca58ab
+-- hash: f69aa904ac5f1ff04941715c03d6da93ad32fa9b1a90faa0354195c5cb450770
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -45,10 +45,12 @@ library
     , predicate-typed
     , profunctors
     , safe
+    , semialign
     , shakespeare
     , table-layout ==0.9.0.0
     , text
-    , these
+    , these >=1.0
+    , these-lens
     , time
     , typelevel
     , vinyl >=0.10.0.1
@@ -91,6 +93,7 @@ test-suite spec
     , predicate-typed
     , profunctors
     , safe
+    , semialign
     , shakespeare
     , should-not-typecheck
     , sqlhandler
@@ -99,7 +102,8 @@ test-suite spec
     , tasty-hunit
     , tasty-quickcheck
     , text
-    , these
+    , these >=1.0
+    , these-lens
     , time
     , typelevel
     , vinyl >=0.10.0.1
