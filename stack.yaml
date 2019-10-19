@@ -19,11 +19,8 @@ extra-deps:
 - Frames-0.6.1
 - symbols-0.2.0.1
 - discrimination-0.4
-- these-1.0.1
-- semialign-1
-- assoc-1
 - these-lens-1
 arch: x86_64
-resolver: lts-13.25
+resolver: lts-14.10
 
 # ghc-options: {"$locals": -ddump-to-file -ddump-hi}
