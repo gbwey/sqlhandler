@@ -51,8 +51,8 @@ allTests =
   , (@?=) (unDec (defDec :: Dec (DecAlle Int)) [SqlInteger 1,SqlInt32 4,SqlInteger 555,SqlInt32 12]) (Right (DecAlle [1,4,555,12],[]))
   , (@?=) (unDec (defDec :: Dec (V.ElField ("abc" V.::: Int))) [SqlInteger 123,SqlString "x"]) (Right (V.Field @"abc" 123,[SqlString "x"]))
   , (@?=) (unDec (defDec :: Dec (F '["abc" V.::: Int, "def" V.::: String])) [SqlInteger 123,SqlString "x"]) (Right (V.Field @"abc" 123 :& V.Field @"def" "x" :& RNil,[]))
-  , expectD (Right ((unsafeRefined3 [127,1,0,199] "127.001.000.199") ,[])) (unDec (defDec :: Dec (Refined3 (Resplit "\\." >> Map (ReadP Int)) (Guard "length" (Len >> Same 4) >> Guard "octet 0-255" (All (Between 0 255)) >> 'True) (Printfnt 4 "%03d.%03d.%03d.%03d") String)) [SqlString "127.1.0.199"])
-  , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | octet 0-255") (unDec (defDec :: Dec (Refined3 (Resplit "\\." >> Map (ReadP Int)) (Guard "length" (Len >> Same 4) >> Guard "octet 0-255" (All (Between 0 255)) >> 'True) (Printfnt 4 "%03d.%03d.%03d.%03d") String)) [SqlString "127.1.0.499"])
+  , expectD (Right ((unsafeRefined3 [127,1,0,199] "127.001.000.199") ,[])) (unDec (defDec :: Dec (Refined3 (Map (ReadP Int) (Resplit "\\.")) (Guard "length" (Len >> Same 4) >> Guard "octet 0-255" (All (Between 0 255)) >> 'True) (Printfnt 4 "%03d.%03d.%03d.%03d") String)) [SqlString "127.1.0.199"])
+  , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | octet 0-255") (unDec (defDec :: Dec (Refined3 (Map (ReadP Int) (Resplit "\\.")) (Guard "length" (Len >> Same 4) >> Guard "octet 0-255" (All (Between 0 255)) >> 'True) (Printfnt 4 "%03d.%03d.%03d.%03d") String)) [SqlString "127.1.0.499"])
   , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | octet 3 out of range 0-255 found 499") (unDec (defDec :: Dec (MakeR3 Ip1)) [SqlString "127.1.0.499"])
   , expectD (Left "Refined3 Step 1. Initial Conversion(ip) Failed | Regex no results") (unDec (defDec :: Dec (MakeR3 Ip)) [SqlString "127.1.0.4.5"])
   , expectD (Right ((unsafeRefined3 [127,1,0,4] "127.001.000.004", []))) (unDec (defDec :: Dec (MakeR3 Ip)) [SqlString "127.1.0.4"])
@@ -68,20 +68,6 @@ expectLeft :: Show b => Either a b -> IO ()
 expectLeft = \case
   Left _ -> pure ()
   Right e -> assertFailure $ "expected Left but found Right " ++ show e
-
-{-
->evalV @(Resplit "\\." >> Map (ReadP Int)) @(Guard "length" (Len >> Same 4) >> Guard "octet 0-255" (All (Between 0 255)) >> 'True) @(Printfnt 4 "%03d.%03d.%03d.%03d") @String "1.2.3.4"
-Right (Refined3 {r3In = [1,2,3,4], r3Out = "001.002.003.004"})
-it ::
-  Either
-    (RResults [Int])
-    (Refined3
-       (Resplit "\\." >> Map (ReadP Int))
-       (Guard "length" (Len >> EQ 4)
-        >> (Guard "octet 0-255" (All (Between 0 255)) >> 'True))
-       (Printfnt 4 "%03d.%03d.%03d.%03d")
-       String)
--}
 
 data S1 = S1 { s1 :: !String, s2 :: !Bool, s3 :: !Char } deriving (Show,Eq)
 instance DefDec (Dec S1) where

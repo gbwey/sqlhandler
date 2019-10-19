@@ -161,7 +161,7 @@ tst3 = processRetCol (E3 (SelP ptrue defDec) (UpdP ptrue) (SelP ptrue defDec)) [
 tst4r :: (Integral i, Integral j) => i -> j -> Either SE (Rec ZZZ '[Sel (Text, Refined (Between 4 10 && Id /= 7) Int, Double)])
 tst4r i j = processRetCol (E1 (SelP ptrue defDec)) [Right ([], [[SqlString "abc", SqlInt32 (fromIntegral i), SqlDouble 1.2], [SqlString "abc", SqlInt32 (fromIntegral j), SqlDouble 1.2]])]
 
-tst4r1 :: (Integral i, Integral j) => i -> j -> Either SE (Rec ZZZ '[Sel (Text, Refined (Guard (Printf "oops val=%03d") (Between 4 10 && Id /= 7) >> 'True) Int, Double)])
+tst4r1 :: (Integral i, Integral j) => i -> j -> Either SE (Rec ZZZ '[Sel (Text, Refined (Guard (Printf "oops val=%03d" Id) (Between 4 10 && Id /= 7) >> 'True) Int, Double)])
 tst4r1 i j = processRetCol (E1 (SelP ptrue defDec)) [Right ([], [[SqlString "abc", SqlInt32 (fromIntegral i), SqlDouble 1.2], [SqlString "abc", SqlInt32 (fromIntegral j), SqlDouble 1.2]])]
 
 tst3r :: Either SE (Rec ZZZ '[Sel (One String)])
@@ -174,7 +174,7 @@ tst3r1 s = processRetCol (E1 (SelP ptrue defDec)) [Right ([], [[SqlString s]])]
 tst3r2 :: Either SE (Rec ZZZ '[Sel (One (LuhnR 4))])
 tst3r2 = processRetCol (E1 (SelP ptrue defDec)) [Right ([], [[SqlInt32 111]])]
 
-tst3r3 :: String -> Either SE (Rec ZZZ '[SelOne (One (Refined3 (ReadP Int) (Gt 4) (Exitwhen (Printf "Bad output=%d") (Gt 10) >> ShowP ) String))])
+tst3r3 :: String -> Either SE (Rec ZZZ '[SelOne (One (Refined3 (ReadP Int) (Gt 4) (Exitwhen (Printf "Bad output=%d" Id) (Gt 10) >> ShowP ) String))])
 tst3r3 s = processRetCol (E1 (SelOneP ptrue defDec)) [Right ([], [[SqlString s]])]
 
 tst3rgood :: Either SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int) (Gt 4) ShowP String))])
