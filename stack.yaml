@@ -17,7 +17,7 @@ extra-deps:
 - pretty-tree-0.1.0.0
 - tree-view-0.5
 - Frames-0.6.1
-- symbols-0.2.0.1
+- symbols-0.3.0.0
 - discrimination-0.4
 - these-lens-1
 arch: x86_64
