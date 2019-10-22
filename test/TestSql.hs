@@ -174,7 +174,7 @@ tst3r1 s = processRetCol (E1 (SelP ptrue defDec)) [Right ([], [[SqlString s]])]
 tst3r2 :: Either SE (Rec ZZZ '[Sel (One (LuhnR 4))])
 tst3r2 = processRetCol (E1 (SelP ptrue defDec)) [Right ([], [[SqlInt32 111]])]
 
-tst3r3 :: String -> Either SE (Rec ZZZ '[SelOne (One (Refined3 (ReadP Int) (Gt 4) (Exitwhen (Printf "Bad output=%d" Id) (Gt 10) >> ShowP ) String))])
+tst3r3 :: String -> Either SE (Rec ZZZ '[SelOne (One (Refined3 (ReadP Int) (Gt 4) (ExitWhen (Printf "Bad output=%d" Id) (Gt 10) >> ShowP ) String))])
 tst3r3 s = processRetCol (E1 (SelOneP ptrue defDec)) [Right ([], [[SqlString s]])]
 
 tst3rgood :: Either SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int) (Gt 4) ShowP String))])
