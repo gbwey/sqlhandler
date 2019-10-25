@@ -18,7 +18,6 @@ extra-deps:
 - Frames-0.6.1
 - discrimination-0.4
 - symbols-0.3.0.0
-- these-lens-1
 arch: x86_64
 resolver: lts-14.10
 

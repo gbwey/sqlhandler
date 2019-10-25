@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f69aa904ac5f1ff04941715c03d6da93ad32fa9b1a90faa0354195c5cb450770
+-- hash: 050fd9dbdee6dfa1809e9763330eee944784baf223b95708d3ac3c5b1b5883b3
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -30,7 +30,7 @@ library
       src
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fomit-interface-pragmas
   build-depends:
-      Frames
+      Frames >=0.6.1
     , HDBC ==2.4.0.3
     , base
     , bytestring
@@ -45,12 +45,10 @@ library
     , predicate-typed
     , profunctors
     , safe
-    , semialign
     , shakespeare
     , table-layout ==0.9.0.0
     , text
     , these >=1.0
-    , these-lens
     , time
     , typelevel
     , vinyl >=0.10.0.1
@@ -73,7 +71,7 @@ test-suite spec
       test
   ghc-options: -threaded -O0 -fomit-interface-pragmas
   build-depends:
-      Frames
+      Frames >=0.6.1
     , HDBC ==2.4.0.3
     , QuickCheck
     , base
@@ -93,7 +91,6 @@ test-suite spec
     , predicate-typed
     , profunctors
     , safe
-    , semialign
     , shakespeare
     , should-not-typecheck
     , sqlhandler
@@ -103,7 +100,6 @@ test-suite spec
     , tasty-quickcheck
     , text
     , these >=1.0
-    , these-lens
     , time
     , typelevel
     , vinyl >=0.10.0.1

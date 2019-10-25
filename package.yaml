@@ -9,7 +9,7 @@ dependencies:
 - containers
 - contravariant
 - foldl
-- Frames
+- Frames >= 0.6.1
 - generics-sop
 - HDBC == 2.4.0.3
 - lens
@@ -22,8 +22,6 @@ dependencies:
 - table-layout == 0.9.0.0
 - text
 - these >= 1.0
-- these-lens
-- semialign
 - time
 - typelevel
 - vinyl >= 0.10.0.1

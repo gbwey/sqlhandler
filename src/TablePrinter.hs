@@ -53,7 +53,6 @@ import qualified Data.Vinyl as V
 import qualified Data.Vinyl.Functor as V
 import qualified Data.Vinyl.TypeLevel as V
 import Sql
-import qualified Data.Align as A
 import Numeric (showHex)
 import Database.HDBC.ColTypes
 import qualified Safe
@@ -758,11 +757,10 @@ padMat (ld,rd) xs ys
        | otherwise =
   let lcols = head $ fmap length xs
       rcols = head $ fmap length ys
-      f (Just a) (Just b) = a ++ b
-      f Nothing (Just b) = replicate lcols ld ++ b
-      f (Just a) Nothing = a ++ replicate rcols rd
-      f Nothing Nothing = error "impossible case: padMat" -- this cannot happen but it did!
-  in A.padZipWith f xs ys
+      f (a:as) (b:bs) = (a ++ b) : f as bs
+      f [] bs = map (\b -> replicate lcols ld ++ b) bs
+      f as [] = map (\a -> a ++ replicate rcols rd) as
+  in f xs ys
 
 -- cant use semigroup instance for MMM cos rfoldMap expects a monoid
 -- could use a semigroup and then wrap in Option to get a Maybe but too much effort
