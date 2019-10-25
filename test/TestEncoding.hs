@@ -11,6 +11,7 @@ import Data.Text (Text)
 import Database.HDBC (SqlValue(..))
 import Test.Tasty
 import Test.Tasty.HUnit
+
 import Encoding
 import Data.Functor.Contravariant.Divisible
 import qualified Generics.SOP as GS

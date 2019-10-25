@@ -33,7 +33,6 @@ import Data.Bool
 import TablePrinter
 import Database.HDBC.ColTypes
 import Test.Hspec
-import PredState
 import qualified Frames as F
 import Frames (Frame(..))
 import Frames.CSV -- (readTableOpt, rowGen, RowGen(..))
@@ -53,6 +52,7 @@ userStream = readTableOpt userParser "MOCK_DATA_SMALL.csv"
 loadUsers :: IO (Frame User)
 loadUsers = F.inCoreAoS userStream
 
+
 testCsvPrint :: IO ()
 testCsvPrint = loadUsers >>= wprint
 
@@ -63,31 +63,31 @@ spec =
       True `shouldBe` True
 
 testupd1 :: Rec ZZZ '[Sel (Bool, Char)]
-testupd1 = let xs = [(False,'x'), (True,'y')] in ZZZ (SelP ptrue defDec) (Sel xs) xs [] :& RNil
+testupd1 = let xs = [(False,'x'), (True,'y')] in ZZZ (SelP defDec) (Sel xs) xs [] :& RNil
 
 testeither :: Bool -> ZZZ a -> ZZZ b -> ZZZ (a :+: b)
 testeither p (ZZZ a1 a2 a3 a4) (ZZZ b1 b2 b3 b4) = ZZZ (a1 :+: b1) (EitherRS (bool (Left a2) (Right b2) p)) (bool (Left a3) (Right b3) p) (bool a4 b4 p)
 
 testalle :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Alle a)
-testalle zs = ZZZ (AlleP defDec ptrue) (Alle (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
+testalle zs = ZZZ (AlleP defDec) (Alle (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
 
 testsome :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Some 'False n a)
-testsome zs = ZZZ (SomeP defDec ptrue) (Some (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
+testsome zs = ZZZ (SomeP defDec) (Some (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
 
 testemos :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Some 'True n a)
-testemos zs = ZZZ (SomeP defDec ptrue) (Some (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
+testemos zs = ZZZ (SomeP defDec) (Some (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
 
 testupd :: Int -> ZZZ Upd
-testupd rc = ZZZ (UpdP ptrue) (Upd rc) rc []
+testupd rc = ZZZ UpdP (Upd rc) rc []
 
 testsel :: DefDec (Dec a) => [a] -> ZZZ (Sel a)
-testsel as = ZZZ (SelP ptrue defDec) (Sel as) as []
+testsel as = ZZZ (SelP defDec) (Sel as) as []
 
 testselone :: DefDec (Dec a) => a -> ZZZ (SelOne a)
-testselone a = ZZZ (SelOneP ptrue defDec) (SelOne a) a []
+testselone a = ZZZ (SelOneP defDec) (SelOne a) a []
 
 testselraw :: [[SqlValue]] -> ZZZ SelRaw
-testselraw as = ZZZ (SelRawP ptrue) (SelRaw as) as []
+testselraw as = ZZZ SelRawP (SelRaw as) as []
 
 testselraw0 :: Rec ZZZ '[SelRaw]
 testselraw0 = testselraw [[SqlString "asdf", SqlNull, SqlInt32 123], [SqlNull, SqlBool True, SqlInt32 9999]] :& RNil
@@ -340,35 +340,35 @@ cols2 = [Left 123, Left 456]
 type TF0 = F '["aa" ::: String]
 
 tf00 :: Rec ZZZ '[Sel TF0]
-tf00 = ZZZ (SelP ptrue defDec) undefined [#aa =: "afield" :& RNil, #aa =: "this" :& RNil, #aa =: "world" :& RNil] [] :& RNil
+tf00 = ZZZ (SelP defDec) undefined [#aa =: "afield" :& RNil, #aa =: "this" :& RNil, #aa =: "world" :& RNil] [] :& RNil
 
 type TF1 = F '["aa" ::: String, "bb" ::: Int]
 
 tf11 :: Rec ZZZ '[Sel TF1]
-tf11 = ZZZ (SelP ptrue defDec) undefined [#aa =: "afield" :& #bb =: 999 :& RNil] [] :& RNil
+tf11 = ZZZ (SelP defDec) undefined [#aa =: "afield" :& #bb =: 999 :& RNil] [] :& RNil
 
 type TF2 = F '["aa" ::: (Int, String), "bb" ::: (String,String,String)]
 
 tf11x :: Rec ZZZ '[Sel TF2]
-tf11x = ZZZ (SelP ptrue defDec) undefined [#aa =: (44, "afield") :& #bb =: ("a","b","c") :& RNil] [] :& RNil
+tf11x = ZZZ (SelP defDec) undefined [#aa =: (44, "afield") :& #bb =: ("a","b","c") :& RNil] [] :& RNil
 
 tf22 :: Rec ZZZ '[Sel (String,Int)]
-tf22 = ZZZ (SelP ptrue defDec) undefined [("afield",999)] [] :& RNil
+tf22 = ZZZ (SelP defDec) undefined [("afield",999)] [] :& RNil
 
 tf33 :: Rec ZZZ '[Sel (MakeF (String,Int))]
-tf33 = ZZZ (SelP ptrue defDec) undefined [#c1 =: "afield" :& #c2 =: 999 :& RNil, #c1 =: "afield2" :& #c2 =: 1000 :& RNil] [] :& RNil
+tf33 = ZZZ (SelP defDec) undefined [#c1 =: "afield" :& #c2 =: 999 :& RNil, #c1 =: "afield2" :& #c2 =: 1000 :& RNil] [] :& RNil
 
 tf11a :: Rec ZZZ '[Sel TF1]
-tf11a = ZZZ (SelP ptrue defDec) undefined [#aa =: "afield" :& #bb =: 999 :& RNil, #aa =: "fred" :& #bb =: (-12) :& RNil] [] :& RNil
+tf11a = ZZZ (SelP defDec) undefined [#aa =: "afield" :& #bb =: 999 :& RNil, #aa =: "fred" :& #bb =: (-12) :& RNil] [] :& RNil
 
 tf11b :: Rec ZZZ '[SelOne TF1]
-tf11b = ZZZ (SelOneP ptrue defDec) undefined (#aa =: "afield" :& #bb =: 999 :& RNil) [] :& RNil
+tf11b = ZZZ (SelOneP defDec) undefined (#aa =: "afield" :& #bb =: 999 :& RNil) [] :& RNil
 
 tf22b :: Rec ZZZ '[SelOne (String,Int)]
-tf22b = ZZZ (SelOneP ptrue defDec) undefined ("afield",999) [] :& RNil
+tf22b = ZZZ (SelOneP defDec) undefined ("afield",999) [] :& RNil
 
 tf33b :: Rec ZZZ '[SelOne (MakeF (String,Int))]
-tf33b = ZZZ (SelOneP ptrue defDec) undefined (#c1 =: "afield" :& #c2 =: 999 :& RNil) [] :& RNil
+tf33b = ZZZ (SelOneP defDec) undefined (#c1 =: "afield" :& #c2 =: 999 :& RNil) [] :& RNil
 
 data IP a = IP {_octet1 :: a, _octet2 :: a, _octet3 :: a, _octet4 :: a} deriving (Show,Read,Eq)
 

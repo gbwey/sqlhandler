@@ -4,8 +4,6 @@ packages:
 - location: '.'
 - location: ../hdbc
   extra-dep: true
-- location: ../predicate
-  extra-dep: true
 - location: ../predicate-typed
   extra-dep: true
 - location: ../table-layout

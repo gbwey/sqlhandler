@@ -37,6 +37,7 @@ D:\haskell\sqlhandler\test\TestSqlDeferred.hs:75:7: warning: [-Wdeferred-type-er
 -- not so useful: need deepseq instance for Rec ZZZ '[Alle Upd :+: Alle Upd]
 {-# OPTIONS_GHC -fdefer-type-errors #-}
 {-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
+{-# OPTIONS -Wno-deferred-type-errors #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -52,7 +53,6 @@ import Test.ShouldNotTypecheck -- (shouldNotTypecheck)
 import Test.Hspec -- (hspec, describe, it)
 import Control.DeepSeq ()
 import DeferredOrphans ()
-import PredState
 import Frames () -- has NFData instances for V.Identity and others (extrainstances): else will have to add them back to DeferredOrphans
 -- todo: NOTE: interesting error: Proxy @NFData
 {- but is cos it was missing import Data.Proxy!!
@@ -70,30 +70,30 @@ C:\haskell\sqlhandler\src\OrphanInstances.hs:24:102: error:
 
 -- invalid! but is allowed thru!
 invalidNested1 :: Rec SingleIn '[Alle Upd :+: Alle Upd]
-invalidNested1 = E1 (AlleP (UpdP ptrue) ptrue :+: AlleP (UpdP ptrue) ptrue)
+invalidNested1 = E1 (AlleP UpdP :+: AlleP UpdP)
 
 -- nested alle which is wrong
 invalidNested2 :: Rec SingleIn '[Alle (Alle Upd)]
-invalidNested2 = E1 (AlleP (AlleP (UpdP ptrue) ptrue) ptrue)
+invalidNested2 = E1 (AlleP (AlleP UpdP))
 
 invalidNested3 :: Rec SingleIn '[Alle (Upd :+: Alle Upd)]
-invalidNested3 = E1 (AlleP (UpdP ptrue :+: AlleP (UpdP ptrue) ptrue) ptrue)
+invalidNested3 = E1 (AlleP (UpdP :+: AlleP UpdP))
 
 invalidNested4 :: Rec SingleIn '[Upd :+: Alle Upd]
-invalidNested4 = E1 (UpdP ptrue :+: AlleP (UpdP ptrue) ptrue)
+invalidNested4 = E1 (UpdP :+: AlleP UpdP)
 
 -- use ValidABC
 invalidAlle1 :: Rec SingleIn '[Alle Upd, Upd]
-invalidAlle1 = E2 (AlleP (UpdP ptrue) ptrue) (UpdP ptrue)
+invalidAlle1 = E2 (AlleP UpdP) UpdP
 
 invalidAlle2 :: Rec SingleIn '[SelOne Int, Alle Upd, Upd]
-invalidAlle2 = E3 (SelOneP ptrue defDec) (AlleP (UpdP ptrue) ptrue) (UpdP ptrue)
+invalidAlle2 = E3 (SelOneP defDec) (AlleP UpdP) UpdP
 
 invalidAlle3 :: Rec SingleIn '[Alle Upd, Alle Upd]
-invalidAlle3 = E2 (AlleP (UpdP ptrue) ptrue) (AlleP (UpdP ptrue) ptrue)
+invalidAlle3 = E2 (AlleP UpdP) (AlleP UpdP)
 
 invalidAlle4 :: Rec SingleIn '[Alle Upd, Some 'False 2 Upd]
-invalidAlle4 = E2 (AlleP (UpdP ptrue) ptrue) (SomeP (UpdP ptrue) ptrue)
+invalidAlle4 = E2 (AlleP UpdP) (SomeP UpdP)
 
 {-
 on machine at home i get a segfault -- could be ghc or my crazy instances of NFData instead of using Generic more

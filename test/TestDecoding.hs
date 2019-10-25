@@ -72,7 +72,6 @@ expectLeft = \case
 data S1 = S1 { s1 :: !String, s2 :: !Bool, s3 :: !Char } deriving (Show,Eq)
 instance DefDec (Dec S1) where
   defDec = S1 <$> defDec <*> defDec <*> defDec
-
 expectD :: (HasCallStack, Eq r,Show r)
   => Either String r
   -> Either DE r

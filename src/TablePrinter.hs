@@ -273,8 +273,8 @@ instance ZPrint (ZZZ Upd) where
   zprintV (ZZZ _ _ rc _) _ fn pos = (pos+1, fn ("Upd",pos) <> "Upd " <> show rc)
 
 instance (ShowOp op, KnownNat val) => ZPrint (ZZZ (UpdN op val)) where
-  zprintH (ZZZ _ _ rc _) _ = ([upto 20], [show (getPredOp @op (P.pnat @val))], MMM [[["UpdN rc=" ++ show rc]]])
-  zprintV (ZZZ _ _ rc _) _ fn pos = (pos+1, fn (show (getPredOp @op (P.pnat @val)), pos) <> "UpdN " <> show rc)
+  zprintH (ZZZ _ _ rc _) _ = ([upto 20], [fst (showOp @op) <> " " <> show (P.pnat @val)], MMM [[["UpdN rc=" ++ show rc]]])
+  zprintV (ZZZ _ _ rc _) _ fn pos = (pos+1, fn (fst (showOp @op) <> " " <> show (P.pnat @val), pos) <> "UpdN " <> show rc)
 
 instance (ZPrint (ZZZ a), ZPrint (ZZZ b)) => ZPrint (ZZZ (a :+: b)) where
   zprintH (ZZZ (x :+: _) (EitherRS (Left w)) (Left a) _) o = zprintH (ZZZ x w a []) o
@@ -287,19 +287,19 @@ instance (ZPrint (ZZZ a), ZPrint (ZZZ b)) => ZPrint (ZZZ (a :+: b)) where
 
 -- need to prefix Alle info for each zprint
 instance ZPrint (ZZZ a) => ZPrint (ZZZ (Alle a)) where
-  zprintH (ZZZ (AlleP x _) (Alle xs) ys _ ) o =
+  zprintH (ZZZ (AlleP x) (Alle xs) ys _ ) o =
     mconcat
     $ zipWith (\a b -> zprintH (ZZZ x a b []) o) xs ys
-  zprintV (ZZZ (AlleP x _) (Alle xs) ys _ ) o fn pos =
+  zprintV (ZZZ (AlleP x) (Alle xs) ys _ ) o fn pos =
     (pos+length xs,)
     $ foldMap snd
     $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn "Alle ") i) xs ys [pos..]
 
 instance (P.GetBool rev, KnownNat n, ZPrint (ZZZ a)) => ZPrint (ZZZ (Some rev n a)) where
-  zprintH (ZZZ (SomeP x _) (Some xs) ys _ ) o =
+  zprintH (ZZZ (SomeP x) (Some xs) ys _ ) o =
     mconcat
     $ zipWith (\a b -> zprintH (ZZZ x a b []) o) xs ys
-  zprintV (ZZZ (SomeP x _) (Some xs) ys _ ) o fn pos =
+  zprintV (ZZZ (SomeP x) (Some xs) ys _ ) o fn pos =
     (pos+length xs,)
     $ foldMap snd
     $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn ("Some " <> (if P.getBool @rev then "Reverse " else "") <> show (P.pnat @n) <> " ")) i) xs ys [pos..]
@@ -750,7 +750,7 @@ squarble fnx rs =
       ret = foldr1 intersect iis
   in if null ret then error "squarble null" else ret
 
-padMat :: HasCallStack => (a,a) -> [[a]] -> [[a]] -> [[a]]
+padMat :: (a,a) -> [[a]] -> [[a]] -> [[a]]
 padMat (ld,rd) xs ys
        | null xs = ys
        | null ys = xs

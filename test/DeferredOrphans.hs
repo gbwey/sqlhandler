@@ -15,7 +15,6 @@ import Database.HDBC
 import Data.Vinyl
 import qualified Data.Vinyl.CoRec as VC
 import Sql
-import PredHelper
 
 -- defined in Frames [Frames.ExtraInstances]
 --deriving instance Generic1 V.Identity
@@ -23,9 +22,6 @@ import PredHelper
 
 -- we need this else invalidNested1 fails [handled by Frames]
 --instance NFData a => NFData (V.Identity a)
-
-instance NFData PredE
-instance NFData PredExceptionE
 
 instance NFData ConvE
 instance NFData UpdNE
@@ -54,24 +50,22 @@ instance NFData1 (Some rev n)
 
 instance (NFData a, NFData b) => NFData (a :+: b)
 
--- todo: how to get rnf working for Pred a and Dec a: to get it working would need NFData a => in the definition of the GADT X itself for each constructor eg SelP SelOneP etc
--- luckily this is deep enough cos at least goes into Alle and Some and Either but doesnt allow us to look at Pred a / Dec a
 instance NFData (SingleIn (UpdN op val)) where
   rnf UpdNP = ()
 instance NFData (SingleIn Upd) where
-  rnf (UpdP _p) = ()
+  rnf UpdP = ()
 instance NFData (SingleIn (SelOne a)) where
-  rnf (SelOneP p d) = p `seq` d `seq` () -- rnf p `seq` rnf d
+  rnf (SelOneP d) = d `seq` ()
 instance NFData (SingleIn (Sel a)) where
-  rnf (SelP p d) = p `seq` d `seq` () -- rnf p `seq` rnf d
+  rnf (SelP d) = d `seq` ()
 instance NFData (SingleIn a) => NFData (SingleIn (Alle a)) where
-  rnf (AlleP a p) = rnf a `seq` p `seq` ()
+  rnf (AlleP a) = rnf a `seq` ()
 instance (NFData (SingleIn a), NFData (SingleIn b)) => NFData (SingleIn (a :+: b)) where
   rnf (a :+: b) = rnf a `seq` rnf b
 instance NFData (SingleIn a) => NFData (SingleIn (Some rev n a)) where
-  rnf (SomeP a p) = rnf a `seq` p `seq` ()
+  rnf (SomeP a) = rnf a `seq` ()
 instance NFData (SingleIn SelRaw) where
-  rnf (SelRawP _p) = ()
+  rnf SelRawP = ()
 
 instance (NFData (SingleIn a), NFData (SingleOut a), NFData a)
     => NFData (ZZZ a) where

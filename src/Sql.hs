@@ -1,8 +1,8 @@
-{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
+{-# OPTIONS -Wall #-}
 {-# OPTIONS -Wcompat #-}
 {-# OPTIONS -Wincomplete-record-updates #-}
 {-# OPTIONS -Wincomplete-uni-patterns #-}
-{-# OPTIONS -Wredundant-constraints #-}
+{-# OPTIONS -Wno-redundant-constraints #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}
@@ -67,8 +67,6 @@ import One
 import Database.HDBC (SqlValue(..), SqlColDesc(..))
 import Database.HDBC.ColTypes (SqlTypeId (SqlUnknownT))
 import Conv
-import PredState
-import PredHelper
 import Decoding
 import Encoding
 import Text.Shakespeare.Text
@@ -114,8 +112,6 @@ instance Show (Sql db a b) where
 pattern I :: a -> V.Identity a
 pattern I a = V.Identity a
 
-type PredZ a = Pred [String] a
-
 -- | 'SE'' contains a promoted list of all possible errors
 type SE' = '[ UpdNE
             , UnconsumedColE
@@ -123,8 +119,6 @@ type SE' = '[ UpdNE
             , UnexpectedResultSetTypeE
             , NoResultSetE
             , BadE
-            , PredE
-            , PredExceptionE
             , ConvE
             , DecodingE]
 
@@ -148,23 +142,13 @@ seShortMessage x =
     :& (VC.H $ \e -> f e ++ _urstMethod e ++ " " ++ _urstMessage e)
     :& (VC.H $ \e -> f e ++ _nrMethod e ++ " " ++ _nrMessage e)
     :& (VC.H $ \e -> f e ++ _badMethod e ++ " " ++ _badMessage e)
-    :& (VC.H $ \e -> f e ++ _peErr e)
-    :& (VC.H $ \e -> f e ++ intercalate " : " (N.toList (_peExceptionE e)) ++ " " ++ _peErrE e)
     :& (VC.H $ \e -> f e ++ _cvType e ++ " " ++ _cvMessage e)
     :& (VC.H $ \e -> f e ++ _deMethod e ++ " " ++ _deMessage e)
     :& RNil
 
--- | lift a predicate error to the larger SE error
-liftPE :: PE -> SE
-liftPE = \case
-  Left p -> CoRec (V.Identity p) :| []
-  Right p -> CoRec (V.Identity p) :| []
-
 -- | lift a decoding error to the larger SE error
 liftDE :: DE -> SE
 liftDE = fmap (weakenCoRec
-             . weakenCoRec
-             . weakenCoRec
              . weakenCoRec
              . weakenCoRec
              . weakenCoRec
@@ -277,62 +261,65 @@ class Single a where
 
 -- | 'Upd' represents any non select query eg dml insert / update / delete o ddl create / drop / alter
 instance Single Upd where
-  data SingleIn Upd = UpdP (PredZ Int)
+  data SingleIn Upd = UpdP
   type SingleOut Upd = Int
-  showF (UpdP p) = "UpdP " ++ show p
+  showF UpdP = "UpdP"
 
-  singleCol (UpdP p) (pos,rss) =
+  singleCol UpdP (pos,rss) =
     case rss of
       rs1:rss' -> left (CoRec (V.Identity (SingleColE "Upd" (Just pos) "" rss)) N.<|) $ do
-        rc <- updImpl rs1 p
+        rc <- updImpl rs1
         return ((pos+1,rss'), ([], (Upd rc,rc)))
       [] -> failNR "Upd" pos "no resultset"
 
 instance (ShowOp op, KnownNat val) => Single (UpdN (op :: Op) (val :: Nat)) where
   data SingleIn (UpdN op val) = UpdNP
   type SingleOut (UpdN op val) = Int
-  showF _ = "UpdNP " ++ show (getPredOp @op (P.pnat @val))
+  showF _ = let v = P.pnat @val
+            in "UpdNP " ++ fst (showOp @op) ++ " " ++ show v
 
   singleCol UpdNP (pos,rss) =
     case rss of
       rs1:rss' -> left (CoRec (V.Identity (SingleColE "UpdN" (Just pos) "" rss)) N.<|) $ do
-        let p = getPredOp @op (P.pnat @val)
-        rc <- updImpl rs1 p
-        return ((pos+1,rss'), ([], (UpdN rc,rc)))
+        let v = P.pnat @val
+        rc <- updImpl rs1
+        case second (\x -> x rc v) (showOp @op) of
+          (dsp, False) -> failNE "UpdN" pos ("update predicate failed: " ++ show rc ++ " " ++ dsp ++ " " ++ show v)
+          (_, True) -> pure ((pos+1,rss'), ([], (UpdN rc,rc)))
       [] -> failNR "UpdN" pos "no resultset"
 
-instance Show a => Single (SelOne a) where
-  data SingleIn (SelOne a) = SelOneP (PredZ a) (Dec a)
+instance Single (SelOne a) where
+  data SingleIn (SelOne a) = SelOneP (Dec a)
   type SingleOut (SelOne a) = a
-  showF (SelOneP p d) = "SelOneP " ++ show p ++ " " ++ show d
+  showF (SelOneP d) = "SelOneP " ++ show d
 
-  singleCol (SelOneP p dec) (pos,rss) =
+  singleCol (SelOneP dec) (pos,rss) =
     case rss of
        rs1:rss' -> left (CoRec (V.Identity (SingleColE "SelOne" (Just pos) "" rss)) N.<|) $ do
-         (meta,xxs) <- selImpl rs1 (PForAll p) dec
+         (meta,xxs) <- selImpl rs1 dec
          case xxs of
            [xs] -> return ((pos+1,rss'), ([meta], (SelOne xs,xs)))
            _ -> failSIC "SelOne" (Just pos) ("expected 1 row but found " ++ show (length xxs)) rss
        [] -> failNR "SelOne" pos "no resultset"
 
-instance Show a => Single (Sel a) where
-  data SingleIn (Sel a) = SelP (PredZ [a]) (Dec a)
+instance Single (Sel a) where
+  data SingleIn (Sel a) = SelP (Dec a)
   type SingleOut (Sel a) = [a]
-  showF (SelP p d) = "SelP " ++ show p ++ " " ++ show d
+  showF (SelP d) = "SelP " ++ show d
 
-  singleCol (SelP p dec) (pos,rss) =
+  singleCol (SelP dec) (pos,rss) =
     case rss of
        rs1:rss' -> left (CoRec (V.Identity (SingleColE "Sel" (Just pos) "" rss)) N.<|) $ do
-          (meta,a) <- selImpl rs1 p dec
+          (meta,a) <- selImpl rs1 dec
           return ((pos+1,rss'), ([meta],(Sel a,a)))
        [] -> failNR "Sel" pos "no resultset"
 
-instance (Single a, Show a) => Single (Alle a) where
-  data SingleIn (Alle a) = AlleP (SingleIn a) (PredZ [a])
+instance Single a => Single (Alle a) where
+  data SingleIn (Alle a) = AlleP (SingleIn a)
   type SingleOut (Alle a) = [SingleOut a]
-  showF (AlleP a p) = "AlleP " ++ show a ++ " " ++ show p
+  showF (AlleP a) = "AlleP " ++ show a
 
-  singleCol (AlleP one p) (pos,rss) =
+  singleCol (AlleP one) (pos,rss) =
     let n = length rss
     in left (CoRec (V.Identity (SingleColE "Alle" (Just pos) (show n ++ " resultsets") rss)) N.<|) $ do
          ((ret,wret),rssout) <- foldM (\((as,was),rss') i -> do
@@ -340,7 +327,6 @@ instance (Single a, Show a) => Single (Alle a) where
                                                  unless (i' == i+1) $ failBad "Alle Col" ("pos=" ++ show pos ++ " should not happen: not getting a single resultset! " ++ show (i,i')) ""
                                                  return ((as++[(hm,a)],was++[wa]), rss'')
                               ) (([],[]), rss) [1.. n]
-         left (\e -> CoRec (V.Identity (SingleColE "Alle" (Just pos) "predicate failure" rss)) N.<| liftPE e) $ runPred p (map snd ret)
          return ((pos+n,rssout), ([], (Alle (map snd ret), wret)))
 
 instance (Single a, Single b) => Single (a :+: b) where
@@ -357,12 +343,12 @@ instance (Single a, Single b) => Single (a :+: b) where
                     Right (ret, (hm,(a2,wa2))) -> Right (ret, (hm, (EitherRS (Right a2),Right wa2)))
         Right (ret, (hm,(a1,wa1))) -> Right (ret, (hm, (EitherRS (Left a1),Left wa1)))
 
-instance (Single a, Show a, P.GetBool rev, KnownNat n) => Single (Some (rev :: Bool) (n :: Nat) a) where
-  data SingleIn (Some rev n a) = SomeP (SingleIn a) (PredZ [a])
+instance (Single a, P.GetBool rev, KnownNat n) => Single (Some (rev :: Bool) (n :: Nat) a) where
+  data SingleIn (Some rev n a) = SomeP (SingleIn a)
   type SingleOut (Some rev n a) = [SingleOut a]
-  showF (SomeP a p) = "SomeP" ++ (if P.getBool @rev then " Reverse" else "") ++ "(" ++ show (P.pnat @n) ++  ") " ++ show a ++ " " ++ show p
+  showF (SomeP a) = "SomeP" ++ (if P.getBool @rev then " Reverse" else "") ++ "(" ++ show (P.pnat @n) ++  ") " ++ show a
 
-  singleCol w@(SomeP one p) (pos,rss) =
+  singleCol w@(SomeP one) (pos,rss) =
      case someImpl w rss of
        Left e -> Left e
        Right (n,msg) -> do
@@ -372,7 +358,6 @@ instance (Single a, Show a, P.GetBool rev, KnownNat n) => Single (Some (rev :: B
                                                    unless (i' == i+1) $ failBad (msg ++ " Col") ("pos=" ++ show pos ++ " should not happen: not getting a single resultset!" ++ show (i,i')) ""
                                                    return ((as++[(hm,a)],was++[wa]), rss'')
                                 ) (([],[]), rss) [1.. n]
-           left (\e -> CoRec (V.Identity (SingleColE msg (Just pos) "predicate failure" rss)) N.<| liftPE e) $ runPred p (map snd ret)
            return ((pos+n,rssout), ([], (Some (map snd ret),wret)))
 
 someImpl :: forall rev n a b . (P.GetBool rev, KnownNat n) => SingleIn (Some rev n a) -> [b] -> Either SE (Int, String)
@@ -386,14 +371,14 @@ someImpl _ rss =
           | otherwise -> return (n,msg)
 
 instance Single SelRaw where
-  data SingleIn SelRaw = SelRawP (PredZ [[SqlValue]])
+  data SingleIn SelRaw = SelRawP
   type SingleOut SelRaw = [[SqlValue]]
-  showF (SelRawP p) = "SelRawP " ++ show p
+  showF SelRawP = "SelRawP"
 
-  singleCol (SelRawP p) (pos,rss) =
+  singleCol SelRawP (pos,rss) =
     case rss of
       rs1:rss' -> left (CoRec (V.Identity (SingleColE "SelRaw" (Just pos) "" rss)) N.<|) $ do
-        (meta,a) <- selRawImpl rs1 p
+        (meta,a) <- selRawImpl rs1
         return ((pos+1,rss'), ([meta], (SelRaw a,a)))
       [] -> failNR "Sel" pos "no resultset"
 
@@ -428,19 +413,19 @@ toZZZ = VR.rmap $ \xa -> ZZZ xa undefined undefined []
 
 -- | 'ShowOp' extracts a value level predicate from the typelevel for 'UpdN'
 class ShowOp (a :: Op) where
-  getPredOp :: Int -> PredZ Int
+  showOp :: (String, Int -> Int -> Bool)
 instance ShowOp 'OPLT where
-  getPredOp = plt
+  showOp = ("<", (<))
 instance ShowOp 'OPLE where
-  getPredOp = ple
+  showOp = ("<=", (<=))
 instance ShowOp 'OPEQ where
-  getPredOp = peq
+  showOp = ("==", (==))
 instance ShowOp 'OPGE where
-  getPredOp = pge
+  showOp = (">=", (>=))
 instance ShowOp 'OPGT where
-  getPredOp = pgt
+  showOp = (">", (>))
 instance ShowOp 'OPNE where
-  getPredOp = pne
+  showOp = ("/=", (/=))
 
 processRetCol
   :: (RecAll ZZZ rs SingleZ
@@ -535,8 +520,8 @@ instance PGen' as => PGen' (a ': as) where
   ext' (r :& rs) = (_zzz3 r, ext' rs)
 
 -- | 'selImpl' tries to decode a result set based on the decoder and then runs the predicate
-selImpl :: Show a => ResultSet -> PredZ [a] -> Dec a -> Either SE (RMeta, [a])
-selImpl z@(Right (meta,xxs)) p (Dec dec) = do
+selImpl :: ResultSet -> Dec a -> Either SE (RMeta, [a])
+selImpl z@(Right (meta,xxs)) (Dec dec) = do
   ys <- forM (zip [1::Int ..] xxs) $ \(r,xs) -> do
           case dec xs of
             Left es ->
@@ -544,24 +529,22 @@ selImpl z@(Right (meta,xxs)) p (Dec dec) = do
                 [] -> error "selImpl: missing DecodingE"
                 ss:_ -> let c = length xs - length (_deSqlValues ss)
                         in Left $ liftDE $ decAddError' "selImpl" ("row/col " ++ show (r,c)) [] es
-
             Right a -> return a
   ret <- forM (zip [1::Int ..] ys) $ \(i,(a,lft)) -> do
     unless (null lft) $ failUCC "Select" i ("selImpl: didnt consume all values! row " ++ show i ++ ":leftovers=" ++ show lft) [z]
     return a
-  left (\e -> CoRec (V.Identity (SingleColE "Select" Nothing "selImpl: predicate failure" [z])) N.<| liftPE e) $ runPred p ret
   return (meta, ret)
-selImpl z _ _ = failURST "selImpl(Select)" "expected a select but found an update" z
+selImpl z _ = failURST "selImpl(Select)" "expected a select but found an update" z
 
 -- | 'updImpl' processes an Update resultset and runs the predicate
-updImpl :: ResultSet -> PredZ Int -> Either SE Int
-updImpl z@(Left i) p = left (\e -> CoRec (V.Identity (SingleColE "Update" Nothing "updImpl: predicate failure" [z])) N.<| liftPE e) (i <$ runPred p i)
-updImpl z _ = failURST "updImpl(Update)" "expected an update but found a select" z
+updImpl :: ResultSet -> Either SE Int
+updImpl (Left i) = pure i
+updImpl z@Right {} = failURST "updImpl(Update)" "expected an update but found a select" z
 
 -- | 'selRawImpl' processes a Query resultset and runs the predicate
-selRawImpl :: ResultSet -> PredZ [[SqlValue]] -> Either SE (RMeta, [[SqlValue]])
-selRawImpl z@(Right (meta,xs)) p = left (\e -> CoRec (V.Identity (SingleColE "SelRaw" Nothing "selRawImpl: predicate failure" [z])) N.<| liftPE e) ((meta,xs) <$ runPred p xs)
-selRawImpl z _ = failURST "selRawImpl(Select)" "expected a select but found an update" z
+selRawImpl :: ResultSet -> Either SE (RMeta, [[SqlValue]])
+selRawImpl (Right (meta,xs)) = pure (meta,xs)
+selRawImpl z@Left {} = failURST "selRawImpl(Select)" "expected a select but found an update" z
 
 -- | 'IsString' instance for 'Sql'
 instance (DefEnc (Rec Enc a), DefDec (Rec SingleIn b)) => IsString (Sql db a b) where
@@ -644,13 +627,13 @@ selWithDec :: forall rs
    . DecList rs
    => Rec Dec rs
    -> Rec SingleIn '[Sel (DecTuples rs)]
-selWithDec d = E1 (SelP 1 (decList d))
+selWithDec d = E1 (SelP (decList d))
 
 selOneWithDec :: forall rs
    . DecList rs
    => Rec Dec rs
    -> Rec SingleIn '[SelOne (DecTuples rs)]
-selOneWithDec d = E1 (SelOneP 1 (decList d))
+selOneWithDec d = E1 (SelOneP (decList d))
 
 -- provide a vinyl list of Decs and then it will convert to the sized tuple
 -- of course each defDec must have a type! eg defDec @(Dec String)
@@ -661,14 +644,14 @@ selSqlWithDec :: forall rs a db
    => Rec Dec rs
    -> Text
    -> Sql db a '[Sel (DecTuples rs)]
-selSqlWithDec d = Sql "selSqlWithDec" defEnc (E1 (SelP 1 (decList d)))
+selSqlWithDec d = Sql "selSqlWithDec" defEnc (E1 (SelP (decList d)))
 
 selOneSqlWithDec :: forall rs a db
    . (DecList rs, DefEnc (Rec Enc a))
    => Rec Dec rs
    -> Text
    -> Sql db a '[SelOne (DecTuples rs)]
-selOneSqlWithDec d = Sql "selOneSqlWithDec" defEnc (E1 (SelOneP 1 (decList d)))
+selOneSqlWithDec d = Sql "selOneSqlWithDec" defEnc (E1 (SelOneP (decList d)))
 
 -- you provide a vinyl list of decs and then it will work for a vinyl list result
 selSqlWithDecW :: forall rs a db
@@ -676,14 +659,14 @@ selSqlWithDecW :: forall rs a db
    => Rec Dec rs
    -> Text
    -> Sql db a '[Sel (WW rs)]
-selSqlWithDecW d = Sql "selSqlWithDecW" defEnc (E1 (SelP 1 (decW d)))
+selSqlWithDecW d = Sql "selSqlWithDecW" defEnc (E1 (SelP (decW d)))
 
 selOneSqlWithDecW :: forall rs a db
    . (DecW rs, DefEnc (Rec Enc a))
    => Rec Dec rs
    -> Text
    -> Sql db a '[SelOne (WW rs)]
-selOneSqlWithDecW d = Sql "selOneSqlWithDecW" defEnc (E1 (SelOneP 1 (decW d)))
+selOneSqlWithDecW d = Sql "selOneSqlWithDecW" defEnc (E1 (SelOneP (decW d)))
 
 -- for ElFields but you provide a vinyl dec list: still have to have rs defined
 -- fd $ runSql pglocal RNil $ selSqlWithDecH @'["aa" ::: IP Int, "bb" ::: String] (decIp :& defD :& RNil) "select '124.11.123.45 xx','abc'"
@@ -692,7 +675,7 @@ selSqlWithDecH :: forall rs a db
    => Rec Dec (P.Map P.SndSym0 rs)
    -> Text
    -> Sql db a '[Sel (Rec ElField rs)]
-selSqlWithDecH d = Sql "selSqlWithDecH" defEnc (E1 (SelP 1 (decH d)))
+selSqlWithDecH d = Sql "selSqlWithDecH" defEnc (E1 (SelP (decH d)))
 
 -- you provide just the rs with ==: ie labels and all and it figures out the rs result
 -- fd $ runSql pglocal RNil $ selSqlWithDecI (#xx ==: decIp :& #yy ==: defD @String :& RNil) "select '124.11.123.45 xx','abc'"
@@ -701,38 +684,7 @@ selSqlWithDecI :: forall rs a db
    => Rec ElFieldDec rs
    -> Text
    -> Sql db a '[Sel (Rec ElField rs)]
-selSqlWithDecI d = Sql "selSqlWithDecI" defEnc (E1 (SelP 1 (decI d)))
-
-selWithPred :: forall a
-   . DefDec (Dec a)
-   => PredZ [a]
-   -> Rec SingleIn '[Sel a]
-selWithPred p = E1 (SelP p defDec)
-
-selOneWithPred :: forall a
-   . DefDec (Dec a)
-   => PredZ a
-   -> Rec SingleIn '[SelOne a]
-selOneWithPred p = E1 (SelOneP p defDec)
-
-updWithPred :: PredZ Int -> Rec SingleIn '[Upd]
-updWithPred p = E1 (UpdP p)
-
--- how do we compose stuff: ie 2 selects one with and one without pred and then override the encoding / decoding etc
--- we need a composable algebra
-selSqlWithPred :: forall b a db
-   . (DefDec (Dec b), DefEnc (Rec Enc a))
-   => PredZ [b]
-   -> Text
-   -> Sql db a '[Sel b]
-selSqlWithPred p = Sql "selSqlWithPred" defEnc (E1 (SelP p defDec))
-
-selOneSqlWithPred :: forall b a db
-   . (DefDec (Dec b), DefEnc (Rec Enc a))
-   => PredZ b
-   -> Text
-   -> Sql db a '[SelOne b]
-selOneSqlWithPred p = Sql "selOneSqlWithPred" defEnc (E1 (SelOneP p defDec))
+selSqlWithDecI d = Sql "selSqlWithDecI" defEnc (E1 (SelP (decI d)))
 
 selSql :: (DefDec (Dec b), DefEnc (Rec Enc a))
    => Text
@@ -757,18 +709,18 @@ selOneSqlF = mkSql "selOneSqlF"
 instance DefDec (SingleIn (UpdN op val)) where
   defDec = UpdNP
 instance DefDec (SingleIn Upd) where
-  defDec = UpdP ptrue
+  defDec = UpdP
 instance DefDec (SingleIn SelRaw) where
-  defDec = SelRawP ptrue
+  defDec = SelRawP
 instance DefDec (Dec a) => DefDec (SingleIn (Sel a)) where
-  defDec = SelP ptrue defDec
+  defDec = SelP defDec
 instance DefDec (Dec a) => DefDec (SingleIn (SelOne a)) where
-  defDec = SelOneP ptrue defDec
+  defDec = SelOneP defDec
 
 instance DefDec (SingleIn a) => DefDec (SingleIn (Alle a)) where
-  defDec = AlleP defDec ptrue
+  defDec = AlleP defDec
 instance DefDec (SingleIn a) => DefDec (SingleIn (Some rev n a)) where
-  defDec = SomeP defDec ptrue
+  defDec = SomeP defDec
 instance (DefDec (SingleIn a), DefDec (SingleIn b)) => DefDec (SingleIn (a :+: b)) where
   defDec = defDec :+: defDec
 
@@ -798,22 +750,6 @@ type family ULE (n :: Nat) = (w :: Type) | w -> n where
 -- | Allows user to provide a "less then" predicate at the type level for an update result set
 type family ULT (n :: Nat) = (w :: Type) | w -> n where
   ULT n = UpdN 'OPLT n
-
--- try to use UpdN instead: we still need these runtime versions as we cannot combine U0 and U1
-u0 :: SingleIn Upd
-u0 = UpdP (peq 0)
-
-u1 :: SingleIn Upd
-u1 = UpdP (peq 1)
-
-ugt :: Int -> SingleIn Upd
-ugt = UpdP . pgt
-
-ugt0 :: SingleIn Upd
-ugt0 = UpdP (pgt 0)
-
-ueq :: Int -> SingleIn Upd
-ueq = UpdP . peq
 
 -- | generates n sql input placeholders (used for sql inserts)
 qqsn :: Int -> Text
