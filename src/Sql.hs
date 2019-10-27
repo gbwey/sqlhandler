@@ -177,11 +177,11 @@ failBad a b c = failSE (BadE a b c)
 failSE :: RElem x SE' (RIndex x SE') => x -> Either SE a
 failSE x = Left (CoRec (V.Identity x) :| [])
 
-type RMeta = [(String, SqlColDesc)]
+type RMeta = [SqlColDesc]
 type ResultSet = Either Int (RMeta,[[SqlValue]])
 
-hMetaNull :: (String, SqlColDesc)
-hMetaNull = ("", SqlColDesc (SqlUnknownT "dummy type:hMetaNull") (Just 5) (Just 7) (Just 11) (Just True))
+hMetaNull :: SqlColDesc
+hMetaNull = SqlColDesc "hMetaNull" (SqlUnknownT "dummy type:hMetaNull") (Just 5) (Just 7) (Just 11) (Just True)
 
 data UpdNE = UpdNE { _unMethod :: !String, _unPos :: !Int, _unMessage :: !String } deriving (Generic, Show, Eq)
 data UnconsumedColE = UnconsumedColE { _uccMethod :: !String, _uccPos :: !Int, _uccMessage :: !String, _uccRest :: ![ResultSet] } deriving (Generic, Show, Eq)

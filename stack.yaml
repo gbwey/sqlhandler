@@ -2,7 +2,7 @@ flags: {}
 extra-package-dbs: []
 packages:
 - location: '.'
-- location: ../hdbc
+- location: ../hdbc-odbc2
   extra-dep: true
 - location: ../predicate-typed
   extra-dep: true

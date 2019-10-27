@@ -314,8 +314,8 @@ ys' = UpdP :& SelRawP :& AlleP (SelOneP (defDec @(Dec Int))) :& RNil
 zs' :: Rec SingleIn '[Upd, SelRaw, Alle (SelOne Int), Alle Upd]
 zs' = UpdP :& SelRawP :& AlleP (SelOneP (defDec @(Dec Int))) :& AlleP UpdP :& RNil
 
-testColDesc :: String -> (String, SqlColDesc)
-testColDesc s = (s, SqlColDesc (SqlUnknownT "for testing sql.hs") (Just 5) (Just 7) (Just 11) (Just True))
+testColDesc :: String -> SqlColDesc
+testColDesc s = SqlColDesc s (SqlUnknownT "for testing sql.hs") (Just 5) (Just 7) (Just 11) (Just True)
 
 tt1' :: [ResultSet]
 tt1' = [Left 3, Right ([], [[SqlChar 'c']]), Right ([], [[SqlInt32 12],[SqlInt32 456],[SqlInt32 999]])]

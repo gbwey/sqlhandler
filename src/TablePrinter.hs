@@ -594,7 +594,7 @@ prttableHSelRaw o meta ts =
           cols = map (view _1 . Safe.atNote "prttableHSelRaw cols" z') is
           flds = if null meta then zipWith (\x v -> v <> "_" <> show x) [1::Int ..] (getColumnTypes ts)
           -- zipWith (\i x -> head (words (show x)) ++ "_" ++ show i) [1::Int ..] (head ts)
-                 else map fst $ head meta
+                 else map colName $ head meta
       in (cols
          ,map (Safe.atNote ("prttableHSelRaw flds=" ++ show flds ++ " is=" ++ show is) flds) is
          ,MMM (map (\z -> map (view _2 . Safe.atNote "prttableHSelRaw MMM" z) is) zs))
@@ -609,7 +609,7 @@ prttableH o meta ts =
       let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "prttableH cols" z') is
           flds = if null meta then getFieldNames (Proxy @a)
-                 else map fst $ head meta
+                 else map colName $ head meta
       in (cols
          ,map (Safe.atNote ("prttableH flds=" ++ show flds ++ " is=" ++ show is) flds) is
          ,MMM (map (\z -> map (view _2 . Safe.atNote "prttableH MMM" z) is) zs))
@@ -624,7 +624,7 @@ prttableV o meta ts =
       let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "prttableV cols" z') is
           flds' = if null meta then getFieldNames (Proxy @a)
-                  else map fst $ head meta
+                  else map colName $ head meta
           flds = if length is > length flds' then take (length is) (zipWith (\i n -> n <> show i) [1::Int ..] (cycle flds'))
                  else flds'
       in tableString cols
@@ -710,7 +710,7 @@ prtHRetCol o lrs =
               in prefix i <> "Select " <> show (length rows) <> " rows\n"
                           <> tableString cols
                              (_oStyle o)
-                             (titlesH $ map fst cs)
+                             (titlesH $ map colName cs)
                              (map (colsAllG top) rows)
 
 getColumnTypes :: [[SqlValue]] -> [String]
@@ -785,14 +785,14 @@ emptyMetaColName s | all isSpace s = True -- mssql
 
 addMetaToColName :: [String] -> RMeta -> [String]
 addMetaToColName xs ys =
-  zipWith (\x (y,_) ->
+  zipWith (\x (colName -> y) ->
             if emptyMetaColName y then x
             else x ++ "(" ++ y ++ ")"
           ) xs (ys ++ repeat hMetaNull)
 
 addColumnNameUsingMeta :: Int -> RMeta -> [String]
 addColumnNameUsingMeta n ys =
-  zipWith (\x (y,_) -> if emptyMetaColName y then x else y)
+  zipWith (\x (colName -> y) -> if emptyMetaColName y then x else y)
           (map (\i -> "col_" <> show i) [1..n])
           (ys ++ repeat hMetaNull)
 

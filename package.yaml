@@ -11,7 +11,7 @@ dependencies:
 - foldl
 - Frames >= 0.6.1
 - generics-sop
-- HDBC == 2.4.0.3
+- hdbc-odbc2
 - lens
 - mtl
 - one-liner
