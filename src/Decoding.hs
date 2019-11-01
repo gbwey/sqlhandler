@@ -50,7 +50,7 @@ import qualified Data.Vinyl.Functor as V
 import qualified Data.Vinyl.CoRec as VC
 import GHC.Stack
 import qualified Data.Functor.Identity as L
-import qualified PCombinators as P
+import qualified PCombinators as P (Map, SndSym0)
 import Data.Kind (Type)
 import Predicate
 import Refined3
