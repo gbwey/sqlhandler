@@ -53,9 +53,9 @@ import qualified Control.Lens as L
 import VinylUtils
 import Data.Function
 import qualified Generics.OneLiner as GO
-import Predicate
-import Refined3
-import Refined
+import Predicate.Core
+import Predicate.Refined3
+import Predicate.Refined
 import Raw
 -- | 'Enc' encodes a haskell value to a list of sqlvalues
 newtype Enc a = Enc { unEnc :: a -> [SqlValue] } deriving Generic

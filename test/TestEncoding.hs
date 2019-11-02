@@ -19,9 +19,9 @@ import qualified GHC.Generics as G
 import Test.Hspec
 import Sql
 import Predicate
-import Refined3
-import Refined3Helper
-import Refined
+import Predicate.Refined3
+import Predicate.Refined3Helper
+import Predicate.Refined
 import Data.Time
 
 spec :: SpecWith ()

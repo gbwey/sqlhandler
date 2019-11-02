@@ -52,12 +52,12 @@ import GHC.Stack
 import qualified Data.Functor.Identity as L
 import qualified PCombinators as P (Map, SndSym0)
 import Data.Kind (Type)
-import Predicate
-import Refined3
-import Refined
+import Predicate.Core
+import Predicate.Util (o2)
+import Predicate.Refined3
+import Predicate.Refined
 import Data.Typeable
 import Data.Either
-import UtilP (o2)
 import Raw
 -- decoder is associated with a single result set for Selects only
 -- actually for a single row!

@@ -62,9 +62,9 @@ import GHC.Stack
 import qualified Frames as F
 import Data.Foldable
 import qualified PCombinators as P
-import Refined
-import Refined3
-import Predicate
+import Predicate.Refined
+import Predicate.Refined3
+import Predicate.Core
 -- | a type synonym for functions that change the order of columns displayed or even drop columns
 type Fn1 = [(Int, ([String], FType))] -> [Int]
 
