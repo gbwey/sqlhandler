@@ -249,7 +249,7 @@ type EmosT (n :: Nat) = Some 'True n
 
 type AnyRaw = Upd :+: SelRaw
 
--- | 'SelRaw' holds a query resultset with raw data
+-- | 'SelRaw' holds a query resultset with undecoded data
 newtype SelRaw = SelRaw { unSelRaw :: [[SqlValue]] } deriving (Show, Eq, Generic)
 
 -- | 'Single' represents a single result set where 'SingleIn' is the input and 'SingleOut' is the

@@ -12,7 +12,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE QuasiQuotes #-}
 module TestVinyl where
 import Test.Tasty
 import Test.Tasty.HUnit
