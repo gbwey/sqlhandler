@@ -359,9 +359,9 @@ instance (Typeable i, RefinedC p i, DefDec (Dec i)) => DefDec (Dec (Refined p i)
     let nm = "Refined"
         msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
     in decAddError nm msg (defDec @(Dec i))
-          >>= \i -> let ((bp,e),mr) = runIdentity $ newRefined @p @i o2 i
+          >>= \i -> let ((bp,(e,top)),mr) = runIdentity $ newRefined @p @i o2 i
                     in case mr of
-                      Nothing -> decFail (nm <> " " <> show bp) ("\n" ++ e ++ "\n")
+                      Nothing -> decFail (nm <> " " <> show bp <> top) ("\n" ++ e ++ "\n")
                       Just r -> return r
 
 instance DefDec (Dec a) => DefDec (Dec (One a)) where
