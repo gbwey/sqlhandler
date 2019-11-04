@@ -175,13 +175,13 @@ tst3r1 s = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString s]])]
 tst3r2 :: Either SE (Rec ZZZ '[Sel (One (LuhnR 4))])
 tst3r2 = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlInt32 111]])]
 
-tst3r3 :: String -> Either SE (Rec ZZZ '[SelOne (One (Refined3 (ReadP Int) (Gt 4) (ExitWhen (Printf "Bad output=%d" Id) (Gt 10) >> ShowP Id) String))])
+tst3r3 :: String -> Either SE (Rec ZZZ '[SelOne (One (Refined3 (ReadP Int Id) (Gt 4) (ExitWhen (Printf "Bad output=%d" Id) (Gt 10) >> ShowP Id) String))])
 tst3r3 s = processRetCol (E1 (SelOneP defDec)) [Right ([], [[SqlString s]])]
 
-tst3rgood :: Either SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int) (Gt 4) (ShowP Id) String))])
+tst3rgood :: Either SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
 tst3rgood = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "123"]])]
 
-tst3rbad :: Either SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int) (Gt 4) (ShowP Id) String))])
+tst3rbad :: Either SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
 tst3rbad = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "-123"]])]
 {-
 >tst3rgood
@@ -189,7 +189,7 @@ Right {ZZZ {_zzz1 = SelP PConst TrueP
  Dec<fn>, _zzz2 = Sel {unSel = [One {unOne = Refined3 {r3In = 123, r3Out = "123"}}]}, _zzz3 = [One {unOne = Refined3 {r3In = 123, r3Out = "123"}}], _zzz4 = []}}
 it ::
   Either
-    SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int) (Gt 4) (ShowP Id) String))])
+    SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
 
 >tst3rbad
 Left ((Col SingleColE {_siInstance = "Sel", _siPos = Just 0, _siMessage = "", _siRss = [Right [[SqlString "-123"]]]}) :| [(
@@ -201,7 +201,7 @@ Strings = ["CMP -123 > 4"]}, subForest = [Node {rootLabel = PE {_peBoolP = Prese
  sqlvalues=)])
 it ::
   Either
-    SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int) (Gt 4) (ShowP Id) String))])
+    SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
 -}
 
 tst4 :: Either SE (Rec ZZZ '[Sel (Bool, Char)])

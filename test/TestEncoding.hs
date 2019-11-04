@@ -47,7 +47,7 @@ suite = defaultMain $ testGroup "TestEncoding"
   , testCase "encoding.ex13" $ (@?=) (unEnc (encList' encBoolMS) [True,False]) [SqlChar '\SOH',SqlChar '\NUL']
   , testCase "encoding.ex14" $ (@?=) (unEnc defEnc (unsafeRefined @'True @String "abc")) [SqlString "abc"]
   , testCase "encoding.ex15" $ (@?=) (unEnc defEnc (unsafeRefined3 @Id @'True @Id @String "abc" "abc")) [SqlString "abc"]
-  , testCase "encoding.ex16" $ (@?=) (unEnc defEnc (unsafeRefined3 @(ReadBase Int 16) @(Gt 10) @(ShowBase 16) @String 254 "fe")) [SqlString "fe"]
+  , testCase "encoding.ex16" $ (@?=) (unEnc defEnc (unsafeRefined3 @(ReadBase Int 16 Id) @(Gt 10) @(ShowBase 16 Id) @String 254 "fe")) [SqlString "fe"]
   , testCase "encoding.ex17" $ (@?=) (unEnc @(MakeR3 DateN) defEnc (unsafeRefined3 (fromGregorian 2001 12 3) "2001-12-03")) [SqlString "2001-12-03"]
   ]
 
