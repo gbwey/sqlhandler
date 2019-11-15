@@ -54,7 +54,8 @@ import VinylUtils
 import Data.Function
 import qualified Generics.OneLiner as GO
 import Predicate.Core
-import Predicate.Refined3
+import qualified Predicate.Refined2 as R2
+import qualified Predicate.Refined3 as R3
 import Predicate.Refined
 import Raw
 -- | 'Enc' encodes a haskell value to a list of sqlvalues
@@ -163,9 +164,12 @@ encDouble = Enc $ \d -> [SqlDouble d]
 encRefined :: DefEnc (Enc i) => Enc (Refined p i)
 encRefined = Enc $ unEnc defEnc . unRefined
 
+encRefined2 :: DefEnc (Enc i) => Enc (R2.Refined2 ip op i)
+encRefined2 = Enc $ unEnc defEnc . R2.r2Out
+
 -- do we encode the fmt output
-encRefined3 :: DefEnc (Enc (PP fmt (PP ip i))) => Enc (Refined3 ip op fmt i)
-encRefined3 = Enc $ unEnc defEnc . r3Out
+encRefined3 :: DefEnc (Enc (PP fmt (PP ip i))) => Enc (R3.Refined3 ip op fmt i)
+encRefined3 = Enc $ unEnc defEnc . R3.r3Out
 
 encLocalTime :: Enc LocalTime
 encLocalTime = Enc $ \tm -> [SqlLocalTime tm]
@@ -228,8 +232,11 @@ instance DefEnc (Enc Day) where
 
 instance DefEnc (Enc i) => DefEnc (Enc (Refined p i)) where
   defEnc = encRefined
+
+instance DefEnc (Enc i) => DefEnc (Enc (R2.Refined2 ip op i)) where
+  defEnc = encRefined2
 -- only care about the outputted value to be encoded so dont need DefEnc (Enc (PP ip i))
-instance DefEnc (Enc (PP fmt (PP ip i))) => DefEnc (Enc (Refined3 ip op fmt i)) where
+instance DefEnc (Enc (PP fmt (PP ip i))) => DefEnc (Enc (R3.Refined3 ip op fmt i)) where
   defEnc = encRefined3
 
 instance DefEnc (Enc RawEnc) where

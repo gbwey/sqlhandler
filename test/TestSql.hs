@@ -25,8 +25,8 @@ import GHC.TypeLits (KnownNat)
 import Control.Arrow
 import Predicate
 import Predicate.Refined3
-import Predicate.Refined3Helper
-import Predicate.Refined
+import Predicate.Examples.Refined3
+--import Predicate.Refined
 
 data R1 = R1 { r1 :: String, r2 :: Bool, r3 :: Char } deriving (Show,Eq)
 

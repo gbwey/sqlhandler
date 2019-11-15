@@ -20,8 +20,8 @@ import Test.Hspec
 import Sql
 import Predicate
 import Predicate.Refined3
-import Predicate.Refined3Helper
-import Predicate.Refined
+import Predicate.Examples.Refined3
+--import Predicate.Refined
 import Data.Time
 
 spec :: SpecWith ()
