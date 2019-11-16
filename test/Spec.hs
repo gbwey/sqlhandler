@@ -8,20 +8,21 @@ import qualified TestTablePrinter
 import qualified TestSqlDeferred
 import qualified TestVinyl
 import Test.Hspec
-import Control.Monad (sequence_)
+import Test.Tasty
 
 main :: IO ()
 main = do
   hspec spec
   TestSqlDeferred.doit
-  sequence_ [TestConv.suite
-            ,TestEncoding.suite
-            ,TestDecoding.suite
-            ,TestSql.suite
-            ,TestVinyl.suite
---            ,TestTablePrinter.suite
---            ,TestSqlDeferred.suite
-            ]
+  defaultMain $ testGroup "alltests"
+    [ TestConv.suite
+    , TestEncoding.suite
+    , TestDecoding.suite
+    , TestSql.suite
+    , TestVinyl.suite
+--  , TestTablePrinter.suite
+--  , TestSqlDeferred.suite
+    ]
 
 
 spec :: Spec

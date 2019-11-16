@@ -30,8 +30,8 @@ spec =
     it "should allow combined Some and Alle with no Alle data" $
       unEnc defEnc (1::Int) `shouldBe` [SqlInt32 1]
 
-suite :: IO ()
-suite = defaultMain $ testGroup "TestEncoding"
+suite :: TestTree
+suite = testGroup "TestEncoding"
   [ testCase "encoding.ex1" $ (@?=) (unEnc defEnc (1::Int)) [SqlInt32 1]
   , testCase "encoding.ex2" $ (@?=) (unEnc defEnc (True,'c')) [SqlInt32 1,SqlChar 'c']
   , testCase "encoding.ex3" $ (@?=) (unEnc defEnc ("\nabc " :: ByteString)) [SqlByteString "\nabc "]

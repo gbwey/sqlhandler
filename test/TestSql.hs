@@ -49,8 +49,8 @@ it :: Either DE (R1, [SqlValue])
 -}
 
 -- anyOf (traverse . suShort) (=="Update") (xes @UnexpectedResultSetTypeE e)
-suite :: IO ()
-suite = defaultMain $ testGroup "TestSql"
+suite :: TestTree
+suite = testGroup "TestSql"
   [ testCase "simpleret1" $ (@?=) (ext <$> processRetCol (E1 (SelOneP @Bool defDec)) [Right ([], [[SqlBool True]])]) (Right True)
   , testCase "simpleret2" $ (@?=) (ext <$> processRetCol (E2 (SelP @Bool defDec) UpdP) [Right ([], [[SqlBool False],[SqlBool True]]), Left 23]) (Right ([False,True],23))
   , testCase "single.fail1" $ assertBool "a1" (hasError @SingleColE (processRetCol (E1 (SelOneP @Bool defDec)) [Right ([], [])]))

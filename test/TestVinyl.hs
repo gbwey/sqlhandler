@@ -46,10 +46,9 @@ statictests1  =
           , removeTypes @Bool tst13 == tst13a
           ]
 
-
 -- rix rind makef reclen recget postscanF prescanF uniqueRec
-suite :: IO ()
-suite = defaultMain $ testGroup "TestVinyl"
+suite :: TestTree
+suite = testGroup "TestVinyl"
   [ testCase "uniq1" $ (@?=) (uniqueRec tst9a) tst9a'
   , testCase "uniq2" $ (@?=) (uniqueRec tst9) tst9
   , testCase "uniq3" $ (@?=) (uniqueRec (#a =: True :& #b =: 'x' :& #a =: "asdf" :& RNil)) (uniqueRec (#a =: True :& #b =: 'x' :& #a_1 =: "asdf" :& RNil))

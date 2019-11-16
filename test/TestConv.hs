@@ -16,8 +16,8 @@ spec =
     it "should allow combined Some and Alle with no Alle data" $
       conv @Bool [SqlBool True] `shouldBe` Right True
 
-suite :: IO ()
-suite = defaultMain $ testGroup "TestConv"
+suite :: TestTree
+suite = testGroup "TestConv"
 
   [ testCase "ceq0.ok" $ (@?=) (conv @Bool [SqlBool True]) (Right True)
   , testCase "ceq1.fail" $ expectLeft (conv @Bool [SqlInt32 3])
