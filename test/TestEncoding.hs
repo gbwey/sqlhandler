@@ -33,10 +33,12 @@ spec =
       unEnc defEnc (1::Int) `shouldBe` [SqlInt32 1]
 
 suite :: TestTree
-suite = testGroup "TestEncoding" (orderTests allTests)
+suite =
+  let s = "TestEncoding"
+  in testGroup s (orderTests s allTests)
 
-orderTests :: [Assertion] -> [TestTree]
-orderTests = zipWith (\i t -> testCase (show i) t) [1::Int ..]
+orderTests :: String -> [Assertion] -> [TestTree]
+orderTests s = zipWith (\i t -> testCase (s <> show i) t) [1::Int ..]
 
 allTests :: [IO ()]
 allTests =

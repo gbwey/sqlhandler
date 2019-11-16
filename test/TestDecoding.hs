@@ -31,10 +31,12 @@ spec =
       unDec (defDec :: Dec Int) [SqlInt32 12] `shouldBe` Right (12,[])
 
 suite :: TestTree
-suite = testGroup "TestDecoding" (orderTests allTests)
+suite =
+  let s = "TestDecoding"
+  in testGroup s (orderTests s allTests)
 
-orderTests :: [Assertion] -> [TestTree]
-orderTests = zipWith (\i t -> testCase (show i) t) [1::Int ..]
+orderTests :: String -> [Assertion] -> [TestTree]
+orderTests s = zipWith (\i t -> testCase (s <> show i) t) [1::Int ..]
 
 allTests :: [IO ()]
 allTests =
