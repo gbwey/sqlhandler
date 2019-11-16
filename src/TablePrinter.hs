@@ -63,7 +63,8 @@ import qualified Frames as F
 import Data.Foldable
 import qualified PCombinators as P
 import Predicate.Refined
-import Predicate.Refined3
+import Predicate.Refined2 (Refined2(..))
+import Predicate.Refined3 (Refined3(..))
 import Predicate.Core
 -- | a type synonym for functions that change the order of columns displayed or even drop columns
 type Fn1 = [(Int, ([String], FType))] -> [Int]
@@ -519,6 +520,11 @@ instance FromField a => FromField (Refined p a) where
   fromField = fromField . unRefined
   coltype i = coltype i . unRefined
   fieldtype _ = fieldtype Proxy . unRefined
+
+instance (Show i, Show (PP ip i)) => FromField (Refined2 ip op i) where
+  fromField r = fromField ("R2:" ++ show (r2In r, r2Out r))
+  coltype i r = coltype i (show (r2In r, r2Out r))
+  fieldtype _ r = fieldtype Proxy (r2In r, r2Out r)
 
 instance (Show (PP fmt (PP ip i)), Show (PP ip i)) => FromField (Refined3 ip op fmt i) where
   fromField r = fromField ("R3:" ++ show (r3In r, r3Out r))

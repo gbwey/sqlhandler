@@ -19,8 +19,10 @@ import qualified GHC.Generics as G
 import Test.Hspec
 import Sql
 import Predicate
-import Predicate.Refined3
-import Predicate.Examples.Refined3
+import qualified Predicate.Refined2 as R2
+import qualified Predicate.Examples.Refined2 as R2
+import qualified Predicate.Refined3 as R3
+import qualified Predicate.Examples.Refined3 as R3
 --import Predicate.Refined
 import Data.Time
 
@@ -31,24 +33,35 @@ spec =
       unEnc defEnc (1::Int) `shouldBe` [SqlInt32 1]
 
 suite :: TestTree
-suite = testGroup "TestEncoding"
-  [ testCase "encoding.ex1" $ (@?=) (unEnc defEnc (1::Int)) [SqlInt32 1]
-  , testCase "encoding.ex2" $ (@?=) (unEnc defEnc (True,'c')) [SqlInt32 1,SqlChar 'c']
-  , testCase "encoding.ex3" $ (@?=) (unEnc defEnc ("\nabc " :: ByteString)) [SqlByteString "\nabc "]
-  , testCase "encoding.ex4" $ (@?=) (unEnc defEnc ("defEnc " :: String)) [SqlString "defEnc "]
-  , testCase "encoding.ex5" $ (@?=) (unEnc defEnc ("ghi" :: Text)) [SqlString "ghi"]
-  , testCase "encoding.ex6" $ (@?=) (unEnc encHMS (10,12,13)) [SqlString "10:12:13"]
-  , testCase "encoding.ex7" $ (@?=) (encodeVals (E2 (defEnc @(Enc Int)) (defEnc @(Enc (Bool,String)))) (I2 1 (True,"xxx"))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
-  , testCase "encoding.ex8" $ (@?=) (encodeVals (E1 (defEnc @(Enc (Int, (Bool,String))))) (I1 (1,(True,"xxx")))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
---  , testCase "encoding.ex9" $ (@?=) (unEnc (encLens _1 (defEnc :: Enc Bool)) (True,"1",'x')) [SqlInt32 1]
---  , testCase "encoding.ex10" $ (@?=) (unEnc (encLens _1 (Enc $ \i -> [SqlInt32 123])) (True,"1",'x')) [SqlInt32 123]
-  , testCase "encoding.ex11" $ (@?=) (unEnc (divided (defEnc :: Enc Int) (defEnc :: Enc Bool)) (24,True)) [SqlInt32 24,SqlInt32 1]
-  , testCase "encoding.ex12" $ (@?=) (unEnc (encList' encBool) [True,False]) [SqlInt32 1,SqlInt32 0]
-  , testCase "encoding.ex13" $ (@?=) (unEnc (encList' encBoolMS) [True,False]) [SqlChar '\SOH',SqlChar '\NUL']
-  , testCase "encoding.ex14" $ (@?=) (unEnc defEnc (unsafeRefined @'True @String "abc")) [SqlString "abc"]
-  , testCase "encoding.ex15" $ (@?=) (unEnc defEnc (unsafeRefined3 @Id @'True @Id @String "abc" "abc")) [SqlString "abc"]
-  , testCase "encoding.ex16" $ (@?=) (unEnc defEnc (unsafeRefined3 @(ReadBase Int 16 Id) @(Gt 10) @(ShowBase 16 Id) @String 254 "fe")) [SqlString "fe"]
-  , testCase "encoding.ex17" $ (@?=) (unEnc @(MakeR3 DateN) defEnc (unsafeRefined3 (fromGregorian 2001 12 3) "2001-12-03")) [SqlString "2001-12-03"]
+suite = testGroup "TestEncoding" (orderTests allTests)
+
+orderTests :: [Assertion] -> [TestTree]
+orderTests = zipWith (\i t -> testCase (show i) t) [1::Int ..]
+
+allTests :: [IO ()]
+allTests =
+  [ (@?=) (unEnc defEnc (1::Int)) [SqlInt32 1]
+  , (@?=) (unEnc defEnc (True,'c')) [SqlInt32 1,SqlChar 'c']
+  , (@?=) (unEnc defEnc ("\nabc " :: ByteString)) [SqlByteString "\nabc "]
+  , (@?=) (unEnc defEnc ("defEnc " :: String)) [SqlString "defEnc "]
+  , (@?=) (unEnc defEnc ("ghi" :: Text)) [SqlString "ghi"]
+  , (@?=) (unEnc encHMS (10,12,13)) [SqlString "10:12:13"]
+  , (@?=) (encodeVals (E2 (defEnc @(Enc Int)) (defEnc @(Enc (Bool,String)))) (I2 1 (True,"xxx"))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
+  , (@?=) (encodeVals (E1 (defEnc @(Enc (Int, (Bool,String))))) (I1 (1,(True,"xxx")))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
+--  $ (@?=) (unEnc (encLens _1 (defEnc :: Enc Bool)) (True,"1",'x')) [SqlInt32 1]
+--  $ (@?=) (unEnc (encLens _1 (Enc $ \i -> [SqlInt32 123])) (True,"1",'x')) [SqlInt32 123]
+  , (@?=) (unEnc (divided (defEnc :: Enc Int) (defEnc :: Enc Bool)) (24,True)) [SqlInt32 24,SqlInt32 1]
+  , (@?=) (unEnc (encList' encBool) [True,False]) [SqlInt32 1,SqlInt32 0]
+  , (@?=) (unEnc (encList' encBoolMS) [True,False]) [SqlChar '\SOH',SqlChar '\NUL']
+  , (@?=) (unEnc defEnc (unsafeRefined @'True @String "abc")) [SqlString "abc"]
+
+  , (@?=) (unEnc defEnc (R2.unsafeRefined2 @Id @'True @String "abc" "abc")) [SqlString "abc"]
+  , (@?=) (unEnc defEnc (R2.unsafeRefined2 @(ReadBase Int 16 Id) @(Gt 10) @String 254 "fe")) [SqlString "fe"]
+  , (@?=) (unEnc @(R2.MakeR2 R2.DateN) defEnc (R2.unsafeRefined2 (fromGregorian 2001 12 3) "2001-12-03")) [SqlString "2001-12-03"]
+
+  , (@?=) (unEnc defEnc (R3.unsafeRefined3 @Id @'True @Id @String "abc" "abc")) [SqlString "abc"]
+  , (@?=) (unEnc defEnc (R3.unsafeRefined3 @(ReadBase Int 16 Id) @(Gt 10) @(ShowBase 16 Id) @String 254 "fe")) [SqlString "fe"]
+  , (@?=) (unEnc @(R3.MakeR3 R3.DateN) defEnc (R3.unsafeRefined3 (fromGregorian 2001 12 3) "2001-12-03")) [SqlString "2001-12-03"]
   ]
 
 
