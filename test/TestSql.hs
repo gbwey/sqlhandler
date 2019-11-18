@@ -159,10 +159,10 @@ tst21'' = processRetCol (E1 (AlleP defDec)) [Left 5, Left 12, Left 7, Left 3, Le
 tst3 :: Either SE (Rec ZZZ '[Sel (Bool, String), Upd, Sel R1])
 tst3 = processRetCol (E3 (SelP defDec) UpdP (SelP defDec)) [rsa,rsb,rsc]
 
-tst4r :: (Integral i, Integral j) => i -> j -> Either SE (Rec ZZZ '[Sel (Text, Refined (Between 4 10 && Id /= 7) Int, Double)])
+tst4r :: (Integral i, Integral j) => i -> j -> Either SE (Rec ZZZ '[Sel (Text, Refined (4 <..> 10 && Id /= 7) Int, Double)])
 tst4r i j = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "abc", SqlInt32 (fromIntegral i), SqlDouble 1.2], [SqlString "abc", SqlInt32 (fromIntegral j), SqlDouble 1.2]])]
 
-tst4r1 :: (Integral i, Integral j) => i -> j -> Either SE (Rec ZZZ '[Sel (Text, Refined (Guard (PrintF "oops val=%03d" Id) (Between 4 10 && Id /= 7) >> 'True) Int, Double)])
+tst4r1 :: (Integral i, Integral j) => i -> j -> Either SE (Rec ZZZ '[Sel (Text, Refined (Guard (PrintF "oops val=%03d" Id) (Between 4 10 Id && Id /= 7) >> 'True) Int, Double)])
 tst4r1 i j = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "abc", SqlInt32 (fromIntegral i), SqlDouble 1.2], [SqlString "abc", SqlInt32 (fromIntegral j), SqlDouble 1.2]])]
 
 tst3r :: Either SE (Rec ZZZ '[Sel (One String)])

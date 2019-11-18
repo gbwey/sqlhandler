@@ -9,9 +9,12 @@ import qualified TestSqlDeferred
 import qualified TestVinyl
 import Test.Hspec
 import Test.Tasty
+import System.IO
 
 main :: IO ()
 main = do
+  hSetBuffering stdout LineBuffering
+  hSetBuffering stderr LineBuffering
   hspec spec
   TestSqlDeferred.doit
   defaultMain $ testGroup "alltests"
