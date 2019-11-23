@@ -109,6 +109,7 @@ instance ToText (Sql db a b) where
 instance Show (Sql db a b) where
   show = T.unpack . _sSql
 
+{-# COMPLETE I #-}
 pattern I :: a -> V.Identity a
 pattern I a = V.Identity a
 
