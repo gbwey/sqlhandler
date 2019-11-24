@@ -3,7 +3,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -168,7 +167,7 @@ testp11 :: Rec ZZZ '[Some 'False 3 (Sel (Bool, Char))]
 testp11 = testsome (replicate 5 (testsel [(False,'x'), (True,'y')])) :& RNil
 
 testp11a :: Rec ZZZ '[Some 'True 1 (Sel (Bool, Char)), SelOne (Char, Bool)]
-testp11a = testemos (replicate 5 (testsel [(False,'x'), (True,'y')])) :& (testselone ('x', False)) :& RNil
+testp11a = testemos (replicate 5 (testsel [(False,'x'), (True,'y')])) :& testselone ('x', False) :& RNil
 
 -- this works even tho a single value but it is wrapped in T2
 testp12 :: Rec ZZZ '[Sel T2]
