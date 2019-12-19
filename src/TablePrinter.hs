@@ -306,10 +306,7 @@ instance (P.GetBool rev, KnownNat n, ZPrint (ZZZ a)) => ZPrint (ZZZ (Some rev n 
     $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn ("Some " <> (if P.getBool @rev then "Reverse " else "") <> show (P.pnat @n) <> " ")) i) xs ys [pos..]
 
 getFieldNames :: GS.HasDatatypeInfo a => proxy a -> [String]
-getFieldNames p =
-  case GS.datatypeInfo p of
-    GS.ADT     _ _ cs -> fNms cs
-    GS.Newtype _ _ c -> fNms $ c GS.:* GS.Nil
+getFieldNames = fNms . GS.constructorInfo . GS.datatypeInfo
 
 fNms :: HasCallStack => GS.NP GS.ConstructorInfo a -> [String]
 fNms (GS.Record _ xs GS.:* _) = fNmsRec xs

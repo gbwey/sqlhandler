@@ -1,0 +1,1 @@
+packages: *.cabal ../{table-layout,hdbc-odbc2,predicate-typed,typelevel}
