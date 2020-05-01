@@ -14,7 +14,10 @@ import GHC.Generics (Generic, Generic1)
 import Database.HDBC
 import Data.Vinyl
 import qualified Data.Vinyl.CoRec as VC
-import Sql
+import HSql.Core.Sql
+import HSql.Core.Decoder
+import HSql.Core.Encoder
+import HSql.Core.ErrorHandler
 
 -- defined in Frames [Frames.ExtraInstances]
 --deriving instance Generic1 V.Identity
@@ -68,8 +71,8 @@ instance NFData (SingleIn SelRaw) where
   rnf SelRawP = ()
 
 instance (NFData (SingleIn a), NFData (SingleOut a), NFData a)
-    => NFData (ZZZ a) where
-  rnf (ZZZ a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+    => NFData (RState a) where
+  rnf (RState a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
 instance NFData (VC.CoRec fa '[]) where
   rnf _ = ()

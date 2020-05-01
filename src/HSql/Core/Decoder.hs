@@ -17,7 +17,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
 {- |
-Module      : Decoding
+Module      : HSql.Core.Decoder
 Description : decode from 'SqlValue's to haskell values
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
@@ -25,7 +25,7 @@ Maintainer  : gbwey9@gmail.com
 
 'Dec' defines a decoder and 'DefDec' has the default decoder for a given type.
 -}
-module Decoding where
+module HSql.Core.Decoder where
 import Control.Lens
 import Control.Monad
 import Data.ByteString (ByteString)
@@ -35,15 +35,13 @@ import Data.Time
 import Data.Proxy
 import Control.Monad.State
 import Control.Applicative
-import One
+import HSql.Core.One
 import Database.HDBC (SqlValue(..))
-import Conv
-import Data.List.NonEmpty (NonEmpty(..))
+import HSql.Core.Conv
 import qualified Data.List.NonEmpty as N
 import GHC.TypeLits (ErrorMessage((:$$:)),Nat,KnownNat,Symbol,KnownSymbol,symbolVal,natVal)
-import qualified GHC.TypeLits as GL -- (GL.GL.TypeError,ErrorMessage(..))
+import qualified GHC.TypeLits as GL
 import GHC.Generics (Generic)
-import Data.List
 import Data.Vinyl
 import Data.Vinyl.CoRec (CoRec(..))
 import qualified Data.Vinyl.Functor as V
@@ -59,29 +57,13 @@ import qualified Predicate.Refined3 as R3
 import Predicate.Refined
 import Data.Typeable
 import Data.Either
-import Raw
+import HSql.Core.Raw
+import HSql.Core.ErrorHandler
 -- decoder is associated with a single result set for Selects only
 -- actually for a single row!
 -- need to check if we have consumed everything!!!
 -- | stateful parser for decoding sql values
 newtype Dec a = Dec { unDec :: [SqlValue] -> Either DE (a, [SqlValue]) } deriving Generic
-
-type DE' = '[ConvE, DecodingE]
-type DE = NonEmpty (CoRec V.Identity DE')
-
-liftCE :: NonEmpty ConvE -> DE
-liftCE = fmap (CoRec . V.Identity)
-
-failDE :: String -> String -> [SqlValue] -> Either DE a
-failDE a b c = Left (CoRec (V.Identity (DecodingE a b c)) :| [])
-
-data DecodingE = DecodingE { _deMethod :: !String, _deMessage :: !String, _deSqlValues :: ![SqlValue] } deriving (Eq, Generic)
--- makeLenses ''DecodingE
-instance Show DecodingE where
-  show (DecodingE a b c) =
-    "DecodingE method=" ++ a
-    ++ " | " ++ b ++ " | "
-    ++ " sqlvalues=" ++ intercalate "," (map show c)
 
 decPrism :: Show s => Prism' s a -> Dec s -> Dec a
 decPrism p (Dec f) =

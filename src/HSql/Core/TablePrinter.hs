@@ -22,7 +22,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PolyKinds #-}
 {- |
-Module      : TablePrinter
+Module      : HSql.Core.TablePrinter
 Description : utilities for displaying resultsets in tabular form.
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
@@ -30,7 +30,7 @@ Maintainer  : gbwey9@gmail.com
 
 'wprint' is the key function
 -}
-module TablePrinter where
+module HSql.Core.TablePrinter where
 import qualified Data.ByteString.Char8 as B8
 import Data.ByteString (ByteString)
 import Data.Data
@@ -52,7 +52,7 @@ import qualified Data.Vinyl.Recursive as VR
 import qualified Data.Vinyl as V
 import qualified Data.Vinyl.Functor as V
 import qualified Data.Vinyl.TypeLevel as V
-import Sql
+import HSql.Core.Sql
 import Numeric (showHex)
 import Database.HDBC.ColTypes
 import qualified Safe
@@ -66,6 +66,10 @@ import Predicate.Refined
 import Predicate.Refined2 (Refined2(..))
 import Predicate.Refined3 (Refined3(..))
 import Predicate.Core
+import HSql.Core.VinylUtils
+import HSql.Core.Common
+import Database.HDBC (SqlValue(..), SqlColDesc(..))
+
 -- | a type synonym for functions that change the order of columns displayed or even drop columns
 type Fn1 = [(Int, ([String], FType))] -> [Int]
 
@@ -182,14 +186,14 @@ chunksOf n = unfoldr f
              | otherwise = Just (splitAt n xs)
 
 -- | horizontal: tries to join resultsets horizontally
-prttableRecH :: (V.RecAll ZZZ rs ZPrint) => Opts -> Rec ZZZ rs -> String
+prttableRecH :: (V.RecAll RState rs ZPrint) => Opts -> Rec RState rs -> String
 prttableRecH o xs =
   let ret = VR.reifyConstraint (Proxy @ZPrint) xs
       (cs,hs,MMM rs) = getConst $ VR.rfoldMap (\(V.Compose (V.Dict x)) -> Const $ zprintH x o) ret
   in tableString cs (_oStyle o) (titlesH hs) (map (colsAllG top) rs)
 
 -- | prints resultsets as they appear (vertically)
-prttableRecV :: (V.RecAll ZZZ rs ZPrint) => Opts -> Rec ZZZ rs -> String
+prttableRecV :: (V.RecAll RState rs ZPrint) => Opts -> Rec RState rs -> String
 prttableRecV o xs =
   let ret = VR.reifyConstraint (Proxy @ZPrint) xs
 --  in concat $ V.recordToList $ snd $ flip unSTI (0::Int) $ V.rtraverse (\(V.Compose (V.Dict x)) -> STI $ \pos -> fmap V.Const (zprintV x rsHeader1 pos)) ret
@@ -224,86 +228,86 @@ class ZPrint a where
   zprintV :: HasCallStack => a -> Opts -> FnRSHeader -> Int -> (Int, String)
 
 instance (KnownNat (P.Length rs), ReifyConstraint FromField V.Identity rs, RFoldMap rs)
-     => ZPrint (ZZZ (SelOne (Rec V.Identity rs))) where
-  zprintH (ZZZ _ _ a meta) o =
+     => ZPrint (RState (SelOne (Rec V.Identity rs))) where
+  zprintH (RState _ _ a meta) o =
      qprttableH o (addColumnNameUsingMeta (recLen @rs) (concat meta)) [a]
-  zprintV (ZZZ _ _ a meta) o fn pos = -- can use 'a' instead of Proxy @(F rs) but for some reason doesnt work for SelOne?
+  zprintV (RState _ _ a meta) o fn pos = -- can use 'a' instead of Proxy @(F rs) but for some reason doesnt work for SelOne?
      (pos+1, fn ("Sel",pos) <> qprttableV o (addColumnNameUsingMeta (recLen @rs) (concat meta)) [a])
 
 instance (F.ColumnHeaders rs, ReifyConstraint FromField V.Identity (Unlabeled rs), StripFieldNames rs, RFoldMap (Unlabeled rs))
-     => ZPrint (ZZZ (SelOne (F rs))) where
-  zprintH (ZZZ _ _ a meta) o =
+     => ZPrint (RState (SelOne (F rs))) where
+  zprintH (RState _ _ a meta) o =
      qprttableH o (addMetaToColName (F.columnHeaders (Proxy @(F rs))) (concat meta)) [stripNames a]
-  zprintV (ZZZ _ _ a meta) o fn pos =
+  zprintV (RState _ _ a meta) o fn pos =
      (pos+1, fn ("SelOne",pos) <> qprttableV o (addMetaToColName (F.columnHeaders (Proxy @(F rs))) (concat meta)) [stripNames a])
 
 instance {-# OVERLAPPABLE #-} (GS.HasDatatypeInfo a, GS.Generic a, GS.Code a ~ '[xs], GS.All FromField xs)
-     => ZPrint (ZZZ (SelOne a)) where
-  zprintH (ZZZ _ _ a meta) o = prttableH o meta [a]
-  zprintV (ZZZ _ _ a meta) o fn pos = (pos+1, fn ("SelOne",pos) <> prttableV o meta [a])
+     => ZPrint (RState (SelOne a)) where
+  zprintH (RState _ _ a meta) o = prttableH o meta [a]
+  zprintV (RState _ _ a meta) o fn pos = (pos+1, fn ("SelOne",pos) <> prttableV o meta [a])
 
 instance (KnownNat (P.Length rs), ReifyConstraint FromField V.Identity rs, RFoldMap rs)
-     => ZPrint (ZZZ (Sel (Rec V.Identity rs))) where
-  zprintH (ZZZ _ _ a meta) o =
+     => ZPrint (RState (Sel (Rec V.Identity rs))) where
+  zprintH (RState _ _ a meta) o =
      qprttableH o (addColumnNameUsingMeta (recLen @rs) (concat meta)) a
-  zprintV (ZZZ _ _ a meta) o fn pos = -- can use 'a' instead of Proxy @(F rs) but for some reason doesnt work for SelOne?
+  zprintV (RState _ _ a meta) o fn pos = -- can use 'a' instead of Proxy @(F rs) but for some reason doesnt work for SelOne?
      (pos+1, fn ("Sel",pos) <> qprttableV o (addColumnNameUsingMeta (recLen @rs) (concat meta)) a)
 
 instance (F.ColumnHeaders rs, ReifyConstraint FromField V.Identity (Unlabeled rs), StripFieldNames rs, RFoldMap (Unlabeled rs))
-     => ZPrint (ZZZ (Sel (F rs))) where
-  zprintH (ZZZ _ _ a meta) o =
+     => ZPrint (RState (Sel (F rs))) where
+  zprintH (RState _ _ a meta) o =
      qprttableH o (addMetaToColName (F.columnHeaders a) (concat meta)) (map stripNames a)
-  zprintV (ZZZ _ _ a meta) o fn pos = -- can use 'a' instead of Proxy @(F rs) but for some reason doesnt work for SelOne?
+  zprintV (RState _ _ a meta) o fn pos = -- can use 'a' instead of Proxy @(F rs) but for some reason doesnt work for SelOne?
      (pos+1, fn ("Sel",pos) <> qprttableV o (addMetaToColName (F.columnHeaders a) (concat meta)) (map stripNames a))
 
 instance {-# OVERLAPPABLE #-}(GS.HasDatatypeInfo a, GS.Generic a, GS.Code a ~ '[xs], GS.All FromField xs)
-    => ZPrint (ZZZ (Sel a)) where
-  zprintH (ZZZ _ _ a meta) o = prttableH o meta a
-  zprintV (ZZZ _ _ a meta) o fn pos = (pos+1, fn ("Sel",pos) <> prttableV o meta a)
+    => ZPrint (RState (Sel a)) where
+  zprintH (RState _ _ a meta) o = prttableH o meta a
+  zprintV (RState _ _ a meta) o fn pos = (pos+1, fn ("Sel",pos) <> prttableV o meta a)
 
-instance ZPrint (ZZZ SelRaw) where
-  zprintH (ZZZ _ _ a meta) o = prttableHSelRaw o meta a -- globs stuff into one field but not used much anyway!
-  zprintV (ZZZ _ _ a meta) o fn pos =
+instance ZPrint (RState SelRaw) where
+  zprintH (RState _ _ a meta) o = prttableHSelRaw o meta a -- globs stuff into one field but not used much anyway!
+  zprintV (RState _ _ a meta) o fn pos =
     (pos+1, fn ("SelRaw",pos) <> concat (if null meta then prtHRetCol o [Right @Int ([],a)]
                                          else prtHRetCol o [Right @Int (head meta, a)]
                                          )
     )
 
-instance ZPrint (ZZZ Upd) where
-  zprintH (ZZZ _ _ rc _) _ = ([upto 20], ["Upd"], MMM [[["Upd rc=" ++ show rc]]])
-  zprintV (ZZZ _ _ rc _) _ fn pos = (pos+1, fn ("Upd",pos) <> "Upd " <> show rc)
+instance ZPrint (RState Upd) where
+  zprintH (RState _ _ rc _) _ = ([upto 20], ["Upd"], MMM [[["Upd rc=" ++ show rc]]])
+  zprintV (RState _ _ rc _) _ fn pos = (pos+1, fn ("Upd",pos) <> "Upd " <> show rc)
 
-instance (ShowOp op, KnownNat val) => ZPrint (ZZZ (UpdN op val)) where
-  zprintH (ZZZ _ _ rc _) _ = ([upto 20], [fst (showOp @op) <> " " <> show (P.pnat @val)], MMM [[["UpdN rc=" ++ show rc]]])
-  zprintV (ZZZ _ _ rc _) _ fn pos = (pos+1, fn (fst (showOp @op) <> " " <> show (P.pnat @val), pos) <> "UpdN " <> show rc)
+instance (ShowOp op, KnownNat val) => ZPrint (RState (UpdN op val)) where
+  zprintH (RState _ _ rc _) _ = ([upto 20], [fst (showOp @op) <> " " <> show (P.pnat @val)], MMM [[["UpdN rc=" ++ show rc]]])
+  zprintV (RState _ _ rc _) _ fn pos = (pos+1, fn (fst (showOp @op) <> " " <> show (P.pnat @val), pos) <> "UpdN " <> show rc)
 
-instance (ZPrint (ZZZ a), ZPrint (ZZZ b)) => ZPrint (ZZZ (a :+: b)) where
-  zprintH (ZZZ (x :+: _) (EitherRS (Left w)) (Left a) _) o = zprintH (ZZZ x w a []) o
-  zprintH (ZZZ (_ :+: y) (EitherRS (Right w)) (Right a) _) o = zprintH (ZZZ y w a []) o
-  zprintH (ZZZ (_ :+: _) (EitherRS _) _ _) _ = error "Left and Right got mixed somehow in zprintH x :+: y"
+instance (ZPrint (RState a), ZPrint (RState b)) => ZPrint (RState (a :+: b)) where
+  zprintH (RState (x :+: _) (EitherRS (Left w)) (Left a) _) o = zprintH (RState x w a []) o
+  zprintH (RState (_ :+: y) (EitherRS (Right w)) (Right a) _) o = zprintH (RState y w a []) o
+  zprintH (RState (_ :+: _) (EitherRS _) _ _) _ = error "Left and Right got mixed somehow in zprintH x :+: y"
 
-  zprintV (ZZZ (x :+: _) (EitherRS (Left w)) (Left a) _) o fn pos = zprintV (ZZZ x w a []) o (prefixMessage fn "Left ") pos
-  zprintV (ZZZ (_ :+: y) (EitherRS (Right w)) (Right a) _) o fn pos = zprintV (ZZZ y w a []) o (prefixMessage fn "Right ") pos
-  zprintV (ZZZ (_ :+: _) (EitherRS _) _ _) _ _ _ = error "Left and Right got mixed somehow in zprintV x :+: y"
+  zprintV (RState (x :+: _) (EitherRS (Left w)) (Left a) _) o fn pos = zprintV (RState x w a []) o (prefixMessage fn "Left ") pos
+  zprintV (RState (_ :+: y) (EitherRS (Right w)) (Right a) _) o fn pos = zprintV (RState y w a []) o (prefixMessage fn "Right ") pos
+  zprintV (RState (_ :+: _) (EitherRS _) _ _) _ _ _ = error "Left and Right got mixed somehow in zprintV x :+: y"
 
 -- need to prefix Alle info for each zprint
-instance ZPrint (ZZZ a) => ZPrint (ZZZ (Alle a)) where
-  zprintH (ZZZ (AlleP x) (Alle xs) ys _ ) o =
+instance ZPrint (RState a) => ZPrint (RState (Alle a)) where
+  zprintH (RState (AlleP x) (Alle xs) ys _ ) o =
     mconcat
-    $ zipWith (\a b -> zprintH (ZZZ x a b []) o) xs ys
-  zprintV (ZZZ (AlleP x) (Alle xs) ys _ ) o fn pos =
+    $ zipWith (\a b -> zprintH (RState x a b []) o) xs ys
+  zprintV (RState (AlleP x) (Alle xs) ys _ ) o fn pos =
     (pos+length xs,)
     $ foldMap snd
-    $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn "Alle ") i) xs ys [pos..]
+    $ zipWith3 (\a b i -> zprintV (RState x a b []) o (prefixMessage fn "Alle ") i) xs ys [pos..]
 
-instance (P.GetBool rev, KnownNat n, ZPrint (ZZZ a)) => ZPrint (ZZZ (Some rev n a)) where
-  zprintH (ZZZ (SomeP x) (Some xs) ys _ ) o =
+instance (P.GetBool rev, KnownNat n, ZPrint (RState a)) => ZPrint (RState (Some rev n a)) where
+  zprintH (RState (SomeP x) (Some xs) ys _ ) o =
     mconcat
-    $ zipWith (\a b -> zprintH (ZZZ x a b []) o) xs ys
-  zprintV (ZZZ (SomeP x) (Some xs) ys _ ) o fn pos =
+    $ zipWith (\a b -> zprintH (RState x a b []) o) xs ys
+  zprintV (RState (SomeP x) (Some xs) ys _ ) o fn pos =
     (pos+length xs,)
     $ foldMap snd
-    $ zipWith3 (\a b i -> zprintV (ZZZ x a b []) o (prefixMessage fn ("Some " <> (if P.getBool @rev then "Reverse " else "") <> show (P.pnat @n) <> " ")) i) xs ys [pos..]
+    $ zipWith3 (\a b i -> zprintV (RState x a b []) o (prefixMessage fn ("Some " <> (if P.getBool @rev then "Reverse " else "") <> show (P.pnat @n) <> " ")) i) xs ys [pos..]
 
 getFieldNames :: GS.HasDatatypeInfo a => proxy a -> [String]
 getFieldNames = fNms . GS.constructorInfo . GS.datatypeInfo
@@ -696,7 +700,7 @@ instance (Foldable t, RFoldMap rs, ReifyConstraint FromField V.Identity rs, RMap
 instance (Foldable t, StripFieldNames rs, F.ColumnHeaders rs, ReifyConstraint FromField V.Identity (Unlabeled rs), RFoldMap (Unlabeled rs))
    => Printer (t (F rs)) where
   wfn o a = [fprttableRecT o a]
-instance (V.RecAll ZZZ rs ZPrint) => Printer (Rec ZZZ rs) where
+instance (V.RecAll RState rs ZPrint) => Printer (Rec RState rs) where
   wfn o a = [(if _oVertical o == Vertical then prttableRecV else prttableRecH) o a]
 
 -- | 'prtHRetCol' handles printing untyped resultsets with metadata
@@ -736,7 +740,7 @@ lengthFn1 i =  map (view _1) . filter ((<i) . length . concat . view (_2 . _1))
 
 -- | exclude columns if any field is over a certain size
 lengthAnyFn1 :: Int -> Fn1
-lengthAnyFn1 i =  map (view _1) . filter ((<i) . Safe.maximumDef 0 . map length . view (_2 . _1))
+lengthAnyFn1 i =  map (view _1) . filter ((<i) . Safe.maximumBound 0 . map length . view (_2 . _1))
 
 -- | 'typeFn1' allows you to filter columns by type:ie if DateY/Numy/StringY/Other
 typeFn1 :: (FType -> Bool) -> Fn1

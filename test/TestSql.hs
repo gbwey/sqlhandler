@@ -15,7 +15,14 @@ import Data.Vinyl
 import Data.Vinyl.TypeLevel hiding (Nat)
 import Control.Lens hiding (rmap,Identity,Const)
 import Data.Text (Text)
-import Sql
+import HSql.Core.Sql
+import HSql.Core.ErrorHandler
+import HSql.Core.Common
+import HSql.Core.One
+import HSql.Core.VinylUtils
+import HSql.Core.Decoder
+import HSql.Core.Encoder
+import Database.HDBC (SqlValue(..), SqlColDesc(..))
 --import TablePrinter -- leave it for testing
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -26,7 +33,6 @@ import Control.Arrow
 import Predicate
 import Predicate.Refined3
 import Predicate.Examples.Refined3
---import Predicate.Refined
 
 data R1 = R1 { r1 :: String, r2 :: Bool, r3 :: Char } deriving (Show,Eq)
 
@@ -137,59 +143,59 @@ rsb = Left 4
 rsc :: ResultSet
 rsc = Right ([], [[SqlString "xx",SqlBool True,SqlChar 'a']])
 
-tst1 :: Either SE (Rec ZZZ '[Sel (Bool, Char), Upd, Sel R1])
+tst1 :: Either SE (Rec RState '[Sel (Bool, Char), Upd, Sel R1])
 tst1 = processRetCol (E3 (SelP defDec) UpdP (SelP defDec)) [rsa,rsb,rsc]
 
-tst2 :: Either SE (Rec ZZZ '[Sel (Bool, Char), Upd, Sel R1])
+tst2 :: Either SE (Rec RState '[Sel (Bool, Char), Upd, Sel R1])
 tst2 = processRetCol (E3 (SelP defDec) UpdP (SelP defDec)) [rsa,rsb,rsc]
 
 -- test type level predicate for update: expected @4
-tst2' :: forall n. KnownNat n => Either SE (Rec ZZZ '[Sel (Bool, Char), UpdN 'OPEQ n, Sel R1])
+tst2' :: forall n. KnownNat n => Either SE (Rec RState '[Sel (Bool, Char), UpdN 'OPEQ n, Sel R1])
 tst2' = processRetCol (E3 (SelP defDec) defDec (SelP defDec)) [rsa,rsb,rsc]
 
 -- predicate on length of results and n=0,1,2,3 work but nothing above that
-tst21' :: forall n. KnownNat n => Either SE (Rec ZZZ '[Alle (UpdN 'OPGE n)])
+tst21' :: forall n. KnownNat n => Either SE (Rec RState '[Alle (UpdN 'OPGE n)])
 tst21' = processRetCol (E1 (AlleP defDec)) [Left 5, Left 12, Left 7, Left 3, Left 4, Left 99, Left 22]
 
 -- UGE n == UpdN 'OPGE n
-tst21'' :: forall n. KnownNat n => Either SE (Rec ZZZ '[Alle (UGE n)])
+tst21'' :: forall n. KnownNat n => Either SE (Rec RState '[Alle (UGE n)])
 tst21'' = processRetCol (E1 (AlleP defDec)) [Left 5, Left 12, Left 7, Left 3, Left 4, Left 99, Left 22]
 
 -- invalid string for sqlchar
-tst3 :: Either SE (Rec ZZZ '[Sel (Bool, String), Upd, Sel R1])
+tst3 :: Either SE (Rec RState '[Sel (Bool, String), Upd, Sel R1])
 tst3 = processRetCol (E3 (SelP defDec) UpdP (SelP defDec)) [rsa,rsb,rsc]
 
-tst4r :: (Integral i, Integral j) => i -> j -> Either SE (Rec ZZZ '[Sel (Text, Refined (4 <..> 10 && Id /= 7) Int, Double)])
+tst4r :: (Integral i, Integral j) => i -> j -> Either SE (Rec RState '[Sel (Text, Refined (4 <..> 10 && Id /= 7) Int, Double)])
 tst4r i j = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "abc", SqlInt32 (fromIntegral i), SqlDouble 1.2], [SqlString "abc", SqlInt32 (fromIntegral j), SqlDouble 1.2]])]
 
-tst4r1 :: (Integral i, Integral j) => i -> j -> Either SE (Rec ZZZ '[Sel (Text, Refined (Guard (PrintF "oops val=%03d" Id) (Between 4 10 Id && Id /= 7) >> 'True) Int, Double)])
+tst4r1 :: (Integral i, Integral j) => i -> j -> Either SE (Rec RState '[Sel (Text, Refined (Guard (PrintF "oops val=%03d" Id) (Between 4 10 Id && Id /= 7) >> 'True) Int, Double)])
 tst4r1 i j = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "abc", SqlInt32 (fromIntegral i), SqlDouble 1.2], [SqlString "abc", SqlInt32 (fromIntegral j), SqlDouble 1.2]])]
 
-tst3r :: Either SE (Rec ZZZ '[Sel (One String)])
+tst3r :: Either SE (Rec RState '[Sel (One String)])
 tst3r = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "123"]])]
 
 -- tst3r1 "1230" checkdigit succeeds
-tst3r1 :: String -> Either SE (Rec ZZZ '[Sel (One (LuhnR 4))])
+tst3r1 :: String -> Either SE (Rec RState '[Sel (One (LuhnR 4))])
 tst3r1 s = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString s]])]
 
-tst3r2 :: Either SE (Rec ZZZ '[Sel (One (LuhnR 4))])
+tst3r2 :: Either SE (Rec RState '[Sel (One (LuhnR 4))])
 tst3r2 = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlInt32 111]])]
 
-tst3r3 :: String -> Either SE (Rec ZZZ '[SelOne (One (Refined3 (ReadP Int Id) (Gt 4) (ExitWhen (PrintF "Bad output=%d" Id) (Gt 10) >> ShowP Id) String))])
+tst3r3 :: String -> Either SE (Rec RState '[SelOne (One (Refined3 (ReadP Int Id) (Gt 4) (ExitWhen (PrintF "Bad output=%d" Id) (Gt 10) >> ShowP Id) String))])
 tst3r3 s = processRetCol (E1 (SelOneP defDec)) [Right ([], [[SqlString s]])]
 
-tst3rgood :: Either SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
+tst3rgood :: Either SE (Rec RState '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
 tst3rgood = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "123"]])]
 
-tst3rbad :: Either SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
+tst3rbad :: Either SE (Rec RState '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
 tst3rbad = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "-123"]])]
 {-
 >tst3rgood
-Right {ZZZ {_zzz1 = SelP PConst TrueP
+Right {RState {_zzz1 = SelP PConst TrueP
  Dec<fn>, _zzz2 = Sel {unSel = [One {unOne = Refined3 {r3In = 123, r3Out = "123"}}]}, _zzz3 = [One {unOne = Refined3 {r3In = 123, r3Out = "123"}}], _zzz4 = []}}
 it ::
   Either
-    SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
+    SE (Rec RState '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
 
 >tst3rbad
 Left ((Col SingleColE {_siInstance = "Sel", _siPos = Just 0, _siMessage = "", _siRss = [Right [[SqlString "-123"]]]}) :| [(
@@ -201,34 +207,34 @@ Strings = ["CMP -123 > 4"]}, subForest = [Node {rootLabel = PE {_peBoolP = Prese
  sqlvalues=)])
 it ::
   Either
-    SE (Rec ZZZ '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
+    SE (Rec RState '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
 -}
 
-tst4 :: Either SE (Rec ZZZ '[Sel (Bool, Char)])
+tst4 :: Either SE (Rec RState '[Sel (Bool, Char)])
 tst4 = processRetCol (E1 (SelP defDec)) [rsa]
 
-gtestA :: (ValidateNested rs, RecAll ZZZ rs SingleZ) => [ResultSet] -> Rec SingleIn rs -> Either SE (Rec ZZZ rs)
+gtestA :: (ValidateNested rs, RecAll RState rs SingleZ) => [ResultSet] -> Rec SingleIn rs -> Either SE (Rec RState rs)
 gtestA a b = processRetCol b a
 
-gtest1, gtest2, gtest2' :: Either SE (Rec ZZZ '[Upd, Sel (Int, Bool)])
+gtest1, gtest2, gtest2' :: Either SE (Rec RState '[Upd, Sel (Int, Bool)])
 gtest1 = gtestA [Left 123] defDec
 gtest2 = gtestA [Left 123, Right ([], [[SqlInt32 11, SqlBool True],[SqlInt32 22, SqlBool False]])] defDec
 gtest2' = gtestA [Left 123, Right ([], [[SqlInt32 11, SqlBool True],[SqlInt32 22, SqlBool False]])] (UpdP :& defDec :& RNil)
 
-gtest3 :: Either SE (Rec ZZZ '[Upd, Sel (Text, Bool)])
+gtest3 :: Either SE (Rec RState '[Upd, Sel (Text, Bool)])
 gtest3 = gtestA [Left 123, Right ([], [[SqlString "afield", SqlBool True],[SqlString "zzz", SqlBool False]])] defDec
 
-gtest4 :: Either SE (Rec ZZZ '[Alle Upd])
+gtest4 :: Either SE (Rec RState '[Alle Upd])
 gtest4 = gtestA [Left 123, Left 999, Left (-8)] defDec
 
-gtest5, gtest5', gtest5'', gtest5''', gtest5'''' :: Either SE (Rec ZZZ '[Upd :+: SelOne Int])
+gtest5, gtest5', gtest5'', gtest5''', gtest5'''' :: Either SE (Rec RState '[Upd :+: SelOne Int])
 gtest5 = gtestA [Left 123] defDec
 gtest5' = gtestA [Right ([], [[SqlInt32 123]])] defDec
 gtest5'' = gtestA [Right ([], [[SqlInt32 123], [SqlInt32 456]])] defDec -- fails cos too many rows
 gtest5''' = gtestA [Right ([], [[SqlInt32 123, SqlInt32 456]])] defDec -- fails cos too many values
 gtest5'''' = gtestA [Right ([], [])] defDec -- fails cos not enough rows
 
-gtest6, gtest6', gtest6'', gtest6''', gtest6'''' :: Either SE (Rec ZZZ '[SelOne Int :+: Upd])
+gtest6, gtest6', gtest6'', gtest6''', gtest6'''' :: Either SE (Rec RState '[SelOne Int :+: Upd])
 gtest6 = gtestA [Right ([], [[SqlInt32 123]])] defDec
 gtest6' = gtestA [Left 4] defDec
 gtest6'' = gtestA [Right ([], [[SqlInt32 123], [SqlInt32 456]])] defDec -- fails cos too many rows
@@ -295,17 +301,17 @@ s4 = Sql "def" (defEnc :& defEnc :& RNil) (UpdP :+: SelOneP defDec
                   :& AlleP defDec
                   :& RNil) "s4"
 
-gtest0 :: Rec ZZZ '[SelOne (F '["aa" ::: Int])]
-gtest0 = ZZZ (SelOneP defDec) (SelOne ((#aa =: 123) :& RNil)) ((#aa =: 123) :& RNil) [] :& RNil
+gtest0 :: Rec RState '[SelOne (F '["aa" ::: Int])]
+gtest0 = RState (SelOneP defDec) (SelOne ((#aa =: 123) :& RNil)) ((#aa =: 123) :& RNil) [] :& RNil
 
-gtest00 :: Rec ZZZ '[SelOne (F '["aa" ::: Int, "bb" ::: Bool])]
-gtest00 = ZZZ (SelOneP defDec) (SelOne ((#aa =: 123) :& (#bb =: True) :& RNil)) ((#aa =: 123) :& (#bb =: True) :& RNil) [] :& RNil
+gtest00 :: Rec RState '[SelOne (F '["aa" ::: Int, "bb" ::: Bool])]
+gtest00 = RState (SelOneP defDec) (SelOne ((#aa =: 123) :& (#bb =: True) :& RNil)) ((#aa =: 123) :& (#bb =: True) :& RNil) [] :& RNil
 
-gtest000 :: Rec ZZZ '[Sel (F '["aa" ::: Int, "bb" ::: Bool])]
-gtest000 = ZZZ (SelP defDec) (Sel [(#aa =: 123) :& (#bb =: True) :& RNil]) [(#aa =: 123) :& (#bb =: True) :& RNil] [] :& RNil
+gtest000 :: Rec RState '[Sel (F '["aa" ::: Int, "bb" ::: Bool])]
+gtest000 = RState (SelP defDec) (Sel [(#aa =: 123) :& (#bb =: True) :& RNil]) [(#aa =: 123) :& (#bb =: True) :& RNil] [] :& RNil
 
-gtest0000 :: Rec ZZZ '[Sel (F '["aa" ::: Int, "bb" ::: Bool])]
-gtest0000 = ZZZ (SelP defDec) (Sel [(#aa =: 123) :& (#bb =: True) :& RNil, (#aa =: 321) :& (#bb =: False) :& RNil]) [(#aa =: 123) :& (#bb =: True) :& RNil, (#aa =: 321) :& (#bb =: False) :& RNil] [] :& RNil
+gtest0000 :: Rec RState '[Sel (F '["aa" ::: Int, "bb" ::: Bool])]
+gtest0000 = RState (SelP defDec) (Sel [(#aa =: 123) :& (#bb =: True) :& RNil, (#aa =: 321) :& (#bb =: False) :& RNil]) [(#aa =: 123) :& (#bb =: True) :& RNil, (#aa =: 321) :& (#bb =: False) :& RNil] [] :& RNil
 
 ys' :: Rec SingleIn '[Upd, SelRaw, Alle (SelOne Int)]
 ys' = UpdP :& SelRawP :& AlleP (SelOneP (defDec @(Dec Int))) :& RNil

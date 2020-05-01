@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.1.
+-- This file has been generated from package.yaml by hpack version 0.31.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7ad33399e5a951ce40c2be7d3f715591e9f50faf73eba1fe1fd368c26bad06a4
+-- hash: c3be635fd93cf8a15ee735a67f0802e554e476cfa6e08ae717fa418884ad3d07
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -16,19 +16,22 @@ build-type:     Simple
 
 library
   exposed-modules:
-      Conv
-      Decoding
-      Encoding
-      One
-      Raw
-      Sql
-      TablePrinter
-      VinylUtils
+      HSql.Core
+      HSql.Core.Common
+      HSql.Core.Conv
+      HSql.Core.Decoder
+      HSql.Core.Encoder
+      HSql.Core.ErrorHandler
+      HSql.Core.One
+      HSql.Core.Raw
+      HSql.Core.Sql
+      HSql.Core.TablePrinter
+      HSql.Core.VinylUtils
   other-modules:
       Paths_sqlhandler
   hs-source-dirs:
       src
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fomit-interface-pragmas
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
   build-depends:
       Frames >=0.6.1
     , base
@@ -59,8 +62,8 @@ test-suite spec
   other-modules:
       DeferredOrphans
       TestConv
-      TestDecoding
-      TestEncoding
+      TestDecoder
+      TestEncoder
       TestSql
       TestSqlDeferred
       TestTablePrinter
@@ -68,7 +71,7 @@ test-suite spec
       Paths_sqlhandler
   hs-source-dirs:
       test
-  ghc-options: -threaded -O0 -fomit-interface-pragmas
+  ghc-options: -threaded -O0
   build-depends:
       Frames >=0.6.1
     , QuickCheck

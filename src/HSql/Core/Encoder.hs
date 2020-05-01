@@ -27,7 +27,7 @@ GS.deriveGeneric ''LogCmd
 {-# LANGUAGE PolyKinds #-}
 {-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
 {- |
-Module      : Encoding
+Module      : HSql.Core.Encoder
 Description : encode from a haskell value to 'SqlValue's
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
@@ -35,7 +35,7 @@ Maintainer  : gbwey9@gmail.com
 
 'Enc' defines an encoder and 'DefEnc' has the default encoder for a given type. Used for converting input from haskell values to sql values.
 -}
-module Encoding where
+module HSql.Core.Encoder where
 import Data.ByteString (ByteString)
 import qualified Data.Text as T
 import Data.Text (Text)
@@ -50,14 +50,15 @@ import Data.Vinyl
 import qualified Data.Vinyl.Functor as V
 import qualified Data.Vinyl.Recursive as VR
 import qualified Control.Lens as L
-import VinylUtils
+import HSql.Core.VinylUtils
 import Data.Function
 import qualified Generics.OneLiner as GO
 import Predicate.Core
 import qualified Predicate.Refined2 as R2
 import qualified Predicate.Refined3 as R3
 import Predicate.Refined
-import Raw
+import HSql.Core.Raw
+
 -- | 'Enc' encodes a haskell value to a list of sqlvalues
 newtype Enc a = Enc { unEnc :: a -> [SqlValue] } deriving Generic
 

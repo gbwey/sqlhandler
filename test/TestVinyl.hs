@@ -19,10 +19,10 @@ import qualified Data.Vinyl.Functor as V
 import Data.Vinyl
 import Control.Lens hiding (rmap,Identity,Const)
 import qualified PCombinators as P
-import VinylUtils
+import HSql.Core.VinylUtils
 import qualified Control.Foldl as FL
 import qualified Control.Scanl as FS
-import One
+import HSql.Core.One
 import Data.String
 
 statictests :: ((

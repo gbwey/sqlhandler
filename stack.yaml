@@ -1,10 +1,10 @@
-resolver: lts-14.10
+resolver: lts-14.27
 packages:
 - '.'
 extra-deps:
 - pretty-terminal-0.1.0.0
 - tree-view-0.5
-- Frames-0.6.1
+- Frames-0.6.2
 - discrimination-0.4
 - symbols-0.3.0.0
 - ../hdbc-odbc2

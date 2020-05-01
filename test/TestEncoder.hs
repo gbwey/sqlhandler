@@ -5,19 +5,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
 {-# OPTIONS -Wall #-}
-module TestEncoding where
+module TestEncoder where
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import Database.HDBC (SqlValue(..))
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Encoding
+import HSql.Core.Encoder
 import Data.Functor.Contravariant.Divisible
 import qualified Generics.SOP as GS
 import qualified GHC.Generics as G
 import Test.Hspec
-import Sql
+import HSql.Core.VinylUtils
 import Predicate
 import qualified Predicate.Refined2 as R2
 import qualified Predicate.Examples.Refined2 as R2
@@ -34,7 +34,7 @@ spec =
 
 suite :: TestTree
 suite =
-  let s = "TestEncoding"
+  let s = "TestEncoder"
   in testGroup s (orderTests s allTests)
 
 orderTests :: String -> [Assertion] -> [TestTree]

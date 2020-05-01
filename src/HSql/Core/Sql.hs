@@ -29,58 +29,45 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE DeriveGeneric #-}
 {- |
-Module      : Sql
+Module      : HSql.Core.Sql
 Description : pure functions for describing, prepocessing and postprocessing Sql
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
 Maintainer  : gbwey9@gmail.com
 
 -}
-module Sql
-  ( module Sql
-  , module One
-  , module Database.HDBC
-  , module Encoding
-  , module Decoding
-  , module Conv
-  , module Raw
-  , module VinylUtils
-  ) where
-import Raw
+module HSql.Core.Sql where
+import Database.HDBC (SqlValue(..), SqlColDesc(..))
+import Database.HDBC.ColTypes (SqlTypeId (SqlUnknownT))
+import HSql.Core.Decoder
+import HSql.Core.Encoder
+import HSql.Core.VinylUtils
+import HSql.Core.ErrorHandler
+import HSql.Core.Common
+import HSql.Core.One
 import qualified Data.Vinyl.Functor as V
 import qualified Data.Vinyl.Core as V
 import qualified Data.Vinyl.Recursive as VR
 import Data.Vinyl
-import qualified Data.Vinyl.CoRec as VC
-import Data.Vinyl.CoRec (CoRec(..),weakenCoRec)
+import Data.Vinyl.CoRec (CoRec(..))
 import Data.Vinyl.TypeLevel hiding (Nat)
 import Control.Arrow
 import Control.Lens hiding (rmap,Identity,Const,op)
 import Data.Proxy
-import Data.Maybe
 import qualified Data.Text as T
 import Data.Text (Text)
 import GHC.TypeLits (ErrorMessage((:<>:),(:$$:)),Nat,KnownNat)
 import qualified GHC.TypeLits as GL
 import Control.Monad
-import One
-import Database.HDBC (SqlValue(..), SqlColDesc(..))
-import Database.HDBC.ColTypes (SqlTypeId (SqlUnknownT))
-import Conv
-import Decoding
-import Encoding
 import Text.Shakespeare.Text
 import Data.String
 import Data.Text.Internal.Builder
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as N
-import Data.List (intercalate)
 import GHC.Generics (Generic)
-import Data.Typeable
-import VinylUtils
 import Data.Kind (Type)
 import qualified PCombinators as P
 import PCombinators ((:.:), type (~>), Apply)
+import GHC.Stack
 
 -- | 'Sql' is the core ADT that holds a vinyl record of encoders for the input
 -- and a vinyl record of decoders for the ouput and then the Sql text
@@ -104,130 +91,41 @@ sSql :: Lens' (Sql db a b) Text
 sSql afa s = (\d' -> s { _sSql = d' }) <$> afa (_sSql s)
 
 instance ToText (Sql db a b) where
-  toText sql = fromText (_sSql sql)
+  toText = fromText . _sSql
 
 instance Show (Sql db a b) where
   show = T.unpack . _sSql
 
-{-# COMPLETE I #-}
-pattern I :: a -> V.Identity a
-pattern I a = V.Identity a
-
--- | 'SE'' contains a promoted list of all possible errors
-type SE' = '[ UpdNE
-            , UnconsumedColE
-            , SingleColE
-            , UnexpectedResultSetTypeE
-            , NoResultSetE
-            , BadE
-            , ConvE
-            , DecodingE]
-
-type SE = NonEmpty (CoRec V.Identity SE')
-
-seShortMessages' :: Either SE x -> [String]
-seShortMessages' x = x ^.. _Left . traverse . to seShortMessage
-
-seShortMessages :: SE -> [String]
-seShortMessages = map seShortMessage . N.toList
-
--- | pulls out a shorter message from errors
-seShortMessage :: CoRec V.Identity SE' -> String
-seShortMessage x =
-  let f :: Typeable a => a -> String
-      f e = (tyConName . typeRepTyCon . typeOf) e ++ ": "
-  in VC.match x $
-       (VC.H $ \e -> f e ++ _unMethod e ++ " " ++ _unMessage e)
-    :& (VC.H $ \e -> f e ++ _uccMethod e ++ " " ++ _uccMessage e)
-    :& (VC.H $ \e -> f e ++ _sicInstance e ++ " " ++ _sicMessage e)
-    :& (VC.H $ \e -> f e ++ _urstMethod e ++ " " ++ _urstMessage e)
-    :& (VC.H $ \e -> f e ++ _nrMethod e ++ " " ++ _nrMessage e)
-    :& (VC.H $ \e -> f e ++ _badMethod e ++ " " ++ _badMessage e)
-    :& (VC.H $ \e -> f e ++ _cvType e ++ " " ++ _cvMessage e)
-    :& (VC.H $ \e -> f e ++ _deMethod e ++ " " ++ _deMessage e)
-    :& RNil
-
--- | lift a decoding error to the larger SE error
-liftDE :: DE -> SE
-liftDE = fmap (weakenCoRec
-             . weakenCoRec
-             . weakenCoRec
-             . weakenCoRec
-             . weakenCoRec
-             . weakenCoRec)
-
-failNE :: String -> Int -> String -> Either SE a
-failNE a b c = failSE (UpdNE a b c)
-
-failUCC :: String -> Int -> String -> [ResultSet] -> Either SE a
-failUCC a b c d = failSE (UnconsumedColE a b c d)
-
-failURST :: String -> String -> ResultSet -> Either SE a
-failURST a b c = failSE (UnexpectedResultSetTypeE a b c)
-
-failSIC :: String -> Maybe Int -> String -> [ResultSet] -> Either SE a
-failSIC a b c d = failSE (SingleColE a b c d)
-
-failNR :: String -> Int -> String -> Either SE a
-failNR a b c = failSE (NoResultSetE a b c)
-
-failBad :: String -> String -> String -> Either SE a
-failBad a b c = failSE (BadE a b c)
-
---failSE :: RecElem Rec x x SE' SE' (RIndex x SE') => x -> Either SE a
-failSE :: RElem x SE' (RIndex x SE') => x -> Either SE a
-failSE x = Left (CoRec (V.Identity x) :| [])
-
-type RMeta = [SqlColDesc]
-type ResultSet = Either Int (RMeta,[[SqlValue]])
-
 hMetaNull :: SqlColDesc
 hMetaNull = SqlColDesc "hMetaNull" (SqlUnknownT "dummy type:hMetaNull") (Just 5) (Just 7) (Just 11) (Just True)
 
-data UpdNE = UpdNE { _unMethod :: !String, _unPos :: !Int, _unMessage :: !String } deriving (Generic, Show, Eq)
-data UnconsumedColE = UnconsumedColE { _uccMethod :: !String, _uccPos :: !Int, _uccMessage :: !String, _uccRest :: ![ResultSet] } deriving (Generic, Show, Eq)
-data SingleColE = SingleColE { _sicInstance :: !String, _sicPos :: !(Maybe Int), _sicMessage :: !String, _sicRss :: ![ResultSet] } deriving (Generic, Show, Eq)
-data UnexpectedResultSetTypeE = UnexpectedResultSetTypeE { _urstMethod :: !String, _urstMessage :: !String, _urstRss :: !ResultSet } deriving (Generic, Show, Eq)
-data NoResultSetE = NoResultSetE { _nrMethod :: !String, _nrPos :: !Int, _nrMessage :: !String } deriving (Generic, Show, Eq)
-data BadE = BadE { _badMethod :: !String, _badMessage :: !String, _badData :: !String } deriving (Generic, Show, Eq)
-
--- eg: left (xes @UpdNE) a
--- | 'xes' pulls out all the messages of a type t from a nonempty list of vinyl corecords
-xes :: forall t ts . NatToInt (RIndex t ts) => NonEmpty (CoRec V.Identity ts) -> [t]
-xes = mapMaybe VC.asA . N.toList
-
-xes' :: forall t ts . NatToInt (RIndex t ts) => NonEmpty (CoRec V.Identity ts) -> Bool
-xes' = not . null . xes @t
-
-xes'' :: forall t ts a . NatToInt (RIndex t ts) => Either (NonEmpty (CoRec V.Identity ts)) a -> Bool
-xes'' (Left v) = xes' @t v
-xes'' (Right _) = False
-
-showSE :: SE -> String
-showSE = intercalate "\n" . map show . N.toList
-
--- | 'ST' is a simple state applicative
+-- | 'ST' is a simple state applicative with the order of 'a' and 's' swapped
 newtype ST e s a = ST { unST :: s -> Either e (s, a) }
 
 instance Functor (ST e s) where
-  fmap f (ST g) = ST $ \s -> case g s of
-                               Left e -> Left e
-                               Right (s', a) -> Right (s', f a)
+  fmap f (ST g) =
+    ST $ \s -> case g s of
+                 Left e -> Left e
+                 Right (s', a) -> Right (s', f a)
+
 instance Applicative (ST e s) where
   pure a = ST $ \s -> Right (s, a)
-  ST sab <*> ST sa = ST $ \s -> case sab s of
-                                  Left e -> Left e
-                                  Right (s', ab) -> case sa s' of
-                                                     Left e -> Left e
-                                                     Right (s'', a) -> Right (s'', ab a)
+  ST sab <*> ST sa =
+    ST $ \s -> case sab s of
+       Left e -> Left e
+       Right (s', ab) ->
+         case sa s' of
+           Left e -> Left e
+           Right (s'', a) -> Right (s'', ab a)
 
+-- | simple predicates on the return code from a sql update
 data Op = OPLT | OPLE | OPEQ | OPGE | OPGT | OPNE deriving (Show, Eq)
 
 -- | 'UpdN' is similar to 'Upd' but encodes a type level predicate on the return code
-newtype UpdN (op :: Op) (val :: Nat) = UpdN { unUpdN :: Int } deriving (Show, Eq, Num, Ord, Generic)
+newtype UpdN (op :: Op) (val :: Nat) = UpdN Int deriving (Show, Eq, Num, Ord, Generic)
 
 -- | 'Upd' holds a return code from a sql update call
-newtype Upd = Upd { unUpd :: Int } deriving (Show, Eq, Num, Ord, Generic)
+newtype Upd = Upd Int deriving (Show, Eq, Num, Ord, Generic)
 
 -- | 'SelOne' holds a single row of data
 newtype SelOne a = SelOne { unSelOne :: a } deriving (Show, Eq, Generic)
@@ -258,7 +156,9 @@ class Single a where
   data SingleIn a
   type SingleOut a
   showF :: SingleIn a -> String
-  singleCol :: SingleIn a -> (Int, [ResultSet]) -> Either SE ((Int, [ResultSet]), ([RMeta],(a, SingleOut a)))
+  singleCol :: SingleIn a
+           -> (Int, [ResultSet])
+           -> Either SE ((Int, [ResultSet]), ([RMeta],(a, SingleOut a)))
 
 -- | 'Upd' represents any non select query eg dml insert / update / delete o ddl create / drop / alter
 instance Single Upd where
@@ -386,31 +286,31 @@ instance Single SelRaw where
 instance Single a => Show (SingleIn a) where
   show = showF
 
--- | 'ZZZ' holds the input/ouput for a given resultset
-data ZZZ a = ZZZ { _zzz1 :: !(SingleIn a), _zzz2 :: a, _zzz3 :: SingleOut a, _zzz4 :: ![RMeta] }
+-- | 'RState' holds the input/ouput for a given resultset
+data RState a = RState { _rsIn :: !(SingleIn a), _rsOutWrapped :: a, _rsOut :: SingleOut a, _rsMeta :: ![RMeta] }
 
--- | Lens for accessing the predicate for 'ZZZ'
-zzz1 :: Lens' (ZZZ a) (SingleIn a)
-zzz1 afb z = (\x -> z { _zzz1 = x}) <$> afb (_zzz1 z)
+-- | Lens for accessing the predicate for 'RState'
+rsIn :: Lens' (RState a) (SingleIn a)
+rsIn afb z = (\x -> z { _rsIn = x}) <$> afb (_rsIn z)
 
--- | Lens for accessing the wrapped output value for 'ZZZ'
-zzz2 :: Lens' (ZZZ a) a
-zzz2 afb z = (\x -> z { _zzz2 = x}) <$> afb (_zzz2 z)
+-- | Lens for accessing the wrapped output value for 'RState'
+rsOutWrapped :: Lens' (RState a) a
+rsOutWrapped afb z = (\x -> z { _rsOutWrapped = x}) <$> afb (_rsOutWrapped z)
 
--- | Lens for accessing the unwrapped output value for 'ZZZ'
-zzz3 :: Lens' (ZZZ a) (SingleOut a)
-zzz3 afb z = (\x -> z { _zzz3 = x}) <$> afb (_zzz3 z)
+-- | Lens for accessing the unwrapped output value for 'RState'
+rsOut :: Lens' (RState a) (SingleOut a)
+rsOut afb z = (\x -> z { _rsOut = x}) <$> afb (_rsOut z)
 
--- | Lens for accessing the meta data for 'ZZZ'
-zzz4 :: Lens' (ZZZ a) [RMeta]
-zzz4 afb z = (\x -> z { _zzz4 = x}) <$> afb (_zzz4 z)
+-- | Lens for accessing the meta data for 'RState'
+rsMeta :: Lens' (RState a) [RMeta]
+rsMeta afb z = (\x -> z { _rsMeta = x}) <$> afb (_rsMeta z)
 
-deriving instance (Show a, Show (SingleIn a), Show (SingleOut a)) => Show (ZZZ a)
+deriving instance (Show a, Show (SingleIn a), Show (SingleOut a)) => Show (RState a)
 
 -- bearbeiten: how to get around using undefined
--- | 'toZZZ' sets up the initial state before processing all the resultsets
-toZZZ :: Rec SingleIn rs -> Rec ZZZ rs
-toZZZ = VR.rmap $ \xa -> ZZZ xa undefined undefined []
+-- | 'toRState' sets up the initial state before processing all the resultsets
+toRState :: Rec SingleIn rs -> Rec RState rs
+toRState = VR.rmap $ \xa -> RState xa undefined undefined []
 
 -- | 'ShowOp' extracts a value level predicate from the typelevel for 'UpdN'
 class ShowOp (a :: Op) where
@@ -429,39 +329,43 @@ instance ShowOp 'OPNE where
   showOp = ("/=", (/=))
 
 processRetCol
-  :: (RecAll ZZZ rs SingleZ
+  :: (RecAll RState rs SingleZ
     , ValidateNested rs
-    ) => Rec SingleIn rs -> [ResultSet] -> Either SE (Rec ZZZ rs)
-processRetCol decRec = processRetCol' (toZZZ decRec)
+    ) => Rec SingleIn rs
+      -> [ResultSet]
+      -> Either SE (Rec RState rs)
+processRetCol decRec = processRetCol' (toRState decRec)
 
 -- | 'processRetCol'' is the same as 'processRet'' but additionally includes metadata
 processRetCol'
-  :: (RecAll ZZZ rs SingleZ
+  :: (RecAll RState rs SingleZ
     , ValidateNested rs
-    ) =>
-     Rec ZZZ rs -> [ResultSet] -> Either SE (Rec ZZZ rs)
+    ) => Rec RState rs
+      -> [ResultSet]
+      -> Either SE (Rec RState rs)
 processRetCol' xs rss =
   case flip unST (0::Int,rss) $ rtraverse (\(V.Compose (V.Dict x)) -> ST (singleColZ x)) (VR.reifyConstraint (Proxy @SingleZ) xs) of
     Left e -> Left e
     Right ((pos,rss'), w) | null rss' -> Right w
                           | otherwise -> failUCC "processRetCol'" pos "Unconsumed" rss'
 
--- | 'SingleZ' is a simple state monad wrapper around 'Single' which processes a single 'ZZZ' entry
--- we need this wrapper as vinyl uses Rec ZZZ rs wraps ZZZ around each rs
+-- | 'SingleZ' is a simple state monad wrapper around 'Single' which processes a single 'RState' entry
+-- we need this wrapper as vinyl uses Rec RState rs wraps RState around each rs
 class SingleZ a where
   singleColZ :: a -> (Int, [ResultSet]) -> Either SE ((Int, [ResultSet]), a)
 
 -- only one instance that wraps 'Single' which is needed for 'processRet' and 'processRetCol'
-instance Single a => SingleZ (ZZZ a) where
-  singleColZ w (b,c) = case singleCol (_zzz1 w) (b,c) of
-                                     Left e -> Left e
-                                     Right (z, (hms,(a,wa))) -> Right (z,w { _zzz2 = a, _zzz3 = wa, _zzz4 = hms })
+instance Single a => SingleZ (RState a) where
+  singleColZ w (b,c) =
+    case singleCol (_rsIn w) (b,c) of
+      Left e -> Left e
+      Right (z, (hms,(a,wa))) -> Right (z,w { _rsOutWrapped = a, _rsOut = wa, _rsMeta = hms })
 
 -- | shortcut to get all the hmetas in one go
-hmall :: Rec ZZZ '[a] -> [RMeta]
+hmall :: Rec RState '[a] -> [RMeta]
 -- cant use Vinyl Const cos no applicative instance!!!!
---hmall rs = L.getConst $ rtraverse (L.Const . _zzz4) rs
-hmall = VR.rfoldMap _zzz4
+--hmall rs = L.getConst $ rtraverse (L.Const . _rsMeta) rs
+hmall = VR.rfoldMap _rsMeta
 
 -- need this to do the conversions
 -- max of 8
@@ -484,27 +388,27 @@ type family SingleOuts (rs :: [Type]) :: Type where
 -- going the other way is problematic
 -- max of 8
 
--- | convert Rec ZZZ rs to tuple
+-- | convert Rec RState rs to tuple
 class PGen (rs :: [Type]) (v :: Type) | rs -> v where
-  ext :: Rec ZZZ rs -> SingleOuts rs
+  ext :: Rec RState rs -> SingleOuts rs
 instance PGen '[] () where
   ext RNil = ()
 instance PGen '[a] a where
-  ext (r1 :& RNil) = _zzz3 r1
+  ext (r1 :& RNil) = _rsOut r1
 instance PGen '[a,b] (a,b) where
-  ext (r1 :& r2 :& RNil) = (_zzz3 r1, _zzz3 r2)
+  ext (r1 :& r2 :& RNil) = (_rsOut r1, _rsOut r2)
 instance PGen '[a,b,c] (a,b,c) where
-  ext (r1 :& r2 :& r3 :& RNil) = (_zzz3 r1, _zzz3 r2, _zzz3 r3)
+  ext (r1 :& r2 :& r3 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3)
 instance PGen '[a,b,c,d] (a,b,c,d) where
-  ext (r1 :& r2 :& r3 :& r4 :& RNil) = (_zzz3 r1, _zzz3 r2, _zzz3 r3, _zzz3 r4)
+  ext (r1 :& r2 :& r3 :& r4 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4)
 instance PGen '[a,b,c,d,e] (a,b,c,d,e) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& RNil) = (_zzz3 r1, _zzz3 r2, _zzz3 r3, _zzz3 r4, _zzz3 r5)
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4, _rsOut r5)
 instance PGen '[a,b,c,d,e,f] (a,b,c,d,e,f) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& RNil) = (_zzz3 r1, _zzz3 r2, _zzz3 r3, _zzz3 r4, _zzz3 r5, _zzz3 r6)
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4, _rsOut r5, _rsOut r6)
 instance PGen '[a,b,c,d,e,f,g] (a,b,c,d,e,f,g) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& RNil) = (_zzz3 r1, _zzz3 r2, _zzz3 r3, _zzz3 r4, _zzz3 r5, _zzz3 r6, _zzz3 r7)
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4, _rsOut r5, _rsOut r6, _rsOut r7)
 instance PGen '[a,b,c,d,e,f,g,h] (a,b,c,d,e,f,g,h) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& r8 :& RNil) = (_zzz3 r1, _zzz3 r2, _zzz3 r3, _zzz3 r4, _zzz3 r5, _zzz3 r6, _zzz3 r7, _zzz3 r8)
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& r8 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4, _rsOut r5, _rsOut r6, _rsOut r7, _rsOut r8)
 
 -- nested tuples: not as useful as PGen/ext but works for all sizes!
 -- () (a,()) (a,(b,())) (a,(b,(c,()))) (a,(b,(c,(d,())))) etc! a lot yurky!
@@ -514,14 +418,14 @@ type family SingleOuts' (rs :: [Type]) :: Type where
 
 -- | alternative approach of converting vinyl record of results to a nested tuple
 class PGen' (rs :: [Type]) where
-  ext' :: Rec ZZZ rs -> SingleOuts' rs
+  ext' :: Rec RState rs -> SingleOuts' rs
 instance PGen' '[] where
   ext' RNil = ()
 instance PGen' as => PGen' (a ': as) where
-  ext' (r :& rs) = (_zzz3 r, ext' rs)
+  ext' (r :& rs) = (_rsOut r, ext' rs)
 
 -- | 'selImpl' tries to decode a result set based on the decoder and then runs the predicate
-selImpl :: ResultSet -> Dec a -> Either SE (RMeta, [a])
+selImpl :: HasCallStack => ResultSet -> Dec a -> Either SE (RMeta, [a])
 selImpl z@(Right (meta,xxs)) (Dec dec) = do
   ys <- forM (zip [1::Int ..] xxs) $ \(r,xs) -> do
           case dec xs of
@@ -840,12 +744,4 @@ type family ValidNest1 (w :: Type) :: Bool where
   ValidNest1 (a :+: b) = ValidNest1 a P.&& ValidNest1 b
   ValidNest1 a = 'True
 
--- eg hasError @SingleColE
--- | 'hasError' checks for errors of a given type p (use typeapplications)
-hasError :: forall p a . NatToInt (RIndex p SE') => Either SE a -> Bool
-hasError = not . null . getErrors @p
-
--- | 'getErrors' returns list of errors of given type p (use typeapplications)
-getErrors :: forall p a . NatToInt (RIndex p SE') => Either SE a -> [p]
-getErrors = either (xes @p) (const [])
 

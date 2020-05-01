@@ -5,7 +5,7 @@
 module TestConv where
 import Test.Tasty
 import Test.Tasty.HUnit
-import Conv
+import HSql.Core.Conv
 import Database.HDBC (SqlValue(..))
 import Data.Text (Text)
 import Test.Hspec

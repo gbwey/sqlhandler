@@ -27,9 +27,14 @@ import qualified Generics.SOP as GS
 import Control.Lens hiding (from, to)
 import Data.Vinyl
 import Data.Vinyl.Syntax ()  -- orphan instance so we can use #abc as a lens!
-import Sql
+import HSql.Core.Sql
+import HSql.Core.TablePrinter
+import HSql.Core.Decoder
+import HSql.Core.VinylUtils
+import HSql.Core.Common
+import HSql.Core.One
 import Data.Bool
-import TablePrinter
+import Database.HDBC (SqlValue(..), SqlColDesc(..))
 import Database.HDBC.ColTypes
 import Test.Hspec
 import qualified Frames as F
@@ -61,133 +66,133 @@ spec =
     it "should allow combined Some and Alle with no Alle data" $
       True `shouldBe` True
 
-testupd1 :: Rec ZZZ '[Sel (Bool, Char)]
-testupd1 = let xs = [(False,'x'), (True,'y')] in ZZZ (SelP defDec) (Sel xs) xs [] :& RNil
+testupd1 :: Rec RState '[Sel (Bool, Char)]
+testupd1 = let xs = [(False,'x'), (True,'y')] in RState (SelP defDec) (Sel xs) xs [] :& RNil
 
-testeither :: Bool -> ZZZ a -> ZZZ b -> ZZZ (a :+: b)
-testeither p (ZZZ a1 a2 a3 a4) (ZZZ b1 b2 b3 b4) = ZZZ (a1 :+: b1) (EitherRS (bool (Left a2) (Right b2) p)) (bool (Left a3) (Right b3) p) (bool a4 b4 p)
+testeither :: Bool -> RState a -> RState b -> RState (a :+: b)
+testeither p (RState a1 a2 a3 a4) (RState b1 b2 b3 b4) = RState (a1 :+: b1) (EitherRS (bool (Left a2) (Right b2) p)) (bool (Left a3) (Right b3) p) (bool a4 b4 p)
 
-testalle :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Alle a)
-testalle zs = ZZZ (AlleP defDec) (Alle (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
+testalle :: DefDec (SingleIn a) => [RState a] -> RState (Alle a)
+testalle zs = RState (AlleP defDec) (Alle (map _rsOutWrapped zs)) (map _rsOut zs) (concatMap _rsMeta zs)
 
-testsome :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Some 'False n a)
-testsome zs = ZZZ (SomeP defDec) (Some (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
+testsome :: DefDec (SingleIn a) => [RState a] -> RState (Some 'False n a)
+testsome zs = RState (SomeP defDec) (Some (map _rsOutWrapped zs)) (map _rsOut zs) (concatMap _rsMeta zs)
 
-testemos :: DefDec (SingleIn a) => [ZZZ a] -> ZZZ (Some 'True n a)
-testemos zs = ZZZ (SomeP defDec) (Some (map _zzz2 zs)) (map _zzz3 zs) (concatMap _zzz4 zs)
+testemos :: DefDec (SingleIn a) => [RState a] -> RState (Some 'True n a)
+testemos zs = RState (SomeP defDec) (Some (map _rsOutWrapped zs)) (map _rsOut zs) (concatMap _rsMeta zs)
 
-testupd :: Int -> ZZZ Upd
-testupd rc = ZZZ UpdP (Upd rc) rc []
+testupd :: Int -> RState Upd
+testupd rc = RState UpdP (Upd rc) rc []
 
-testsel :: DefDec (Dec a) => [a] -> ZZZ (Sel a)
-testsel as = ZZZ (SelP defDec) (Sel as) as []
+testsel :: DefDec (Dec a) => [a] -> RState (Sel a)
+testsel as = RState (SelP defDec) (Sel as) as []
 
-testselone :: DefDec (Dec a) => a -> ZZZ (SelOne a)
-testselone a = ZZZ (SelOneP defDec) (SelOne a) a []
+testselone :: DefDec (Dec a) => a -> RState (SelOne a)
+testselone a = RState (SelOneP defDec) (SelOne a) a []
 
-testselraw :: [[SqlValue]] -> ZZZ SelRaw
-testselraw as = ZZZ SelRawP (SelRaw as) as []
+testselraw :: [[SqlValue]] -> RState SelRaw
+testselraw as = RState SelRawP (SelRaw as) as []
 
-testselraw0 :: Rec ZZZ '[SelRaw]
+testselraw0 :: Rec RState '[SelRaw]
 testselraw0 = testselraw [[SqlString "asdf", SqlNull, SqlInt32 123], [SqlNull, SqlBool True, SqlInt32 9999]] :& RNil
 
-testselraw1 :: Rec ZZZ '[SelRaw]
+testselraw1 :: Rec RState '[SelRaw]
 testselraw1 = testselraw [[SqlString "asdf", SqlNull, SqlInt32 123], [SqlNull, SqlBool True, SqlInt32 9999]] :& RNil
 
-testselraw2 :: Rec ZZZ '[SelRaw]
+testselraw2 :: Rec RState '[SelRaw]
 testselraw2 = testselraw [[SqlString "asdf"]] :& RNil
 
-testselraw3 :: Rec ZZZ '[SelRaw]
+testselraw3 :: Rec RState '[SelRaw]
 testselraw3 = testselraw [[SqlString "col1a", SqlString "col2a", SqlString "col3a"], [SqlString "col1b", SqlString "col2b", SqlString "col3b"]] :& RNil
 
-testselraw4 :: Rec ZZZ '[SelRaw]
+testselraw4 :: Rec RState '[SelRaw]
 testselraw4 = testselraw (map (map SqlInt32) [[99,9999999],[1234,2],[12,2],[1,9999]]) :& RNil
 
-testselraw5 :: Rec ZZZ '[SelRaw]
+testselraw5 :: Rec RState '[SelRaw]
 testselraw5 = testselraw (map (map SqlDouble) [[99,9999999],[12.34,2],[12,2],[1,9999.1234445]]) :& RNil
 
-testselrawfail :: Rec ZZZ '[Sel [SqlValue]]
+testselrawfail :: Rec RState '[Sel [SqlValue]]
 testselrawfail = testsel [[SqlString "asdf"]] :& RNil
 
-testselraw6 :: Rec ZZZ '[SelRaw]
+testselraw6 :: Rec RState '[SelRaw]
 testselraw6 = testselraw [[SqlString "asdf", SqlNull, SqlInt32 123], [SqlNull, SqlBool True, SqlInt32 9999]] :& RNil
 
-testp00 :: Rec ZZZ '[SelOne (Maybe Int)]
+testp00 :: Rec RState '[SelOne (Maybe Int)]
 testp00 = testselone (Just 4) :& RNil
 
-testp01 :: Rec ZZZ '[SelOne (One (Maybe Int))]
+testp01 :: Rec RState '[SelOne (One (Maybe Int))]
 testp01 = testselone (One (Just 4)) :& RNil
 
-testp0 :: Rec ZZZ '[Sel Int]
+testp0 :: Rec RState '[Sel Int]
 testp0 = testsel [4,5,6] :& RNil
 
-testp1 :: Rec ZZZ '[SelOne Bool, SelOne Char]
+testp1 :: Rec RState '[SelOne Bool, SelOne Char]
 testp1 = testselone True :& testselone 'c' :& RNil
 
-testp1a :: Rec ZZZ '[SelOne (Int, String), SelOne (Int, String)]
+testp1a :: Rec RState '[SelOne (Int, String), SelOne (Int, String)]
 testp1a = testselone (1,"hello\nworld and more data") :& testselone (2,"this is a test afield\r\n\tx\n\n\nxx") :& RNil
 
-testp1b :: Rec ZZZ '[Sel (Int, String), Sel (Int, String)]
+testp1b :: Rec RState '[Sel (Int, String), Sel (Int, String)]
 testp1b = testsel [(1,"hello\nworld and more data"),(2,"some text")] :& testsel [(99,"this is a test afield\r\n\tx\n\n\nxx"), (100,"some stuff")] :& RNil
 
-testp1c :: Rec ZZZ '[Sel (String, Int), Sel (String, Int)]
+testp1c :: Rec RState '[Sel (String, Int), Sel (String, Int)]
 testp1c = testsel [("hello\nworld and more data",1),("some text",2)] :& testsel [("this is a test afield\r\n\tx\n\n\nxx",99), ("some stuff",100)] :& RNil
 
-testp2 :: Rec ZZZ '[Sel (One Bool), Sel (One Char)]
+testp2 :: Rec RState '[Sel (One Bool), Sel (One Char)]
 testp2 = testsel (map One [False,True]) :& testsel (map One ['c','d']) :& RNil
 
-testp3 :: Rec ZZZ '[Sel (Bool, Char)]
+testp3 :: Rec RState '[Sel (Bool, Char)]
 testp3 = testsel [(False,'x'), (True,'y')] :& RNil
 
-testp4 :: Rec ZZZ '[Sel (Bool, Char), Sel (Int, Bool, Char)]
+testp4 :: Rec RState '[Sel (Bool, Char), Sel (Int, Bool, Char)]
 testp4 = testsel [(False,'x'), (True,'y')] :& testsel [(1,False,'x'), (3,True,'y')] :& RNil
 
-testp5 :: Rec ZZZ '[SelOne (Bool, Char), SelOne (Int, Bool, Char)]
+testp5 :: Rec RState '[SelOne (Bool, Char), SelOne (Int, Bool, Char)]
 testp5 = testselone (False,'x') :& testselone (1,True,'y') :& RNil
 
-testp6 :: Rec ZZZ '[SelOne (Bool, Char), SelOne (String, Int), Sel (Double, Int,String)]
+testp6 :: Rec RState '[SelOne (Bool, Char), SelOne (String, Int), Sel (Double, Int,String)]
 testp6 = testselone (False,'x') :& testselone ("hey man",123) :& testsel [(1.3,222,"aaa"),(1.4,333,"bbb"),(1.5,444,"ccc")] :& RNil
 
-testp7 :: Rec ZZZ '[Sel (Int, Char), SelOne (String, Int), Sel (Double, Int, String)]
+testp7 :: Rec RState '[Sel (Int, Char), SelOne (String, Int), Sel (Double, Int, String)]
 testp7 = testsel [(10,'x'),(11,'y'),(12,'z'),(13,'w')] :& testselone ("hey man",123) :& testsel [(1.3,222,"aaa"),(1.4,333,"bbb"),(1.5,444,"ccc"),(1.6,555,"ddd"),(1.7,666,"eee"),(1.8,777,"fff")] :& RNil
 
-testp8 :: Rec ZZZ '[Sel (Int, Char), SelOne (String, Int), Upd, Sel (Double, Int, String)]
+testp8 :: Rec RState '[Sel (Int, Char), SelOne (String, Int), Upd, Sel (Double, Int, String)]
 testp8 = testsel [(10,'x'),(11,'y'),(12,'z'),(13,'w')] :& testselone ("hey man",123) :& testupd 4949 :& testsel [(1.3,222,"aaa"),(1.4,333,"bbb"),(1.5,444,"ccc"),(1.6,555,"ddd"),(1.7,666,"eee"),(1.8,777,"fff")] :& RNil
 
-testp9a :: Rec ZZZ '[Sel (Bool, Char) :+: Sel (Int, Bool, Char)]
+testp9a :: Rec RState '[Sel (Bool, Char) :+: Sel (Int, Bool, Char)]
 testp9a = testeither False (testsel [(False,'x'), (True,'y')]) (testsel [(1,False,'x'), (3,True,'y')]) :& RNil
 
-testp9b :: Rec ZZZ '[Sel (Bool, Char) :+: Sel (Int, Bool, Char)]
+testp9b :: Rec RState '[Sel (Bool, Char) :+: Sel (Int, Bool, Char)]
 testp9b = testeither True (testsel [(False,'x'), (True,'y')]) (testsel [(1,False,'x'), (3,True,'y')]) :& RNil
 
-testp10 :: Rec ZZZ '[Alle (Sel (Bool, Char))]
+testp10 :: Rec RState '[Alle (Sel (Bool, Char))]
 testp10 = testalle (replicate 4 (testsel [(False,'x'), (True,'y')])) :& RNil
 
-testp11 :: Rec ZZZ '[Some 'False 3 (Sel (Bool, Char))]
+testp11 :: Rec RState '[Some 'False 3 (Sel (Bool, Char))]
 testp11 = testsome (replicate 5 (testsel [(False,'x'), (True,'y')])) :& RNil
 
-testp11a :: Rec ZZZ '[Some 'True 1 (Sel (Bool, Char)), SelOne (Char, Bool)]
+testp11a :: Rec RState '[Some 'True 1 (Sel (Bool, Char)), SelOne (Char, Bool)]
 testp11a = testemos (replicate 5 (testsel [(False,'x'), (True,'y')])) :& testselone ('x', False) :& RNil
 
 -- this works even tho a single value but it is wrapped in T2
-testp12 :: Rec ZZZ '[Sel T2]
+testp12 :: Rec RState '[Sel T2]
 testp12 = testsel [T2 11, T2 123] :& RNil
 
 -- | test multiple values using generics-sop
-testp12a :: Rec ZZZ '[Sel T4]
+testp12a :: Rec RState '[Sel T4]
 testp12a = testsel [T4 'x' 11, T4 'y' 123] :& RNil
 
-testp12b :: Rec ZZZ '[Sel (Char, Double)]
+testp12b :: Rec RState '[Sel (Char, Double)]
 testp12b = testsel [('x',11), ('y',123)] :& RNil
 
 -- singles dont print without One
-testp13 :: Rec ZZZ '[Sel (One Int)]
+testp13 :: Rec RState '[Sel (One Int)]
 testp13 = testsel [One 11, One 123, One 1233] :& RNil
 
-testp13a :: DefDec (Dec a) => [a] -> Rec ZZZ '[Sel (One a)]
+testp13a :: DefDec (Dec a) => [a] -> Rec RState '[Sel (One a)]
 testp13a xs = testsel (map One xs) :& RNil
 
-testp14 :: Rec ZZZ '[SelRaw]
+testp14 :: Rec RState '[SelRaw]
 testp14 = testselraw [[SqlInt32 12,SqlBool False],[SqlInt32 12,SqlBool False]] :& RNil
 
 newtype T2 = T2 { t22 :: Int } deriving (G.Generic, Show)
@@ -344,36 +349,36 @@ cols2 = [Left 123, Left 456]
 
 type TF0 = F '["aa" ::: String]
 
-tf00 :: Rec ZZZ '[Sel TF0]
-tf00 = ZZZ (SelP defDec) undefined [#aa =: "afield" :& RNil, #aa =: "this" :& RNil, #aa =: "world" :& RNil] [] :& RNil
+tf00 :: Rec RState '[Sel TF0]
+tf00 = RState (SelP defDec) undefined [#aa =: "afield" :& RNil, #aa =: "this" :& RNil, #aa =: "world" :& RNil] [] :& RNil
 
 type TF1 = F '["aa" ::: String, "bb" ::: Int]
 
-tf11 :: Rec ZZZ '[Sel TF1]
-tf11 = ZZZ (SelP defDec) undefined [#aa =: "afield" :& #bb =: 999 :& RNil] [] :& RNil
+tf11 :: Rec RState '[Sel TF1]
+tf11 = RState (SelP defDec) undefined [#aa =: "afield" :& #bb =: 999 :& RNil] [] :& RNil
 
 type TF2 = F '["aa" ::: (Int, String), "bb" ::: (String,String,String)]
 
-tf11x :: Rec ZZZ '[Sel TF2]
-tf11x = ZZZ (SelP defDec) undefined [#aa =: (44, "afield") :& #bb =: ("a","b","c") :& RNil] [] :& RNil
+tf11x :: Rec RState '[Sel TF2]
+tf11x = RState (SelP defDec) undefined [#aa =: (44, "afield") :& #bb =: ("a","b","c") :& RNil] [] :& RNil
 
-tf22 :: Rec ZZZ '[Sel (String,Int)]
-tf22 = ZZZ (SelP defDec) undefined [("afield",999)] [] :& RNil
+tf22 :: Rec RState '[Sel (String,Int)]
+tf22 = RState (SelP defDec) undefined [("afield",999)] [] :& RNil
 
-tf33 :: Rec ZZZ '[Sel (MakeF (String,Int))]
-tf33 = ZZZ (SelP defDec) undefined [#c1 =: "afield" :& #c2 =: 999 :& RNil, #c1 =: "afield2" :& #c2 =: 1000 :& RNil] [] :& RNil
+tf33 :: Rec RState '[Sel (MakeF (String,Int))]
+tf33 = RState (SelP defDec) undefined [#c1 =: "afield" :& #c2 =: 999 :& RNil, #c1 =: "afield2" :& #c2 =: 1000 :& RNil] [] :& RNil
 
-tf11a :: Rec ZZZ '[Sel TF1]
-tf11a = ZZZ (SelP defDec) undefined [#aa =: "afield" :& #bb =: 999 :& RNil, #aa =: "fred" :& #bb =: (-12) :& RNil] [] :& RNil
+tf11a :: Rec RState '[Sel TF1]
+tf11a = RState (SelP defDec) undefined [#aa =: "afield" :& #bb =: 999 :& RNil, #aa =: "fred" :& #bb =: (-12) :& RNil] [] :& RNil
 
-tf11b :: Rec ZZZ '[SelOne TF1]
-tf11b = ZZZ (SelOneP defDec) undefined (#aa =: "afield" :& #bb =: 999 :& RNil) [] :& RNil
+tf11b :: Rec RState '[SelOne TF1]
+tf11b = RState (SelOneP defDec) undefined (#aa =: "afield" :& #bb =: 999 :& RNil) [] :& RNil
 
-tf22b :: Rec ZZZ '[SelOne (String,Int)]
-tf22b = ZZZ (SelOneP defDec) undefined ("afield",999) [] :& RNil
+tf22b :: Rec RState '[SelOne (String,Int)]
+tf22b = RState (SelOneP defDec) undefined ("afield",999) [] :& RNil
 
-tf33b :: Rec ZZZ '[SelOne (MakeF (String,Int))]
-tf33b = ZZZ (SelOneP defDec) undefined (#c1 =: "afield" :& #c2 =: 999 :& RNil) [] :& RNil
+tf33b :: Rec RState '[SelOne (MakeF (String,Int))]
+tf33b = RState (SelOneP defDec) undefined (#c1 =: "afield" :& #c2 =: 999 :& RNil) [] :& RNil
 
 data IP a = IP {_octet1 :: a, _octet2 :: a, _octet3 :: a, _octet4 :: a} deriving (Show,Read,Eq)
 

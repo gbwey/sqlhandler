@@ -35,7 +35,7 @@ ToFields' P.$$ P.Mconcat P.$$ P.Replicate 10 '[Int,Double] :: [(Symbol,
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE DefaultSignatures #-}
 {- |
-Module      : VinylUtils
+Module      : HSql.Core.VinylUtils
 Description : utilities for holds a singleton value 'One'
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
@@ -43,7 +43,7 @@ Maintainer  : gbwey9@gmail.com
 
 handles a tuple of size one
 -}
-module VinylUtils where
+module HSql.Core.VinylUtils where
 import Data.Vinyl
 import Data.Vinyl.TypeLevel
 import qualified Data.Vinyl.Functor as V
@@ -53,7 +53,7 @@ import qualified GHC.TypeLits as GL -- (GL.GL.GL.TypeError,ErrorMessage(..))
 import GHC.TypeNats
 import GHC.Natural
 import Data.Type.Equality
-import One
+import HSql.Core.One
 import qualified PCombinators as P
 import PCombinators (type (@@), type (:..:), type (:.:), type (<*>), type (<$>), type (<>), SAppSym0, SAppSym1, Length, type (~>), Apply)
 import Data.Kind (Type)

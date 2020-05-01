@@ -6,23 +6,22 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE LambdaCase #-}
 {-# OPTIONS -Wall #-}
-module TestDecoding where
+module TestDecoder where
 import Test.Tasty
 import Test.Tasty.HUnit
-import Decoding
+import HSql.Core.Decoder
 import Database.HDBC (SqlValue(..))
 import Data.Functor
 import Test.Hspec
 import Data.Vinyl (Rec(..))
 import qualified Data.Vinyl as V
-import VinylUtils
+import HSql.Core.VinylUtils
 import Predicate
 import qualified Predicate.Refined2 as R2
 import qualified Predicate.Examples.Refined2 as R2
 import qualified Predicate.Refined3 as R3
 import qualified Predicate.Examples.Refined3 as R3
---import Predicate.Examples.Common
---import Predicate.Refined
+import HSql.Core.ErrorHandler
 
 spec :: SpecWith ()
 spec =
@@ -32,7 +31,7 @@ spec =
 
 suite :: TestTree
 suite =
-  let s = "TestDecoding"
+  let s = "TestDecoder"
   in testGroup s (orderTests s allTests)
 
 orderTests :: String -> [Assertion] -> [TestTree]

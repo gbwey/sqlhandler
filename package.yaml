@@ -36,7 +36,7 @@ library:
   - -Wincomplete-record-updates
   - -Wincomplete-uni-patterns
   - -Wredundant-constraints
-  - -fomit-interface-pragmas
+#  - -fomit-interface-pragmas
 
 
 tests:
@@ -45,9 +45,10 @@ tests:
     ghc-options:
     - -threaded
     - -O0
-    - -fomit-interface-pragmas
+#    - -fomit-interface-pragmas
     source-dirs:
       - test
+#      - src
     dependencies:
       - sqlhandler
       - pipes
