@@ -6,7 +6,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -15,19 +14,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ConstrainedClassMethods #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE DeriveGeneric #-}
 {- |
 Module      : HSql.Core.Sql
 Description : pure functions for describing, prepocessing and postprocessing Sql
@@ -252,7 +246,7 @@ instance (Single a, P.GetBool rev, KnownNat n) => Single (Some (rev :: Bool) (n 
   singleCol w@(SomeP one) (pos,rss) =
      case someImpl w rss of
        Left e -> Left e
-       Right (n,msg) -> do
+       Right (n,msg) ->
          left (CoRec (V.Identity (SingleColE msg (Just pos) "" rss)) N.<|) $ do
            ((ret,wret),rssout) <- foldM (\((as,was),rss') i -> do
                                                    ((i',rss''),(hm,(a,wa))) <- singleCol one (i,rss')

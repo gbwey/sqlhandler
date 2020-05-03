@@ -104,14 +104,14 @@ seShortMessage x =
   let f :: Typeable a => a -> String
       f e = (tyConName . typeRepTyCon . typeOf) e ++ ": "
   in VC.match x $
-       (VC.H $ \e -> f e ++ _unMethod e ++ " " ++ _unMessage e)
-    :& (VC.H $ \e -> f e ++ _uccMethod e ++ " " ++ _uccMessage e)
-    :& (VC.H $ \e -> f e ++ _sicInstance e ++ " " ++ _sicMessage e)
-    :& (VC.H $ \e -> f e ++ _urstMethod e ++ " " ++ _urstMessage e)
-    :& (VC.H $ \e -> f e ++ _nrMethod e ++ " " ++ _nrMessage e)
-    :& (VC.H $ \e -> f e ++ _badMethod e ++ " " ++ _badMessage e)
-    :& (VC.H $ \e -> f e ++ _cvType e ++ " " ++ _cvMessage e)
-    :& (VC.H $ \e -> f e ++ _deMethod e ++ " " ++ _deMessage e)
+       VC.H (\e -> f e ++ _unMethod e ++ " " ++ _unMessage e)
+    :& VC.H (\e -> f e ++ _uccMethod e ++ " " ++ _uccMessage e)
+    :& VC.H (\e -> f e ++ _sicInstance e ++ " " ++ _sicMessage e)
+    :& VC.H (\e -> f e ++ _urstMethod e ++ " " ++ _urstMessage e)
+    :& VC.H (\e -> f e ++ _nrMethod e ++ " " ++ _nrMessage e)
+    :& VC.H (\e -> f e ++ _badMethod e ++ " " ++ _badMessage e)
+    :& VC.H (\e -> f e ++ _cvType e ++ " " ++ _cvMessage e)
+    :& VC.H (\e -> f e ++ _deMethod e ++ " " ++ _deMessage e)
     :& RNil
 
 -- | lift a decoding error to the larger SE error

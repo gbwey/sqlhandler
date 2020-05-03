@@ -109,7 +109,7 @@ spec =
 
 
 doit :: IO ()
-doit = do
+doit =
  hspec $
   describe "Type Tests" $ do
     it "should allow combined Some and Alle with no Alle data" $

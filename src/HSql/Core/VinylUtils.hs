@@ -19,13 +19,10 @@ ToFields' P.$$ P.Mconcat P.$$ P.Replicate 10 '[Int,Double] :: [(Symbol,
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE UndecidableInstances #-} -- need this for DEF show instance and Writeable stuff cos calls another type family ie Or
-{-# LANGUAGE ConstrainedClassMethods #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
@@ -362,7 +359,7 @@ type family RemoveField (arg :: Symbol) (rs :: [(Symbol,Type)]) :: [(Symbol,Type
   RemoveField s ('(s1,t) ': rs) = '(s1,t) ': RemoveField s rs
 
 removeField :: forall s rs . (RemoveFieldImpl (MatchField s rs) s rs) => Rec ElField rs -> Rec ElField (RemoveField s rs)
-removeField rec = removeFieldImpl @(MatchField s rs) @s rec
+removeField = removeFieldImpl @(MatchField s rs) @s
 
 class RemoveFieldImpl b s rs where
   removeFieldImpl :: Rec ElField rs -> Rec ElField (RemoveField s rs)
@@ -384,7 +381,7 @@ type family RemoveType (arg :: Type) (rs :: [(Symbol,k)]) :: [(Symbol,k)] where
   RemoveType t ('(s,t1) ': rs) = '(s,t1) ': RemoveType t rs
 
 removeType :: forall t rs . (RemoveTypeImpl (MatchType t rs) t rs) => Rec ElField rs -> Rec ElField (RemoveType t rs)
-removeType rec = removeTypeImpl @(MatchType t rs) @t rec
+removeType = removeTypeImpl @(MatchType t rs) @t
 
 class RemoveTypeImpl b t rs where
   removeTypeImpl :: Rec ElField rs -> Rec ElField (RemoveType t rs)
@@ -463,7 +460,7 @@ type family RemoveTypes (arg :: Type) (rs :: [(Symbol,k)]) :: [(Symbol,k)] where
   RemoveTypes t ('(s,t1) ': rs) = '(s,t1) ': RemoveTypes t rs
 
 removeTypes :: forall t rs . (RemoveTypesImpl (MatchType t rs) t rs) => Rec ElField rs -> Rec ElField (RemoveTypes t rs)
-removeTypes rec = removeTypesImpl @(MatchType t rs) @t rec
+removeTypes = removeTypesImpl @(MatchType t rs) @t
 
 class RemoveTypesImpl b t rs where
   removeTypesImpl :: Rec ElField rs -> Rec ElField (RemoveTypes t rs)
@@ -491,7 +488,7 @@ instance (RemoveOnImpl (MatchField s rs) s rs, P.If (s == s1) (RemoveOn (P.EqSym
   removeOnImpl (z :& rs) = z :& removeOnImpl @(MatchField s rs) @s @rs rs
 
 removeOn :: forall s rs . RemoveOnImpl (MatchField s rs) s rs => Rec ElField rs -> Rec ElField (RemoveOn (P.EqSym1 s :.: P.FstSym0) rs)
-removeOn rec = removeOnImpl @(MatchField s rs) @s @rs rec
+removeOn = removeOnImpl @(MatchField s rs) @s @rs
 
 {-
 >removeOnImpl @'True @"aa" (#aa =: True :& #bb =: (123::Double) :& #cc =: 'x' :& #aa1 =: "asdf"  :& RNil)
