@@ -162,7 +162,7 @@ recGet :: forall c record rs . (RecElemFCtx record V.Identity,
      record V.Identity rs -> c
 recGet = V.getIdentity . rget
 
-class IndexType (n :: P.N) (rs :: [k]) a | n rs -> a where
+class IndexType (n :: P.N) rs a | n rs -> a where
   fromIx :: Rec f rs -> f a
   setRec :: f a -> Rec f rs -> Rec f rs
 

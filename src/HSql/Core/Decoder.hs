@@ -209,6 +209,8 @@ data ElFieldDec (field :: (Symbol, Type)) where
 (==:) :: KnownSymbol l => Label l -> Dec v -> ElFieldDec (l ::: v)
 (==:) _ = FieldDec
 
+infix 4 ==:
+
 --type family ToUnDec (rs :: [(Symbol, Type)]) :: [(Symbol,Type)] where
 --  ToUnDec '[] = '[]
 --  ToUnDec ('(s,Dec t) ': rs) = '(s,t) ': ToUnDec rs

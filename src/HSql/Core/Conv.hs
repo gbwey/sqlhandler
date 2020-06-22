@@ -39,7 +39,7 @@ instance Conv Bool where
 
 instance Conv ByteString where
   conv [SqlByteString b] = Right b
-  conv [SqlString b] = Right (B.pack b)
+  conv [SqlString b] = Right (T.encodeUtf8 (T.pack b))
   conv zs@[z] = failCE "ByteString" ("from " ++ getSqlTypeHack z) zs
   conv zs  = failCE "ByteString" ("expected 1 value: found " ++ show (length zs)) zs
 

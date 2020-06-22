@@ -68,7 +68,8 @@ import Predicate.Refined3 (Refined3(..))
 import Predicate.Core
 import HSql.Core.VinylUtils
 import HSql.Core.Common
-import Database.HDBC (SqlValue(..), SqlColDesc(..))
+import Database.HDBC (SqlValue(..))
+import Data.Kind (Type)
 
 -- | a type synonym for functions that change the order of columns displayed or even drop columns
 type Fn1 = [(Int, ([String], FType))] -> [Int]
@@ -92,10 +93,10 @@ type Morph = String -> String
 data Opts = Opts { _oFile       :: !(Maybe FilePath) -- ^ optionally print to a file
                  , _oStyle      :: !TableStyle  -- ^ specify style eg unicode ascii etc
                  , _oFixData    :: !FixData
-                 , _oFn1        :: Fn1 -- ^ change the order and number of columns to display
+                 , _oFn1        :: !Fn1 -- ^ change the order and number of columns to display
                  , _oVertical :: !Vertical -- ^ align result sets vertically or horizontally
                  , _oRC :: !(Int, Int) -- ^ default row and column size of each cell
-                 , _oMorph :: Morph -- ^ transform the text of a cell: used for handling control characters
+                 , _oMorph :: !Morph -- ^ transform the text of a cell: used for handling control characters
                  }
 
 instance Show Opts where
@@ -514,7 +515,8 @@ instance FromField LocalTime where
 instance FromField a => FromField (Maybe a) where
   fromField = maybe ["<null>"] fromField
   coltype i = maybe [def] (coltype i) -- can we use numCol even if "null"
-  fieldtype _ = const (fieldtype (Proxy @a) undefined)
+  fieldtype _ (Just a) = fieldtype (Proxy @a) a
+  fieldtype _ Nothing = fieldtype (Proxy @a) undefined
 
 -- needs PolyKinds else 'True for p won't work! W 'True will work cos is kind Type
 instance FromField a => FromField (Refined p a) where
@@ -848,7 +850,7 @@ fprttableRec' o (toList -> z@(r1:_)) =
   in tableString cs (_oStyle o) (titlesH hs) (map (colsAllG top) rs)
 fprttableRec' _ _ = "empty table"
 
-fprttableRecT :: forall (rs :: [(Symbol,*)]) t . (Foldable t, StripFieldNames rs, F.ColumnHeaders rs, ReifyConstraint FromField V.Identity (Unlabeled rs), RFoldMap (Unlabeled rs), HasCallStack) =>
+fprttableRecT :: forall (rs :: [(Symbol,Type)]) t . (Foldable t, StripFieldNames rs, F.ColumnHeaders rs, ReifyConstraint FromField V.Identity (Unlabeled rs), RFoldMap (Unlabeled rs), HasCallStack) =>
       Opts -> t (F rs) -> String
 fprttableRecT o z =
   let colnames = F.columnHeaders (Proxy @(F rs))
