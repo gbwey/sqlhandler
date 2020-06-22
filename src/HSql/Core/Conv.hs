@@ -1,4 +1,4 @@
-{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
+{-# OPTIONS -Wall -Wno-compat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase #-}
@@ -163,6 +163,7 @@ convfloat = go
   go (SqlDouble d) = return $ realToFrac d
   go (SqlInteger i) = return $ fromIntegral i
   go (SqlInt32 i) = return $ fromIntegral i
+  go (SqlInt64 i) = return $ fromIntegral i
   go o = failCE "Float" "convfloat:invalid float number" [o]
 
 convnum :: forall a. (Show a, Num a, Read a) => SqlValue -> Either EE a

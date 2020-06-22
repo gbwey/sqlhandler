@@ -460,56 +460,56 @@ instance FromField SqlValue where
                  SqlNull -> [Other]
 
 instance FromField NominalDiffTime where
-  fromField = (:[]) . show
+  fromField = pure . show
 instance FromField TimeOfDay where
-  fromField = (:[]) . show
+  fromField = pure . show
 instance FromField Rational where
-  fromField = (:[]) . show
+  fromField = pure . show
   coltype _ = const [numCol]
   fieldtype _ = const [Numy]
 instance FromField Bool where
-  fromField = (:[]) . show
+  fromField = pure . show
 instance FromField Char where
-  fromField = (:[]) . (:[])
+  fromField = pure . pure
 instance FromField ByteString where
-  fromField = (:[]) . B8.unpack
+  fromField = pure . B8.unpack
   coltype i = const [upto i]
   fieldtype _ = const [Stringy]
 instance FromField String where
-  fromField = (:[])
+  fromField = pure
   coltype i = const [upto i]
   fieldtype _ = const [Stringy]
 instance FromField Text where
-  fromField = (:[]) . T.unpack
+  fromField = pure . T.unpack
   coltype i = const [upto i]
   fieldtype _ = const [Stringy]
 instance FromField Int where
-  fromField = (:[]) . show
+  fromField = pure . show
   coltype _ = const [numCol]
   fieldtype _ = const [Numy]
 instance FromField Integer where
-  fromField = (:[]) . show
+  fromField = pure . show
   coltype _ = const [numCol]
   fieldtype _ = const [Numy]
 instance FromField Float where
-  fromField = (:[]) . show
+  fromField = pure . show
   coltype _ = const [numCol]
   fieldtype _ = const [Numy]
 instance FromField Double where
-  fromField = (:[]) . show
+  fromField = pure . show
   coltype _ = const [numCol]
   fieldtype _ = const [Numy]
 instance FromField UTCTime where
-  fromField = (:[]) . formatTime defaultTimeLocale "%F %T"
+  fromField = pure . formatTime defaultTimeLocale "%F %T"
   fieldtype _ = const [Datey]
 instance FromField ZonedTime where
-  fromField = (:[]) . formatTime defaultTimeLocale "%F %T"
+  fromField = pure . formatTime defaultTimeLocale "%F %T"
   fieldtype _ = const [Datey]
 instance FromField Day where
-  fromField = (:[]) . formatTime defaultTimeLocale "%F"
+  fromField = pure . formatTime defaultTimeLocale "%F"
   fieldtype _ = const [Datey]
 instance FromField LocalTime where
-  fromField = (:[]) . formatTime defaultTimeLocale "%F %T"
+  fromField = pure . formatTime defaultTimeLocale "%F %T"
   fieldtype _ = const [Datey]
 instance FromField a => FromField (Maybe a) where
   fromField = maybe ["<null>"] fromField

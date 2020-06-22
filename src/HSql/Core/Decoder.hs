@@ -14,7 +14,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DefaultSignatures #-}
-{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
+{-# OPTIONS -Wall -Wno-compat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
 {- |
 Module      : HSql.Core.Decoder
 Description : decode from 'SqlValue's to haskell values
@@ -77,7 +77,7 @@ decLens ll (Dec f) =
   Dec $ \xs -> f xs & _Right . _1 %~ (^. ll)
 
 liftDM :: Dec a -> Dec (DM a)
-liftDM = (DM . (:[]) <$>)
+liftDM = (DM . pure <$>)
 
 liftDMs :: [Dec a] -> Dec (DM a)
 liftDMs ds = DM <$> sequenceA ds
@@ -312,7 +312,7 @@ instance (DefDec (Dec t), KnownSymbol s) =>
                           --fmap (\(a,b) -> (Field a,b)) . (\x -> left' (fmap (mapDecMessage ("ElField " ++ symbolVal (Proxy @s))) (unDec (defDec @(Dec t)) x)))
 
 instance DefDec (Dec a) => DefDec (Dec (DM a)) where
-  defDec = DM . (:[]) <$> defDec
+  defDec = DM . pure <$> defDec
 
 instance GL.TypeError ('GL.Text "I do not know what type you want"
                  ':$$: 'GL.Text "somehow GHC has bounced you here: DefDec (Dec ())"

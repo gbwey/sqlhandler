@@ -383,7 +383,7 @@ tf33b = RState (SelOneP defDec) undefined (#c1 =: "afield" :& #c2 =: 999 :& RNil
 data IP a = IP {_octet1 :: a, _octet2 :: a, _octet3 :: a, _octet4 :: a} deriving (Show,Read,Eq)
 
 instance Show a => FromField (IP a) where
-  fromField = (:[]) . show
+  fromField = pure . show
   coltype i = const [upto i]
   fieldtype _ = const [Stringy]
 

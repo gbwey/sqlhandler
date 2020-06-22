@@ -263,7 +263,7 @@ pattern E6 fa fb fc fd fe ff = fa :& fb :& fc :& fd :& fe :& ff :& RNil
 
 -- works for any Foldable (F rs) so works for Frame or []
 frameToList :: forall rs t . (StripFieldNames rs, Foldable t) => t (F rs) -> [Rec V.Identity (Unlabeled rs)]
-frameToList = foldMap ((:[]) . F.stripNames)
+frameToList = foldMap (pure . F.stripNames)
 
 -- | create a scan using a fold for a vinyl record and stash it in a new field called s1: eg create a column with a running average
 postscanF :: forall s1 b us . (KnownSymbol s1)

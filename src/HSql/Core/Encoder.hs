@@ -92,7 +92,7 @@ instance Decidable Enc where
  choose f (Enc ax) (Enc bx) = Enc $ \z -> either ax bx (f z)
 
 encSqlValue :: Enc SqlValue
-encSqlValue = Enc (:[])
+encSqlValue = Enc pure
 
 encRawEnc :: Enc RawEnc
 encRawEnc = Enc unRawEnc
@@ -135,13 +135,13 @@ encodeListDefV :: DefEnc (Enc a) => [a] -> Rec V.Identity '[EncList SqlValue]
 encodeListDefV = I1 . encodeListDef
 
 encConst :: SqlValue -> Enc a  -- not used?
-encConst = Enc . const . (:[])
+encConst = Enc . const . pure
 
 encByteString :: Enc ByteString
 encByteString = Enc $ \bs -> [SqlByteString bs]
 
 encInt :: Enc Int
-encInt = Enc $ \i -> [SqlInt32 (fromIntegral i)]
+encInt = Enc $ \i -> [SqlInt64 (fromIntegral i)]
 
 encInteger :: Enc Integer
 encInteger = Enc $ \i -> [SqlInteger i]

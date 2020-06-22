@@ -4,7 +4,7 @@ packages:
 extra-deps:
 - pretty-terminal-0.1.0.0
 - tree-view-0.5
-- Frames-0.6.2
+- Frames-0.6.4
 - discrimination-0.4
 - symbols-0.3.0.0
 - ../hdbc-odbc2
