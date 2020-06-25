@@ -1,0 +1,16 @@
+resolver: lts-16.1
+packages:
+- '.'
+extra-deps:
+- pretty-terminal-0.1.0.0
+- tree-view-0.5
+- ../Frames
+- discrimination-0.4
+- symbols-0.3.0.0
+- ../hdbc-odbc2
+- ../predicate-typed
+- ../table-layout
+- ../typelevel
+- vinyl-0.12.2@sha256:cefc269fd137841861c13f28a3f20f5973ef24e9f1e6245b77b688f1cbd979de,3717
+
+# ghc-options: {"$locals": -ddump-to-file -ddump-hi}

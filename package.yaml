@@ -37,6 +37,11 @@ library:
   - -Wincomplete-uni-patterns
   - -Wredundant-constraints
 #  - -fomit-interface-pragmas
+  when:
+     condition: impl(ghc >= 8.8)
+     ghc-options:
+     - -fwrite-ide-info
+     - -hiedir=.hie
 
 
 tests:
@@ -46,6 +51,11 @@ tests:
     - -threaded
     - -O0
 #    - -fomit-interface-pragmas
+    when:
+       condition: impl(ghc >= 8.8)
+       ghc-options:
+       - -fwrite-ide-info
+       - -hiedir=.hie
     source-dirs:
       - test
 #      - src

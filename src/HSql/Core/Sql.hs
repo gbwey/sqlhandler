@@ -281,7 +281,14 @@ instance Single a => Show (SingleIn a) where
   show = showF
 
 -- | 'RState' holds the input/ouput for a given resultset
-data RState a = RState { _rsIn :: !(SingleIn a), _rsOutWrapped :: a, _rsOut :: SingleOut a, _rsMeta :: ![RMeta] }
+data RState a =
+   RState { _rsIn :: !(SingleIn a)
+          , _rsOutWrapped :: a
+          , _rsOut :: SingleOut a
+          , _rsMeta :: ![RMeta]
+          }
+
+deriving instance (Show a, Show (SingleIn a), Show (SingleOut a)) => Show (RState a)
 
 -- | Lens for accessing the predicate for 'RState'
 rsIn :: Lens' (RState a) (SingleIn a)
@@ -299,12 +306,10 @@ rsOut afb z = (\x -> z { _rsOut = x}) <$> afb (_rsOut z)
 rsMeta :: Lens' (RState a) [RMeta]
 rsMeta afb z = (\x -> z { _rsMeta = x}) <$> afb (_rsMeta z)
 
-deriving instance (Show a, Show (SingleIn a), Show (SingleOut a)) => Show (RState a)
-
 -- bearbeiten: how to get around using undefined
 -- | 'toRState' sets up the initial state before processing all the resultsets
 toRState :: Rec SingleIn rs -> Rec RState rs
-toRState = VR.rmap $ \xa -> RState xa undefined undefined []
+toRState = VR.rmap $ \xa -> RState xa (error "RState: rsOutWrapped doesn't have a value!") (error "RState: rsOut doesn't have a value!") []
 
 -- | 'ShowOp' extracts a value level predicate from the typelevel for 'UpdN'
 class ShowOp (a :: Op) where

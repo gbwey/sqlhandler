@@ -516,7 +516,7 @@ instance FromField a => FromField (Maybe a) where
   fromField = maybe ["<null>"] fromField
   coltype i = maybe [def] (coltype i) -- can we use numCol even if "null"
   fieldtype _ (Just a) = fieldtype (Proxy @a) a
-  fieldtype _ Nothing = fieldtype (Proxy @a) undefined
+  fieldtype _ Nothing = fieldtype (Proxy @a) (error "FromField: Maybe: doesn't have a value!")
 
 -- needs PolyKinds else 'True for p won't work! W 'True will work cos is kind Type
 instance FromField a => FromField (Refined p a) where
@@ -607,7 +607,7 @@ prttableHSelRaw o meta ts =
       in (cols
          ,map (Safe.atNote ("prttableHSelRaw flds=" ++ show flds ++ " is=" ++ show is) flds) is
          ,MMM (map (\z -> map (view _2 . Safe.atNote "prttableHSelRaw MMM" z) is) zs))
-    _ -> error "prttableHSelRaw empty list!"
+    [] -> error "prttableHSelRaw empty list!"
 
 prttableH :: forall xs a . (GS.HasDatatypeInfo a, GS.Code a ~ '[xs], GS.All FromField xs, HasCallStack)
   => Opts -> [RMeta] -> [a] -> ([ColSpec], [String], MMM [String])
@@ -622,7 +622,7 @@ prttableH o meta ts =
       in (cols
          ,map (Safe.atNote ("prttableH flds=" ++ show flds ++ " is=" ++ show is) flds) is
          ,MMM (map (\z -> map (view _2 . Safe.atNote "prttableH MMM" z) is) zs))
-    _ -> error "prttableH empty list!"
+    [] -> error "prttableH empty list!"
 
 prttableV :: forall xs a . (GS.HasDatatypeInfo a, GS.Code a ~ '[xs], GS.All FromField xs, HasCallStack)
   => Opts -> [RMeta] -> [a] -> String
@@ -640,7 +640,7 @@ prttableV o meta ts =
          (_oStyle o)
          (titlesH $ map (Safe.atNote ("prttableV flds " ++ show flds ++ " is=" ++ show is) flds) is)
          (map (\z -> colsAllG top (map (view _2 . Safe.atNote "prttableV colsAllG" z) is)) zs)
-    _ -> error "prttableV empty list!"
+    [] -> error "prttableV empty list!"
 
 whatcoltype :: Int -> SqlTypeId -> ColSpec
 whatcoltype i x | x `elem` [SqlCharT, SqlVarCharT, SqlLongVarCharT, SqlWCharT, SqlWVarCharT, SqlWLongVarCharT]
@@ -755,21 +755,22 @@ elemFn1 p = p . map fst
 -- | 'squarble' changes the order in which columns appear depending on a given strategy
 squarble :: HasCallStack => Fn1 -> [[([String], FType)]] -> [Int]
 squarble fnx rs =
-  let iis = map (\r -> fnx (zip [0..length r-1] r)) rs
+  let iis = map (fnx . zip [0..]) rs
       ret = foldr1 intersect iis
   in if null ret then error "squarble null" else ret
 
 padMat :: (a,a) -> [[a]] -> [[a]] -> [[a]]
 padMat (ld,rd) xs ys
-       | null xs = ys
-       | null ys = xs
-       | otherwise =
-  let lcols = head $ fmap length xs
-      rcols = head $ fmap length ys
-      f (a:as) (b:bs) = (a ++ b) : f as bs
-      f [] bs = map (\b -> replicate lcols ld ++ b) bs
-      f as [] = map (\a -> a ++ replicate rcols rd) as
-  in f xs ys
+  = case (xs,ys) of
+      ([],_) -> ys
+      (_,[]) -> xs
+      (x:_,y:_) ->
+        let lcols = length x
+            rcols = length y
+            f (a:as) (b:bs) = (a ++ b) : f as bs
+            f [] bs = map (\b -> replicate lcols ld ++ b) bs
+            f as [] = map (\a -> a ++ replicate rcols rd) as
+        in f xs ys
 
 -- cant use semigroup instance for MMM cos rfoldMap expects a monoid
 -- could use a semigroup and then wrap in Option to get a Maybe but too much effort
@@ -820,7 +821,7 @@ qprttableH o colnames ts =
       in (cols
          ,map (Safe.atNote "qprttableH flds" colnames) is
          ,MMM (map (\z -> map (view _2 . Safe.atNote "qprttableH MMM" z) is) zs))
-    _ -> error "qprttableH empty list!"
+    [] -> error "qprttableH empty list!"
 
 qprttableV :: forall rs . (ReifyConstraint FromField V.Identity rs, RFoldMap rs, HasCallStack)
   => Opts -> [String] -> [Rec V.Identity rs] -> String
@@ -838,7 +839,7 @@ qprttableV o colnames ts =
              (_oStyle o)
              (titlesH $ map (Safe.atNote ("qprttableV flds " ++ show colnames ++ " is=" ++ show is) colnames) is)
              (map (\z -> colsAllG top (map (view _2 . Safe.atNote "qprttableV colsAllG" z) is)) zs)
-        _ -> error "qprttableV empty list!"
+        [] -> error "qprttableV empty list!"
 
 -- there is no vertical vs horizontal! cos only one frame!
 fprttableRec' :: forall rs t . (Foldable t, ReifyConstraint FromField V.Identity rs, RFoldMap rs, HasCallStack) =>

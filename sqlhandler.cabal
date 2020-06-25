@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c3be635fd93cf8a15ee735a67f0802e554e476cfa6e08ae717fa418884ad3d07
+-- hash: e20f20e5355b4d0907812b6d318de92bce6e506a5ae7e4b3abec06d36b14b3f5
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -54,6 +54,8 @@ library
     , time
     , typelevel
     , vinyl >=0.10.0.1
+  if impl(ghc >= 8.8)
+    ghc-options: -fwrite-ide-info -hiedir=.hie
   default-language: Haskell2010
 
 test-suite spec
@@ -104,4 +106,6 @@ test-suite spec
     , time
     , typelevel
     , vinyl >=0.10.0.1
+  if impl(ghc >= 8.8)
+    ghc-options: -fwrite-ide-info -hiedir=.hie
   default-language: Haskell2010

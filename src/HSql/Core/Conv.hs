@@ -191,8 +191,8 @@ convbool = go
   go (SqlChar '\0') = return False
   go (SqlChar '\1') = return True
   go z@(SqlChar _) = failCE "Bool" "convbool: invalid bool: found SqlChar but not 0/1" [z]
-  go a = convnum a >>= \case
-                             (1 :: Int) -> return True
+  go a = convnum @Int a >>= \case
+                             1 -> return True
                              0 -> return False
                              _ -> failCE "Bool" ("convbool: invalid bool as a number: expected 0/1 but found " ++ getSqlTypeHack a) [a]
 
