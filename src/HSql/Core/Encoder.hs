@@ -25,6 +25,7 @@ GS.deriveGeneric ''LogCmd
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
 {- |
 Module      : HSql.Core.Encoder
@@ -42,7 +43,7 @@ import Data.Text (Text)
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
 import Data.Void
-import Text.Printf
+import Text.Printf (printf)
 import Data.Time
 import Database.HDBC (SqlValue(..))
 import GHC.Generics (Generic)
@@ -50,13 +51,13 @@ import Data.Vinyl
 import qualified Data.Vinyl.Functor as V
 import qualified Data.Vinyl.Recursive as VR
 import qualified Control.Lens as L
-import HSql.Core.VinylUtils
-import Data.Function
+import HSql.Core.VinylUtils (pattern I1,pattern I2,pattern I3,pattern I4) -- requires patternsynonyms to use pattern keyword in import statement
+import Data.Function (on)
 import qualified Generics.OneLiner as GO
-import Predicate.Core
-import qualified Predicate.Refined2 as R2
-import qualified Predicate.Refined3 as R3
-import Predicate.Refined
+import Predicate.Core (PP)
+import qualified Predicate.Refined2 as R2 (Refined2(r2Out))
+import qualified Predicate.Refined3 as R3 (Refined3(r3Out))
+import Predicate.Refined (Refined(unRefined))
 import HSql.Core.Raw
 
 -- | 'Enc' encodes a haskell value to a list of sqlvalues

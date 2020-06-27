@@ -38,15 +38,15 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Text.Layout.Table
 import qualified Generics.SOP as GS
-import qualified GHC.Generics as G
-import Control.Arrow
+import qualified GHC.Generics as G (Generic)
+import Control.Arrow ((&&&))
 import Control.Lens hiding (from)
-import qualified Control.Lens as L
+import qualified Control.Lens as L (Identity(..))
 import Data.Time
-import Data.List
-import Data.Char
+import Data.List (transpose,intersect,unfoldr)
+import Data.Char (isControl,isSpace,ord)
 import Data.Semigroup (Sum(..))
-import System.IO
+import qualified System.IO as SIO
 import Data.Vinyl
 import qualified Data.Vinyl.Recursive as VR
 import qualified Data.Vinyl as V
@@ -54,19 +54,19 @@ import qualified Data.Vinyl.Functor as V
 import qualified Data.Vinyl.TypeLevel as V
 import HSql.Core.Sql
 import Numeric (showHex)
-import Database.HDBC.ColTypes
-import qualified Safe
-import qualified Safe.Exact as SE
+import Database.HDBC.ColTypes (SqlTypeId(..),colName)
+import qualified Safe (atNote,headDef,maximumBound)
+import qualified Safe.Exact as SE (zip3Exact)
 import GHC.TypeLits
-import GHC.Stack
+import GHC.Stack (HasCallStack)
 import qualified Frames as F
-import Data.Foldable
+import Data.Foldable (toList)
 import qualified PCombinators as P
-import Predicate.Refined
+import Predicate.Refined (Refined(..))
 import Predicate.Refined2 (Refined2(..))
 import Predicate.Refined3 (Refined3(..))
-import Predicate.Core
-import HSql.Core.VinylUtils
+import Predicate.Core (PP)
+import HSql.Core.VinylUtils (F,recLen)
 import HSql.Core.Common
 import Database.HDBC (SqlValue(..))
 import Data.Kind (Type)
@@ -269,8 +269,9 @@ instance {-# OVERLAPPABLE #-}(GS.HasDatatypeInfo a, GS.Generic a, GS.Code a ~ '[
 instance ZPrint (RState SelRaw) where
   zprintH (RState _ _ a meta) o = prttableHSelRaw o meta a -- globs stuff into one field but not used much anyway!
   zprintV (RState _ _ a meta) o fn pos =
-    (pos+1, fn ("SelRaw",pos) <> concat (if null meta then prtHRetCol o [Right @Int ([],a)]
-                                         else prtHRetCol o [Right @Int (head meta, a)]
+    (pos+1, fn ("SelRaw",pos) <> concat (case meta of
+                                           [] -> prtHRetCol o [Right @Int ([],a)]
+                                           m1:_ -> prtHRetCol o [Right @Int (m1, a)]
                                          )
     )
 
@@ -548,7 +549,9 @@ toRow o a =
 
 toColSqlValue :: Opts -> SqlValue -> (ColSpec, [String], FType)
 toColSqlValue o x =
-   (head $ coltype (_oRC o ^. _2) x, head $ convstring o x, head $ fieldtype Proxy x)
+  case (coltype (_oRC o ^. _2) &&& convstring o &&& fieldtype Proxy) x of
+    (a:_,(b:_,c:_)) -> (a,b,c)
+    (y,z) -> error $ "toColSqlValue: " ++ show (null y,z)
 
 defMorph1, defMorph2, defMorph3, defMorph4, defMorph5, defMorph6 :: Morph
 defMorph1 = morph1 ("\n", "", " ") (morphFn1 False)
@@ -601,9 +604,9 @@ prttableHSelRaw o meta ts =
     zs@(z' : _) ->
       let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "prttableHSelRaw cols" z') is
-          flds = if null meta then zipWith (\x v -> v <> "_" <> show x) [1::Int ..] (getColumnTypes ts)
-          -- zipWith (\i x -> head (words (show x)) ++ "_" ++ show i) [1::Int ..] (head ts)
-                 else map colName $ head meta
+          flds = case meta of
+                   [] -> zipWith (\x v -> v <> "_" <> show x) [1::Int ..] (getColumnTypes ts)
+                   m1:_ -> map colName m1
       in (cols
          ,map (Safe.atNote ("prttableHSelRaw flds=" ++ show flds ++ " is=" ++ show is) flds) is
          ,MMM (map (\z -> map (view _2 . Safe.atNote "prttableHSelRaw MMM" z) is) zs))
@@ -617,8 +620,9 @@ prttableH o meta ts =
     zs@(z' : _) ->
       let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "prttableH cols" z') is
-          flds = if null meta then getFieldNames (Proxy @a)
-                 else map colName $ head meta
+          flds = case meta of
+                   [] -> getFieldNames (Proxy @a)
+                   m1:_ -> map colName m1
       in (cols
          ,map (Safe.atNote ("prttableH flds=" ++ show flds ++ " is=" ++ show is) flds) is
          ,MMM (map (\z -> map (view _2 . Safe.atNote "prttableH MMM" z) is) zs))
@@ -632,8 +636,9 @@ prttableV o meta ts =
     zs@(z' : _) ->
       let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "prttableV cols" z') is
-          flds' = if null meta then getFieldNames (Proxy @a)
-                  else map colName $ head meta
+          flds' = case meta of
+                    [] -> getFieldNames (Proxy @a)
+                    m1:_ -> map colName m1
           flds = if length is > length flds' then take (length is) (zipWith (\i n -> n <> show i) [1::Int ..] (cycle flds'))
                  else flds'
       in tableString cols
@@ -681,9 +686,9 @@ wprintCols' fn = wprintWith (poCols fn (poAscii defT))
 wprintWith :: Printer a => Opts -> a -> IO ()
 wprintWith o xs = case _oFile o of
                     Nothing -> putStrLn $ unlines $ wfn o xs
-                    Just fn -> withFile fn AppendMode $ \h -> do
-                                 hSetEncoding h utf8
-                                 hPutStrLn h $ unlines $ wfn o xs
+                    Just fn -> SIO.withFile fn SIO.AppendMode $ \h -> do
+                                 SIO.hSetEncoding h SIO.utf8
+                                 SIO.hPutStrLn h $ unlines $ wfn o xs
 
 -- | 'Printer' directs the to the implementation that handles printing
 class Printer a where

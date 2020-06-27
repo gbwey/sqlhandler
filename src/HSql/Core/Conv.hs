@@ -15,15 +15,15 @@ module HSql.Core.Conv where
 import qualified Data.ByteString.Char8 as B
 import Data.ByteString (ByteString)
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
+import qualified Data.Text.Encoding as TE (encodeUtf8,decodeUtf8)
 import Data.Text (Text)
-import Control.Arrow
+import Control.Arrow (left)
 import Data.Time
-import Data.Char
+import Data.Char (isSpace,ord)
 import Database.HDBC (SqlValue(..))
 import qualified Data.List.NonEmpty as N
-import Data.List
-import HSql.Core.ErrorHandler
+import Data.List (isPrefixOf)
+import HSql.Core.ErrorHandler (EE,failCE,ConvE(..))
 
 -- | 'Conv' tries to converts one or more hdbc sql values to 'a'
 class Conv a where
@@ -39,7 +39,7 @@ instance Conv Bool where
 
 instance Conv ByteString where
   conv [SqlByteString b] = Right b
-  conv [SqlString b] = Right (T.encodeUtf8 (T.pack b))
+  conv [SqlString b] = Right (TE.encodeUtf8 (T.pack b))
   conv zs@[z] = failCE "ByteString" ("from " ++ getSqlTypeHack z) zs
   conv zs  = failCE "ByteString" ("expected 1 value: found " ++ show (length zs)) zs
 
@@ -51,7 +51,7 @@ instance Conv String where
 
 instance Conv Text where
   conv [SqlString s] = Right (T.pack s)
-  conv [SqlByteString bs] = Right (T.decodeUtf8 bs)
+  conv [SqlByteString bs] = Right (TE.decodeUtf8 bs)
   conv zs@[z] = failCE "Text" ("from " ++ getSqlTypeHack z) zs
   conv zs  = failCE "Text" ("expected 1 value: found " ++ show (length zs)) zs
 
@@ -199,6 +199,6 @@ convbool = go
 getSqlTypeHack :: SqlValue -> String
 getSqlTypeHack = head . words . show
 
-trimBS :: B.ByteString -> B.ByteString
+trimBS :: ByteString -> ByteString
 trimBS = f . f
    where f = B.reverse . B.dropWhile isSpace

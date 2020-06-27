@@ -45,23 +45,23 @@ import qualified Data.Vinyl.Recursive as VR
 import Data.Vinyl
 import Data.Vinyl.CoRec (CoRec(..))
 import Data.Vinyl.TypeLevel hiding (Nat)
-import Control.Arrow
+import Control.Arrow (left,second)
 import Control.Lens hiding (rmap,Identity,Const,op)
-import Data.Proxy
+import Data.Proxy (Proxy(Proxy))
 import qualified Data.Text as T
 import Data.Text (Text)
 import GHC.TypeLits (ErrorMessage((:<>:),(:$$:)),Nat,KnownNat)
 import qualified GHC.TypeLits as GL
-import Control.Monad
-import Text.Shakespeare.Text
-import Data.String
-import Data.Text.Internal.Builder
+import Control.Monad (foldM, unless, forM)
+import Text.Shakespeare.Text (ToText(toText))
+import Data.String (IsString(fromString))
+import Data.Text.Internal.Builder (fromText)
 import qualified Data.List.NonEmpty as N
 import GHC.Generics (Generic)
 import Data.Kind (Type)
 import qualified PCombinators as P
 import PCombinators ((:.:), type (~>), Apply)
-import GHC.Stack
+import GHC.Stack (HasCallStack)
 
 -- | 'Sql' is the core ADT that holds a vinyl record of encoders for the input
 -- and a vinyl record of decoders for the ouput and then the Sql text
@@ -165,7 +165,7 @@ instance Single Upd where
       rs1:rss' -> left (CoRec (V.Identity (SingleColE "Upd" (Just pos) "" rss)) N.<|) $ do
         rc <- updImpl rs1
         return ((pos+1,rss'), ([], (Upd rc,rc)))
-      [] -> failNR "Upd" pos "no resultset"
+      [] -> failNR "Upd" pos emptyResultSetMessage
 
 instance (ShowOp op, KnownNat val) => Single (UpdN (op :: Op) (val :: Nat)) where
   data SingleIn (UpdN op val) = UpdNP
@@ -181,7 +181,7 @@ instance (ShowOp op, KnownNat val) => Single (UpdN (op :: Op) (val :: Nat)) wher
         case second (\x -> x rc v) (showOp @op) of
           (dsp, False) -> failNE "UpdN" pos ("update predicate failed: " ++ show rc ++ " " ++ dsp ++ " " ++ show v)
           (_, True) -> pure ((pos+1,rss'), ([], (UpdN rc,rc)))
-      [] -> failNR "UpdN" pos "no resultset"
+      [] -> failNR "UpdN" pos emptyResultSetMessage
 
 instance Single (SelOne a) where
   data SingleIn (SelOne a) = SelOneP (Dec a)
@@ -195,7 +195,7 @@ instance Single (SelOne a) where
          case xxs of
            [xs] -> return ((pos+1,rss'), ([meta], (SelOne xs,xs)))
            _ -> failSIC "SelOne" (Just pos) ("expected 1 row but found " ++ show (length xxs)) rss
-       [] -> failNR "SelOne" pos "no resultset"
+       [] -> failNR "SelOne" pos emptyResultSetMessage
 
 instance Single (Sel a) where
   data SingleIn (Sel a) = SelP (Dec a)
@@ -207,7 +207,7 @@ instance Single (Sel a) where
        rs1:rss' -> left (CoRec (V.Identity (SingleColE "Sel" (Just pos) "" rss)) N.<|) $ do
           (meta,a) <- selImpl rs1 dec
           return ((pos+1,rss'), ([meta],(Sel a,a)))
-       [] -> failNR "Sel" pos "no resultset"
+       [] -> failNR "Sel" pos emptyResultSetMessage
 
 instance Single a => Single (Alle a) where
   data SingleIn (Alle a) = AlleP (SingleIn a)
@@ -275,7 +275,7 @@ instance Single SelRaw where
       rs1:rss' -> left (CoRec (V.Identity (SingleColE "SelRaw" (Just pos) "" rss)) N.<|) $ do
         (meta,a) <- selRawImpl rs1
         return ((pos+1,rss'), ([meta], (SelRaw a,a)))
-      [] -> failNR "Sel" pos "no resultset"
+      [] -> failNR "Sel" pos emptyResultSetMessage
 
 instance Single a => Show (SingleIn a) where
   show = showF
@@ -309,7 +309,10 @@ rsMeta afb z = (\x -> z { _rsMeta = x}) <$> afb (_rsMeta z)
 -- bearbeiten: how to get around using undefined
 -- | 'toRState' sets up the initial state before processing all the resultsets
 toRState :: Rec SingleIn rs -> Rec RState rs
-toRState = VR.rmap $ \xa -> RState xa (error "RState: rsOutWrapped doesn't have a value!") (error "RState: rsOut doesn't have a value!") []
+toRState = VR.rmap $ \xa -> RState xa
+                                   (error "RState: rsOutWrapped doesn't have a value!")
+                                   (error "RState: rsOut doesn't have a value!")
+                                   []
 
 -- | 'ShowOp' extracts a value level predicate from the typelevel for 'UpdN'
 class ShowOp (a :: Op) where
@@ -743,4 +746,5 @@ type family ValidNest1 (w :: Type) :: Bool where
   ValidNest1 (a :+: b) = ValidNest1 a P.&& ValidNest1 b
   ValidNest1 a = 'True
 
-
+emptyResultSetMessage :: String
+emptyResultSetMessage = "no more resultsets from the server but the type signature expects another resultset"

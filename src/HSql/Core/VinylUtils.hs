@@ -49,24 +49,24 @@ import GHC.TypeLits (ErrorMessage((:<>:)),Symbol,KnownSymbol)
 import qualified GHC.TypeLits as GL -- (GL.GL.GL.TypeError,ErrorMessage(..))
 import GHC.TypeNats
 import GHC.Natural
-import Data.Type.Equality
+import qualified Data.Type.Equality as DTE (type (==))
 import HSql.Core.One
 import qualified PCombinators as P
 import PCombinators (type (@@), type (:..:), type (:.:), type (<*>), type (<$>), type (<>), SAppSym0, SAppSym1, Length, type (~>), Apply)
 import Data.Kind (Type)
 import Control.Lens (type Lens', type Lens)
-import qualified Frames as F
+import qualified Frames as F (stripNames)
 import Frames ((:->))
-import qualified Control.Foldl as FL
-import qualified Control.Scanl as FS
-import qualified Control.Monad.State.Strict as S
+import qualified Control.Foldl as FL (Fold(..))
+import qualified Control.Scanl as FS (Scan(..))
+import qualified Control.Monad.State.Strict as S (state)
 import qualified Data.Text as T
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Map.Strict as M
-import qualified Data.IntMap as IM
-import qualified Data.Set as Set
-import Data.These
+import qualified Data.ByteString as BS (ByteString)
+import qualified Data.ByteString.Lazy as BL (ByteString)
+import qualified Data.Map.Strict as M (Map,empty)
+import qualified Data.IntMap as IM (IntMap)
+import qualified Data.Set as Set(Set,empty)
+import Data.These (These(..))
 
 type F = Rec ElField -- :: [(Symbol, Type)] -> Type
 type WW = Rec V.Identity -- :: [Type] -> Type
@@ -373,7 +373,7 @@ instance (KnownSymbol s1, RemoveFieldImpl (MatchField s rs) s rs, RemoveField s 
 
 type family MatchField (arg :: Symbol) (rs :: [(Symbol,k)]) :: Bool where
   MatchField s '[] = 'False
-  MatchField s ('(s1,t) ': rs) = s == s1 -- is there a difference between pattern match and ==?
+  MatchField s ('(s1,t) ': rs) = s DTE.== s1 -- is there a difference between pattern match and ==?
 
 type family RemoveType (arg :: Type) (rs :: [(Symbol,k)]) :: [(Symbol,k)] where
   RemoveType t '[] = '[]
@@ -484,7 +484,7 @@ instance RemoveOnImpl b s '[] where
   removeOnImpl RNil = RNil
 instance (RemoveOnImpl (MatchField s rs) s rs, RemoveOn (P.EqSym1 s P.:.: P.FstSym0) ('(s, t) : rs) ~ RemoveOn (P.EqSym1 s P.:.: P.FstSym0) rs) => RemoveOnImpl 'True s ('(s,t) ': rs) where
   removeOnImpl (_ :& rs) = removeOnImpl @(MatchField s rs) @s @rs rs
-instance (RemoveOnImpl (MatchField s rs) s rs, P.If (s == s1) (RemoveOn (P.EqSym1 s :.: P.FstSym0) rs) ('(s1, t) : RemoveOn (P.EqSym1 s :.: P.FstSym0) rs) ~ ('(s1, t) : RemoveOn (P.EqSym1 s :.: P.FstSym0) rs)) => RemoveOnImpl 'False s ('(s1,t) ': rs) where
+instance (RemoveOnImpl (MatchField s rs) s rs, P.If (s DTE.== s1) (RemoveOn (P.EqSym1 s :.: P.FstSym0) rs) ('(s1, t) : RemoveOn (P.EqSym1 s :.: P.FstSym0) rs) ~ ('(s1, t) : RemoveOn (P.EqSym1 s :.: P.FstSym0) rs)) => RemoveOnImpl 'False s ('(s1,t) ': rs) where
   removeOnImpl (z :& rs) = z :& removeOnImpl @(MatchField s rs) @s @rs rs
 
 removeOn :: forall s rs . RemoveOnImpl (MatchField s rs) s rs => Rec ElField rs -> Rec ElField (RemoveOn (P.EqSym1 s :.: P.FstSym0) rs)

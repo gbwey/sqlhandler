@@ -26,17 +26,17 @@ Maintainer  : gbwey9@gmail.com
 -}
 module HSql.Core.Decoder where
 import Control.Lens
-import Control.Monad
+import Control.Monad(replicateM)
 import Data.ByteString (ByteString)
 import Data.Text (Text)
-import Control.Arrow
+import Control.Arrow (first)
 import Data.Time
 import Data.Proxy
-import Control.Monad.State
+import Control.Monad.State.Strict (StateT(..))
 import Control.Applicative
 import HSql.Core.One
 import Database.HDBC (SqlValue(..))
-import HSql.Core.Conv
+import HSql.Core.Conv (Conv,conv)
 import qualified Data.List.NonEmpty as N
 import GHC.TypeLits (ErrorMessage((:$$:)),Nat,KnownNat,Symbol,KnownSymbol,symbolVal,natVal)
 import qualified GHC.TypeLits as GL
@@ -45,19 +45,19 @@ import Data.Vinyl
 import Data.Vinyl.CoRec (CoRec(..))
 import qualified Data.Vinyl.Functor as V
 import qualified Data.Vinyl.CoRec as VC
-import GHC.Stack
+import GHC.Stack (HasCallStack)
 import qualified Data.Functor.Identity as L
 import qualified PCombinators as P (Map, SndSym0)
 import Data.Kind (Type)
-import Predicate.Core
-import Predicate.Util (o2)
+import Predicate.Core (PP)
+import Predicate.Util (oab)
 import qualified Predicate.Refined2 as R2
 import qualified Predicate.Refined3 as R3
 import Predicate.Refined
-import Data.Typeable
-import Data.Either
+import Data.Typeable (Typeable,typeRep)
+import Data.Either (partitionEithers)
 import HSql.Core.Raw
-import HSql.Core.ErrorHandler
+import HSql.Core.ErrorHandler (ConvE(_cvMessage),DecodingE(..),DE',DE,failDE,liftCE)
 -- decoder is associated with a single result set for Selects only
 -- actually for a single row!
 -- need to check if we have consumed everything!!!
@@ -330,9 +330,9 @@ instance (Typeable i, R2.Refined2C ip op i, DefDec (Dec i), Show (PP ip i))
     let nm = "Refined2"
         msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
     in decAddError nm msg (defDec @(Dec i))
-         >>= \a -> let (ret,mr) = R2.eval2 @ip @op @i o2 a
+         >>= \a -> let (ret,mr) = R2.eval2 @ip @op @i oab a
                    in case mr of
-                        Nothing -> let m2 = R2.prt2Impl o2 ret
+                        Nothing -> let m2 = R2.prt2Impl oab ret
                                    in decFail (nm <> " " <> R2.m2Desc m2 <> " | " <> R2.m2Short m2) ("\n" ++ R2.m2Long m2 ++ "\n")
                         Just r -> return r
 
@@ -344,9 +344,9 @@ instance (Show i, Typeable i, R3.Refined3C ip op fmt i, DefDec (Dec i), Show (PP
     let nm = "Refined3"
         msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
     in decAddError nm msg (defDec @(Dec i))
-         >>= \a -> let (ret,mr) = R3.eval3 @ip @op @fmt @i o2 a
+         >>= \a -> let (ret,mr) = R3.eval3 @ip @op @fmt @i oab a
                    in case mr of
-                        Nothing -> let m3 = R3.prt3Impl o2 ret
+                        Nothing -> let m3 = R3.prt3Impl oab ret
                                    in decFail (nm <> " " <> R3.m3Desc m3 <> " | " <> R3.m3Short m3) ("\n" ++ R3.m3Long m3 ++ "\n")
                         Just r -> return r
 
@@ -355,7 +355,7 @@ instance (Typeable i, RefinedC p i, DefDec (Dec i)) => DefDec (Dec (Refined p i)
     let nm = "Refined"
         msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
     in decAddError nm msg (defDec @(Dec i))
-          >>= \i -> let ((bp,(e,top)),mr) = runIdentity $ newRefined @p @i o2 i
+          >>= \i -> let ((bp,(e,top)),mr) = runIdentity $ newRefined @p @i oab i
                     in case mr of
                       Nothing -> decFail (nm <> " " <> show bp <> top) ("\n" ++ e ++ "\n")
                       Just r -> return r
