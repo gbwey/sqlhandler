@@ -520,17 +520,17 @@ instance FromField a => FromField (Maybe a) where
   fieldtype _ Nothing = fieldtype (Proxy @a) (error "FromField: Maybe: doesn't have a value!")
 
 -- needs PolyKinds else 'True for p won't work! W 'True will work cos is kind Type
-instance FromField a => FromField (Refined p a) where
+instance FromField a => FromField (Refined opts p a) where
   fromField = fromField . unRefined
   coltype i = coltype i . unRefined
   fieldtype _ = fieldtype Proxy . unRefined
 
-instance (Show i, Show (PP ip i)) => FromField (Refined2 ip op i) where
+instance (Show i, Show (PP ip i)) => FromField (Refined2 opts ip op i) where
   fromField r = fromField ("R2:" ++ show (r2In r, r2Out r))
   coltype i r = coltype i (show (r2In r, r2Out r))
   fieldtype _ r = fieldtype Proxy (r2In r, r2Out r)
 
-instance (Show (PP fmt (PP ip i)), Show (PP ip i)) => FromField (Refined3 ip op fmt i) where
+instance (Show (PP fmt (PP ip i)), Show (PP ip i)) => FromField (Refined3 opts ip op fmt i) where
   fromField r = fromField ("R3:" ++ show (r3In r, r3Out r))
   coltype i r = coltype i (show (r3In r, r3Out r))
   fieldtype _ r = fieldtype Proxy (r3In r, r3Out r)

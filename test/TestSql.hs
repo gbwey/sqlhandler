@@ -165,29 +165,29 @@ tst21'' = processRetCol (E1 (AlleP defDec)) [Left 5, Left 12, Left 7, Left 3, Le
 tst3 :: Either SE (Rec RState '[Sel (Bool, String), Upd, Sel R1])
 tst3 = processRetCol (E3 (SelP defDec) UpdP (SelP defDec)) [rsa,rsb,rsc]
 
-tst4r :: (Integral i, Integral j) => i -> j -> Either SE (Rec RState '[Sel (Text, Refined (4 <..> 10 && Id /= 7) Int, Double)])
+tst4r :: (Integral i, Integral j) => i -> j -> Either SE (Rec RState '[Sel (Text, Refined 'OA (4 <..> 10 && Id /= 7) Int, Double)])
 tst4r i j = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "abc", SqlInt32 (fromIntegral i), SqlDouble 1.2], [SqlString "abc", SqlInt32 (fromIntegral j), SqlDouble 1.2]])]
 
-tst4r1 :: (Integral i, Integral j) => i -> j -> Either SE (Rec RState '[Sel (Text, Refined (Guard (PrintF "oops val=%03d" Id) (Between 4 10 Id && Id /= 7) >> 'True) Int, Double)])
+tst4r1 :: (Integral i, Integral j) => i -> j -> Either SE (Rec RState '[Sel (Text, Refined 'OA (Guard (PrintF "oops val=%03d" Id) (Between 4 10 Id && Id /= 7) >> 'True) Int, Double)])
 tst4r1 i j = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "abc", SqlInt32 (fromIntegral i), SqlDouble 1.2], [SqlString "abc", SqlInt32 (fromIntegral j), SqlDouble 1.2]])]
 
 tst3r :: Either SE (Rec RState '[Sel (One String)])
 tst3r = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "123"]])]
 
 -- tst3r1 "1230" checkdigit succeeds
-tst3r1 :: String -> Either SE (Rec RState '[Sel (One (LuhnR 4))])
+tst3r1 :: String -> Either SE (Rec RState '[Sel (One (LuhnR 'OA 4))])
 tst3r1 s = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString s]])]
 
-tst3r2 :: Either SE (Rec RState '[Sel (One (LuhnR 4))])
+tst3r2 :: Either SE (Rec RState '[Sel (One (LuhnR 'OA 4))])
 tst3r2 = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlInt32 111]])]
 
-tst3r3 :: String -> Either SE (Rec RState '[SelOne (One (Refined3 (ReadP Int Id) (Gt 4) (ExitWhen (PrintF "Bad output=%d" Id) (Gt 10) >> ShowP Id) String))])
+tst3r3 :: String -> Either SE (Rec RState '[SelOne (One (Refined3 'OA (ReadP Int Id) (Gt 4) (ExitWhen (PrintF "Bad output=%d" Id) (Gt 10) >> ShowP Id) String))])
 tst3r3 s = processRetCol (E1 (SelOneP defDec)) [Right ([], [[SqlString s]])]
 
-tst3rgood :: Either SE (Rec RState '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
+tst3rgood :: Either SE (Rec RState '[Sel (One (Refined3 'OA (ReadP Int Id) (Gt 4) (ShowP Id) String))])
 tst3rgood = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "123"]])]
 
-tst3rbad :: Either SE (Rec RState '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
+tst3rbad :: Either SE (Rec RState '[Sel (One (Refined3 'OA (ReadP Int Id) (Gt 4) (ShowP Id) String))])
 tst3rbad = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "-123"]])]
 {-
 >tst3rgood

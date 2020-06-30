@@ -163,14 +163,14 @@ encString = Enc $ \s -> [SqlString s]
 encDouble :: Enc Double
 encDouble = Enc $ \d -> [SqlDouble d]
 
-encRefined :: DefEnc (Enc i) => Enc (Refined p i)
+encRefined :: DefEnc (Enc i) => Enc (Refined opts p i)
 encRefined = Enc $ unEnc defEnc . unRefined
 
-encRefined2 :: DefEnc (Enc i) => Enc (R2.Refined2 ip op i)
+encRefined2 :: DefEnc (Enc i) => Enc (R2.Refined2 opts ip op i)
 encRefined2 = Enc $ unEnc defEnc . R2.r2Out
 
 -- do we encode the fmt output
-encRefined3 :: DefEnc (Enc (PP fmt (PP ip i))) => Enc (R3.Refined3 ip op fmt i)
+encRefined3 :: DefEnc (Enc (PP fmt (PP ip i))) => Enc (R3.Refined3 opts ip op fmt i)
 encRefined3 = Enc $ unEnc defEnc . R3.r3Out
 
 encLocalTime :: Enc LocalTime
@@ -232,13 +232,13 @@ instance DefEnc (Enc LocalTime) where
 instance DefEnc (Enc Day) where
   defEnc = encDay
 
-instance DefEnc (Enc i) => DefEnc (Enc (Refined p i)) where
+instance DefEnc (Enc i) => DefEnc (Enc (Refined opts p i)) where
   defEnc = encRefined
 
-instance DefEnc (Enc i) => DefEnc (Enc (R2.Refined2 ip op i)) where
+instance DefEnc (Enc i) => DefEnc (Enc (R2.Refined2 opts ip op i)) where
   defEnc = encRefined2
 -- only care about the outputted value to be encoded so dont need DefEnc (Enc (PP ip i))
-instance DefEnc (Enc (PP fmt (PP ip i))) => DefEnc (Enc (R3.Refined3 ip op fmt i)) where
+instance DefEnc (Enc (PP fmt (PP ip i))) => DefEnc (Enc (R3.Refined3 opts ip op fmt i)) where
   defEnc = encRefined3
 
 instance DefEnc (Enc RawEnc) where
