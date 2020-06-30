@@ -50,7 +50,7 @@ import qualified Data.Functor.Identity as L
 import qualified PCombinators as P (Map, SndSym0)
 import Data.Kind (Type)
 import Predicate.Core (PP)
-import Predicate.Util (OptTC(getOptT))
+import Predicate.Util (getOptT)
 import qualified Predicate.Refined2 as R2
 import qualified Predicate.Refined3 as R3
 import Predicate.Refined
