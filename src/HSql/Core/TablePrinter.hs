@@ -62,7 +62,7 @@ import GHC.Stack (HasCallStack)
 import qualified Frames as F
 import Data.Foldable (toList)
 import qualified PCombinators as P
-import Predicate.Refined (Refined(..))
+import Predicate.Refined (Refined,unRefined)
 import Predicate.Refined2 (Refined2(..))
 import Predicate.Refined3 (Refined3(..))
 import Predicate.Core (PP)

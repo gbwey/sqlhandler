@@ -57,7 +57,7 @@ import qualified Generics.OneLiner as GO
 import Predicate.Core (PP)
 import qualified Predicate.Refined2 as R2 (Refined2(r2Out))
 import qualified Predicate.Refined3 as R3 (Refined3(r3Out))
-import Predicate.Refined (Refined(unRefined))
+import Predicate.Refined (Refined,unRefined)
 import HSql.Core.Raw
 
 -- | 'Enc' encodes a haskell value to a list of sqlvalues
