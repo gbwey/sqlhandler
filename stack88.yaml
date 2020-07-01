@@ -7,6 +7,7 @@ extra-deps:
 - ../Frames
 - discrimination-0.4
 - symbols-0.3.0.0
+- chimera-0.3.1.0
 - ../hdbc-odbc2
 - ../predicate-typed
 - ../table-layout
