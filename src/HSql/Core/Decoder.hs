@@ -50,7 +50,6 @@ import qualified Data.Functor.Identity as L
 import qualified PCombinators as P (Map, SndSym0)
 import Data.Kind (Type)
 import Predicate.Core (PP)
-import Predicate.Util (getOptT)
 import qualified Predicate.Refined2 as R2
 import qualified Predicate.Refined3 as R3
 import Predicate.Refined
@@ -328,12 +327,11 @@ instance (Typeable i, R2.Refined2C opts ip op i, DefDec (Dec i), Show (PP ip i))
    => DefDec (Dec (R2.Refined2 opts ip op i)) where
   defDec =
     let nm = "Refined2"
-        o = getOptT @opts
         msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
     in decAddError nm msg (defDec @(Dec i))
          >>= \a -> let (ret,mr) = R2.eval2 @opts @ip @op @i a
                    in case mr of
-                        Nothing -> let m2 = R2.prt2Impl o ret
+                        Nothing -> let m2 = R2.prt2Impl @opts ret
                                    in decFail (nm <> " " <> R2.m2Desc m2 <> " | " <> R2.m2Short m2) ("\n" ++ R2.m2Long m2 ++ "\n")
                         Just r -> return r
 
@@ -343,12 +341,11 @@ instance (Show i, Typeable i, R3.Refined3C opts ip op fmt i, DefDec (Dec i), Sho
    => DefDec (Dec (R3.Refined3 opts ip op fmt i)) where
   defDec =
     let nm = "Refined3"
-        o = getOptT @opts
         msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
     in decAddError nm msg (defDec @(Dec i))
          >>= \a -> let (ret,mr) = R3.eval3 @opts @ip @op @fmt @i a
                    in case mr of
-                        Nothing -> let m3 = R3.prt3Impl o ret
+                        Nothing -> let m3 = R3.prt3Impl @opts ret
                                    in decFail (nm <> " " <> R3.m3Desc m3 <> " | " <> R3.m3Short m3) ("\n" ++ R3.m3Long m3 ++ "\n")
                         Just r -> return r
 
