@@ -1,4 +1,4 @@
-id,first_name,last_name,email,gender,ip_address,birthdate,int1,tot,flag,int2
+idx,first_name,last_name,email,gender,ip_address,birthdate,int1,tot,flag,int2
 1,Dagny,Jendrusch,djendrusch0@columbia.edu,Male,111.15.60.154,10/26/1987,100,-106.65,true,895
 2,Rodolph,Keble,rkeble1@google.ru,Male,170.86.135.169,1/14/1981,71,-300.64,true,-283
 3,Fin,Jurczak,fjurczak2@angelfire.com,Male,75.70.223.2,7/5/1968,18,-914.19,false,-364
