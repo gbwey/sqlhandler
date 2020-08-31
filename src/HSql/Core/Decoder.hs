@@ -53,7 +53,7 @@ import Predicate.Core (PP)
 import qualified Predicate.Refined2 as R2
 import qualified Predicate.Refined3 as R3
 import Predicate.Refined
-import Predicate.Util (getOptT)
+import Predicate.Util (getOpt)
 import Data.Typeable (Typeable,typeRep)
 import Data.Either (partitionEithers)
 import HSql.Core.Raw
@@ -332,7 +332,7 @@ instance (Typeable i, R2.Refined2C opts ip op i, DefDec (Dec i), Show (PP ip i))
     in decAddError nm msg (defDec @(Dec i))
          >>= \a -> let (ret,mr) = R2.eval2 @opts @ip @op @i a
                    in case mr of
-                        Nothing -> let m2 = R2.prt2Impl (getOptT @opts) ret
+                        Nothing -> let m2 = R2.prt2Impl (getOpt @opts) ret
                                    in decFail (nm <> " " <> R2.m2Desc m2 <> " | " <> R2.m2Short m2) ("\n" ++ R2.m2Long m2 ++ "\n")
                         Just r -> return r
 
@@ -346,7 +346,7 @@ instance (Show i, Typeable i, R3.Refined3C opts ip op fmt i, DefDec (Dec i), Sho
     in decAddError nm msg (defDec @(Dec i))
          >>= \a -> let (ret,mr) = R3.eval3 @opts @ip @op @fmt @i a
                    in case mr of
-                        Nothing -> let m3 = R3.prt3Impl (getOptT @opts) ret
+                        Nothing -> let m3 = R3.prt3Impl (getOpt @opts) ret
                                    in decFail (nm <> " " <> R3.m3Desc m3 <> " | " <> R3.m3Short m3) ("\n" ++ R3.m3Long m3 ++ "\n")
                         Just r -> return r
 

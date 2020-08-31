@@ -21,6 +21,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE MultiWayIf #-}
 {- |
 Module      : HSql.Core.TablePrinter
 Description : utilities for displaying resultsets in tabular form.
@@ -141,15 +142,15 @@ poMorph m o = o { _oMorph = m }
 
 -- | 'poRC' allows you to adjust the max number of subrows and columns within a cell
 poRC :: ((Int, Int) -> (Int, Int)) -> Opts -> Opts
-poRC f o = o & oRC %~ f
+poRC f = oRC %~ f
 
 -- | 'poR' allows you to adjust the max number of subrows within a cell
 poR :: (Int -> Int) -> Opts -> Opts
-poR f o = o & oRC . _1 %~ f
+poR f = oRC . _1 %~ f
 
 -- | 'poC' allows you to adjust the max columns size with a cell
 poC :: (Int -> Int) -> Opts -> Opts
-poC f o = o & oRC . _2 %~ f
+poC f = oRC . _2 %~ f
 
 -- | 'poCols' allows you to change which columns get shown
 poCols :: ([Int] -> [Int]) -> Opts -> Opts
@@ -562,8 +563,17 @@ defMorph5 = morph1 ("\\n", "\\r", "\\t") (morphFn1 True)
 defMorph6 = morph1 ("\n", "\\r", "\\t") (morphFn1 True)
 
 morphFn1 :: Bool -> Char -> String
-morphFn1 hideControlChars c = if hideControlChars then [] else "?" <> hexChar c <> "?"
-
+morphFn1 hideControlChars c
+  | hideControlChars = []
+  | otherwise = "?" <> hexChar c <> "?"
+{-
+morphFn1 :: Bool -> Char -> String
+morphFn1 hideControlChars c =
+  if | c == '\0' -> "0"  -- flag eg tinyint/bit
+     | c == '\1' -> "1" --
+     | hideControlChars -> []
+     | otherwise -> "?" <> hexChar c <> "?"
+-}
 morph1 :: (String, String, String) -> (Char -> String) -> Morph
 morph1 (controlN, controlR, controlT) fn =
   concatMap (\case
