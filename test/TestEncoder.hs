@@ -58,11 +58,11 @@ allTests =
   , (@?=) (unEnc defEnc (unsafeRefined @'OZ @'True @String "abc")) [SqlString "abc"]
 
   , (@?=) (unEnc defEnc (R2.unsafeRefined2 @'OZ @Id @'True @String "abc" "abc")) [SqlString "abc"]
-  , (@?=) (unEnc defEnc (R2.unsafeRefined2 @'OZ @(ReadBase Int 16 Id) @(Gt 10) @String 254 "fe")) [SqlString "fe"]
+  , (@?=) (unEnc defEnc (R2.unsafeRefined2 @'OZ @(ReadBase Int 16) @(Gt 10) @String 254 "fe")) [SqlString "fe"]
   , (@?=) (unEnc @(R2.MakeR2 (R2.DateN 'OZ)) defEnc (R2.unsafeRefined2 (fromGregorian 2001 12 3) "2001-12-03")) [SqlString "2001-12-03"]
 
   , (@?=) (unEnc defEnc (R3.unsafeRefined3 @'OZ @Id @'True @Id @String "abc" "abc")) [SqlString "abc"]
-  , (@?=) (unEnc defEnc (R3.unsafeRefined3 @'OZ @(ReadBase Int 16 Id) @(Gt 10) @(ShowBase 16 Id) @String 254 "fe")) [SqlString "fe"]
+  , (@?=) (unEnc defEnc (R3.unsafeRefined3 @'OZ @(ReadBase Int 16) @(Gt 10) @(ShowBase 16 ) @String 254 "fe")) [SqlString "fe"]
   , (@?=) (unEnc @(R3.MakeR3 (R3.DateN 'OZ)) defEnc (R3.unsafeRefined3 (fromGregorian 2001 12 3) "2001-12-03")) [SqlString "2001-12-03"]
   ]
 

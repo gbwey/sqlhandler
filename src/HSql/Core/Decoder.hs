@@ -53,7 +53,6 @@ import Predicate.Core (PP)
 import qualified Predicate.Refined2 as R2
 import qualified Predicate.Refined3 as R3
 import Predicate.Refined
-import Predicate.Util (getOpt)
 import Data.Typeable (Typeable,typeRep)
 import Data.Either (partitionEithers)
 import HSql.Core.Raw
@@ -324,38 +323,45 @@ instance GL.TypeError ('GL.Text "I do not know what type you want"
 decFail :: String -> String -> Dec a
 decFail e s = Dec (failDE e s)
 
-instance (Typeable i, R2.Refined2C opts ip op i, DefDec (Dec i), Show (PP ip i))
+instance ( Typeable i
+         , R2.Refined2C opts ip op i
+         , DefDec (Dec i)
+         , Show (PP ip i)
+         )
    => DefDec (Dec (R2.Refined2 opts ip op i)) where
   defDec =
     let nm = "Refined2"
         msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
     in decAddError nm msg (defDec @(Dec i))
-         >>= \a -> let (ret,mr) = R2.eval2 @opts @ip @op @i a
-                   in case mr of
-                        Nothing -> let m2 = R2.prt2Impl (getOpt @opts) ret
-                                   in decFail (nm <> " " <> R2.m2Desc m2 <> " | " <> R2.m2Short m2) ("\n" ++ R2.m2Long m2 ++ "\n")
-                        Just r -> return r
+         >>= \a -> case R2.newRefined2 @opts @ip @op @i a of
+                     Left m2 -> decFail (nm <> " " <> R2.m2Desc m2 <> " | " <> R2.m2Short m2) ("\n" ++ R2.m2Long m2 ++ "\n")
+                     Right r -> return r
 
 -- decode the output fmt stuff: need to display the errors better
 -- use or create new combinators to stop going inside Dec all the time: we have monads functors etc
-instance (Show i, Typeable i, R3.Refined3C opts ip op fmt i, DefDec (Dec i), Show (PP ip i))
+instance ( Typeable i
+         , R3.Refined3C opts ip op fmt i
+         , DefDec (Dec i)
+         , Show (PP ip i)
+         )
    => DefDec (Dec (R3.Refined3 opts ip op fmt i)) where
   defDec =
     let nm = "Refined3"
         msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
     in decAddError nm msg (defDec @(Dec i))
-         >>= \a -> let (ret,mr) = R3.eval3 @opts @ip @op @fmt @i a
-                   in case mr of
-                        Nothing -> let m3 = R3.prt3Impl (getOpt @opts) ret
-                                   in decFail (nm <> " " <> R3.m3Desc m3 <> " | " <> R3.m3Short m3) ("\n" ++ R3.m3Long m3 ++ "\n")
-                        Just r -> return r
+         >>= \a -> case R3.newRefined3 @opts @ip @op @fmt @i a of
+                     Left m3 -> decFail (nm <> " " <> R3.m3Desc m3 <> " | " <> R3.m3Short m3) ("\n" ++ R3.m3Long m3 ++ "\n")
+                     Right r -> return r
 
-instance (Typeable i, RefinedC opts p i, DefDec (Dec i)) => DefDec (Dec (Refined opts p i)) where
+instance ( Typeable i
+         , RefinedC opts p i
+         , DefDec (Dec i)
+         ) => DefDec (Dec (Refined opts p i)) where
   defDec =
     let nm = "Refined"
         msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
     in decAddError nm msg (defDec @(Dec i))
-          >>= \i -> let ((bp,(top,e)),mr) = runIdentity $ newRefinedM @opts @p @i i
+          >>= \i -> let ((bp,(top,e)),mr) = L.runIdentity $ newRefinedM @opts @p @i i
                     in case mr of
                       Nothing -> decFail (nm <> " " <> bp <> " " <> top) ("\n" ++ e ++ "\n")
                       Just r -> return r
