@@ -13,6 +13,8 @@ import qualified Generics.SOP.TH as GS
 GS.deriveGeneric ''LogCmd
 -}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -54,14 +56,15 @@ import qualified Control.Lens as L
 import HSql.Core.VinylUtils (pattern I1,pattern I2,pattern I3,pattern I4) -- requires patternsynonyms to use pattern keyword in import statement
 import Data.Function (on)
 import qualified Generics.OneLiner as GO
-import Predicate.Core (PP)
 import qualified Predicate.Refined2 as R2 (Refined2(r2Out))
 import qualified Predicate.Refined3 as R3 (Refined3(r3Out))
 import Predicate.Refined (Refined,unRefined)
 import HSql.Core.Raw
+import Control.DeepSeq (NFData)
 
 -- | 'Enc' encodes a haskell value to a list of sqlvalues
 newtype Enc a = Enc { unEnc :: a -> [SqlValue] } deriving Generic
+instance NFData a => NFData (Enc a)
 
 class DefEnc (Enc a) => DefE a where
   defE :: Enc a
@@ -72,7 +75,7 @@ instance DefEnc (Enc a) => DefE a
 gencode :: forall t. (GO.ADT t, GO.Constraints t DefE) => t -> [SqlValue]
 gencode = GO.gfoldMap @DefE (unEnc defE)
 
-newtype RawEnc = RawEnc { unRawEnc :: [SqlValue] } deriving (Show, Generic)
+newtype RawEnc = RawEnc { unRawEnc :: [SqlValue] } deriving (Show, Generic, NFData)
 
 instance Contravariant Enc where
   contramap f (Enc g) = Enc (g . f)
@@ -170,7 +173,7 @@ encRefined2 :: DefEnc (Enc i) => Enc (R2.Refined2 opts ip op i)
 encRefined2 = Enc $ unEnc defEnc . R2.r2Out
 
 -- do we encode the fmt output
-encRefined3 :: DefEnc (Enc (PP fmt (PP ip i))) => Enc (R3.Refined3 opts ip op fmt i)
+encRefined3 :: DefEnc (Enc i) => Enc (R3.Refined3 opts ip op fmt i)
 encRefined3 = Enc $ unEnc defEnc . R3.r3Out
 
 encLocalTime :: Enc LocalTime
@@ -238,7 +241,7 @@ instance DefEnc (Enc i) => DefEnc (Enc (Refined opts p i)) where
 instance DefEnc (Enc i) => DefEnc (Enc (R2.Refined2 opts ip op i)) where
   defEnc = encRefined2
 -- only care about the outputted value to be encoded so dont need DefEnc (Enc (PP ip i))
-instance DefEnc (Enc (PP fmt (PP ip i))) => DefEnc (Enc (R3.Refined3 opts ip op fmt i)) where
+instance DefEnc (Enc i) => DefEnc (Enc (R3.Refined3 opts ip op fmt i)) where
   defEnc = encRefined3
 
 instance DefEnc (Enc RawEnc) where

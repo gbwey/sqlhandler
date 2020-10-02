@@ -410,8 +410,8 @@ instance FromField SqlValue where
                  SqlUTCTime u -> fromField u
                  SqlDiffTime nom -> fromField nom
                  SqlPOSIXTime nom -> fromField nom
-                 SqlEpochTime i -> ["SqlEpochTime:" <> show i]
-                 SqlTimeDiff i -> ["SqlTimeDiff:" <> show i]
+--                 SqlEpochTime i -> ["SqlEpochTime:" <> show i]
+--                 SqlTimeDiff i -> ["SqlTimeDiff:" <> show i]
                  SqlNull -> ["<null>"]
 
   coltype j = \case
@@ -434,8 +434,8 @@ instance FromField SqlValue where
                  SqlUTCTime u -> coltype j u
                  SqlDiffTime nom -> coltype j nom
                  SqlPOSIXTime nom -> coltype j nom
-                 SqlEpochTime i -> coltype j i
-                 SqlTimeDiff i -> coltype j i
+--                 SqlEpochTime i -> coltype j i
+--                 SqlTimeDiff i -> coltype j i
                  SqlNull -> coltype j ("<null>" :: String)
 
   fieldtype _ = \case
@@ -458,8 +458,8 @@ instance FromField SqlValue where
                  SqlUTCTime _ -> [Datey]
                  SqlDiffTime _ -> [Other]
                  SqlPOSIXTime _ -> [Datey]
-                 SqlEpochTime _ -> [Datey]
-                 SqlTimeDiff _ -> [Other]
+--                 SqlEpochTime _ -> [Datey]
+--                 SqlTimeDiff _ -> [Other]
                  SqlNull -> [Other]
 
 instance FromField NominalDiffTime where
@@ -531,7 +531,7 @@ instance (Show i, Show (PP ip i)) => FromField (Refined2 opts ip op i) where
   coltype i r = coltype i (show (r2In r, r2Out r))
   fieldtype _ r = fieldtype Proxy (r2In r, r2Out r)
 
-instance (Show (PP fmt (PP ip i)), Show (PP ip i)) => FromField (Refined3 opts ip op fmt i) where
+instance (Show i, Show (PP ip i)) => FromField (Refined3 opts ip op fmt i) where
   fromField r = fromField ("R3:" ++ show (r3In r, r3Out r))
   coltype i r = coltype i (show (r3In r, r3Out r))
   fieldtype _ r = fieldtype Proxy (r3In r, r3Out r)

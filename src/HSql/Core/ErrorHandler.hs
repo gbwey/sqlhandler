@@ -34,6 +34,7 @@ import Data.Typeable
 
 import Database.HDBC (SqlValue)
 import HSql.Core.Common
+import Control.DeepSeq (NFData)
 
 type EE = NonEmpty ConvE
 
@@ -42,6 +43,7 @@ failCE :: String -> String -> [SqlValue] -> Either EE a
 failCE a b c = Left (ConvE a b c :| [])
 
 data ConvE = ConvE { _cvType :: !String, _cvMessage :: !String, _cvSqlValue :: ![SqlValue] } deriving (Generic, Eq)
+instance NFData ConvE
 -- makeLenses ''ConvE
 
 instance Show ConvE where
@@ -59,6 +61,8 @@ failDE :: String -> String -> [SqlValue] -> Either DE a
 failDE a b c = Left (CoRec (V.Identity (DecodingE a b c)) :| [])
 
 data DecodingE = DecodingE { _deMethod :: !String, _deMessage :: !String, _deSqlValues :: ![SqlValue] } deriving (Eq, Generic)
+instance NFData DecodingE
+
 -- makeLenses ''DecodingE
 
 instance Show DecodingE where
@@ -69,16 +73,27 @@ instance Show DecodingE where
 
 -- | predicate failure when retrieving an update resultset
 data UpdNE = UpdNE { _unMethod :: !String, _unPos :: !Int, _unMessage :: !String } deriving (Generic, Show, Eq)
+instance NFData UpdNE
+
 -- | unconsumed resultset ie there were more resultsets returned than the type signature specifies
 data UnconsumedColE = UnconsumedColE { _uccMethod :: !String, _uccPos :: !Int, _uccMessage :: !String, _uccRest :: ![ResultSet] } deriving (Generic, Show, Eq)
+instance NFData UnconsumedColE
+
 -- | expected exactly one row for SelOne
 data SingleColE = SingleColE { _sicInstance :: !String, _sicPos :: !(Maybe Int), _sicMessage :: !String, _sicRss :: ![ResultSet] } deriving (Generic, Show, Eq)
 -- | invalid resultset type: ie returned an update type vs a select type
+instance NFData SingleColE
+
 data UnexpectedResultSetTypeE = UnexpectedResultSetTypeE { _urstMethod :: !String, _urstMessage :: !String, _urstRss :: !ResultSet } deriving (Generic, Show, Eq)
+instance NFData UnexpectedResultSetTypeE
+
 -- | no more resultsets were returned but the type definition expected one
 data NoResultSetE = NoResultSetE { _nrMethod :: !String, _nrPos :: !Int, _nrMessage :: !String } deriving (Generic, Show, Eq)
+instance NFData NoResultSetE
+
 -- | programmer error that shouldn't happen!
 data BadE = BadE { _badMethod :: !String, _badMessage :: !String, _badData :: !String } deriving (Generic, Show, Eq)
+instance NFData BadE
 
 -- | 'SE'' contains a promoted list of all possible errors
 type SE' = '[ UpdNE

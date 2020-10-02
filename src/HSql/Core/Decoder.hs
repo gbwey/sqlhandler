@@ -57,11 +57,13 @@ import Data.Typeable (Typeable,typeRep)
 import Data.Either (partitionEithers)
 import HSql.Core.Raw
 import HSql.Core.ErrorHandler (ConvE(_cvMessage),DecodingE(..),DE',DE,failDE,liftCE)
+import Control.DeepSeq (NFData)
 -- decoder is associated with a single result set for Selects only
 -- actually for a single row!
 -- need to check if we have consumed everything!!!
 -- | stateful parser for decoding sql values
 newtype Dec a = Dec { unDec :: [SqlValue] -> Either DE (a, [SqlValue]) } deriving Generic
+instance NFData a => NFData (Dec a)
 
 decPrism :: Show s => Prism' s a -> Dec s -> Dec a
 decPrism p (Dec f) =
@@ -361,10 +363,9 @@ instance ( Typeable i
     let nm = "Refined"
         msg = show (typeRep (Proxy @i)) ++ " decoder failed: it is the input to " ++ nm
     in decAddError nm msg (defDec @(Dec i))
-          >>= \i -> let ((bp,(top,e)),mr) = L.runIdentity $ newRefinedM @opts @p @i i
-                    in case mr of
-                      Nothing -> decFail (nm <> " " <> bp <> " " <> top) ("\n" ++ e ++ "\n")
-                      Just r -> return r
+          >>= \i -> case newRefined @opts @p @i i of
+                      Left (Msg0 _bp top e bpc) -> decFail (nm <> " " <> bpc <> " " <> top) ("\n" ++ e ++ "\n")
+                      Right r -> return r
 
 instance DefDec (Dec a) => DefDec (Dec (One a)) where
   defDec = One <$> defDec

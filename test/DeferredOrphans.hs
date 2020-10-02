@@ -1,23 +1,21 @@
-{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
+-- {-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
+{-# OPTIONS -Wall #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
 module DeferredOrphans where
 import Control.DeepSeq
-import GHC.Generics (Generic, Generic1)
-import Database.HDBC
+import GHC.Generics (Generic1)
 import Data.Vinyl
 import qualified Data.Vinyl.CoRec as VC
 import HSql.Core.Sql
-import HSql.Core.Decoder
-import HSql.Core.Encoder
-import HSql.Core.ErrorHandler
 
 -- defined in Frames [Frames.ExtraInstances]
 --deriving instance Generic1 V.Identity
@@ -26,32 +24,11 @@ import HSql.Core.ErrorHandler
 -- we need this else invalidNested1 fails [handled by Frames]
 --instance NFData a => NFData (V.Identity a)
 
-instance NFData ConvE
-instance NFData UpdNE
-instance NFData DecodingE
-instance NFData SingleColE
-instance NFData UnexpectedResultSetTypeE
-instance NFData UnconsumedColE
-instance NFData BadE
-instance NFData NoResultSetE
-
-instance NFData a => NFData (Enc a)
-instance NFData a => NFData (Dec a)
-instance NFData a => NFData (Sel a)
-instance NFData a => NFData (SelOne a)
-instance NFData Upd
-instance NFData (UpdN op val)
-instance NFData a => NFData (Alle a)
-
 deriving instance Generic1 Alle
 instance NFData1 Alle
 
-instance NFData a => NFData (Some rev n a)
-
 deriving instance Generic1 (Some rev n)
 instance NFData1 (Some rev n)
-
-instance (NFData a, NFData b) => NFData (a :+: b)
 
 instance NFData (SingleIn (UpdN op val)) where
   rnf UpdNP = ()
@@ -81,15 +58,6 @@ instance (VC.FoldRec xs xs, RecApplicative xs, NFData (fa x), NFData (VC.CoRec f
    rnf v = case VC.restrictCoRec v of
              Left xs -> rnf xs
              Right x -> rnf x
-
-deriving instance Generic SqlValue
-deriving instance Generic SqlColDesc
-deriving instance Generic SqlTypeId
-deriving instance Generic SqlInterval
-instance NFData SqlValue
-instance NFData SqlColDesc
-instance NFData SqlTypeId
-instance NFData SqlInterval
 
 -- handled by Frames!
 --instance (RFoldMap rs, RMap rs, RecAll f rs NFData) => NFData (Rec f rs) where

@@ -62,6 +62,7 @@ import Data.Kind (Type)
 import qualified PCombinators as P
 import PCombinators ((:.:), type (~>), Apply)
 import GHC.Stack (HasCallStack)
+import Control.DeepSeq (NFData)
 
 -- | 'Sql' is the core ADT that holds a vinyl record of encoders for the input
 -- and a vinyl record of decoders for the ouput and then the Sql text
@@ -117,25 +118,31 @@ data Op = OPLT | OPLE | OPEQ | OPGE | OPGT | OPNE deriving (Show, Eq)
 
 -- | 'UpdN' is similar to 'Upd' but encodes a type level predicate on the return code
 newtype UpdN (op :: Op) (val :: Nat) = UpdN Int deriving (Show, Eq, Num, Ord, Generic)
+instance NFData (UpdN op val)
 
 -- | 'Upd' holds a return code from a sql update call
 newtype Upd = Upd Int deriving (Show, Eq, Num, Ord, Generic)
+instance NFData Upd
 
 -- | 'SelOne' holds a single row of data
 newtype SelOne a = SelOne { unSelOne :: a } deriving (Show, Eq, Generic)
+instance NFData a => NFData (SelOne a)
 
 -- | 'Sel' holds a zero or more rows of data
 newtype Sel a = Sel { unSel :: [a] } deriving (Show, Eq, Generic)
 
 -- | 'Alle' is a higher order function that holds zero or more resultsets of the same type
 newtype Alle a = Alle { unAlle :: [a] } deriving (Show, Eq, Generic)
+instance NFData a => NFData (Alle a)
 
 -- | ':+:' is a higher order function that holds a resultset of type a or of type b
 newtype a :+: b = EitherRS { unEitherRS :: Either a b } deriving (Show, Eq, Generic)
+instance (NFData a, NFData b) => NFData (a :+: b)
 
 -- | 'Some' is a higher order function that is similar to 'Alle' but holds exactly n resultsets of the same type
 --   if rev = 'True then will grab the last n resultsets instead of the first n resultsets
 newtype Some (rev :: Bool) (n :: Nat) a = Some { unSome :: [a] } deriving (Show, Eq, Generic)
+instance NFData a => NFData (Some rev n a)
 
 type SomeT (n :: Nat) = Some 'False n
 type EmosT (n :: Nat) = Some 'True n
@@ -144,6 +151,7 @@ type AnyRaw = Upd :+: SelRaw
 
 -- | 'SelRaw' holds a query resultset with undecoded data
 newtype SelRaw = SelRaw { unSelRaw :: [[SqlValue]] } deriving (Show, Eq, Generic)
+instance NFData SelRaw
 
 -- | 'Single' represents a single result set where 'SingleIn' is the input and 'SingleOut' is the
 class Single a where
@@ -283,8 +291,8 @@ instance Single a => Show (SingleIn a) where
 -- | 'RState' holds the input/ouput for a given resultset
 data RState a =
    RState { _rsIn :: !(SingleIn a)
-          , _rsOutWrapped :: a
-          , _rsOut :: SingleOut a
+          , _rsOutWrapped :: a  -- undefined so cannot use strict
+          , _rsOut :: SingleOut a -- undefined so cannot use strict
           , _rsMeta :: ![RMeta]
           }
 
