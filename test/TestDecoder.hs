@@ -62,10 +62,10 @@ allTests =
   , expectD (Right (R3.unsafeRefined3 [127,1,0,4] "127.001.000.004", [])) (unDec (defDec :: Dec (R3.MakeR3 (R3.Ip4 OZ))) [SqlString "127.1.0.4"])
   , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | octet 3 out of range 0-255 found 400") (unDec (defDec :: Dec (R3.MakeR3 (R3.Ip4 OZ))) [SqlString "127.1.0.400"])
   , expectD (Right (R3.unsafeRefined3 [123,45,6789] "123-45-6789", [])) (unDec (defDec :: Dec (R3.MakeR3 (R3.Ssn OZ))) [SqlString "123-45-6789"])
-  , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | Bool(1) [number for group 1 invalid: found 0] (False:1 <= 0)") (unDec (defDec :: Dec (R3.MakeR3 (R3.Ssn 'OL))) [SqlString "123-00-6789"])
-  , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | Bool(0) [number for group 0 invalid: found 666] (False:True && False | (False:666 /= 666))") (unDec (defDec :: Dec (R3.MakeR3 (R3.Ssn 'OL))) [SqlString "666-01-6789"])
+  , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | Bool(1) [number for group 1 invalid: found 0] (1 <= 0)") (unDec (defDec :: Dec (R3.MakeR3 (R3.Ssn 'OL))) [SqlString "123-00-6789"])
+  , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | Bool(0) [number for group 0 invalid: found 666] (True && False | (666 /= 666))") (unDec (defDec :: Dec (R3.MakeR3 (R3.Ssn 'OL))) [SqlString "666-01-6789"])
   , expectD (Right (unsafeRefined 8, [])) (unDec (defDec :: Dec (Refined 'OL (Between 4 10 Id && Id /= 7) Int)) [SqlInt32 8])
-  , expectD (Left "Refined FalseT (False:False && True | (False:4 <= 2))") (unDec (defDec :: Dec (Refined 'OL (Between 4 10 Id && Id /= 7) Int)) [SqlInt32 2])
+  , expectD (Left "Refined FalseT (False && True | (4 <= 2))") (unDec (defDec :: Dec (Refined 'OL (Between 4 10 Id && Id /= 7) Int)) [SqlInt32 2])
 
   , expectD (Right (R2.unsafeRefined2 [127,1,0,199] "127.1.0.199" ,[])) (unDec (defDec :: Dec (R2.Refined2 OZ (Map (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (0 <..> 255)) >> 'True)  String)) [SqlString "127.1.0.199"])
   , expectD (Left "Refined2 Step 2. Failed Boolean Check(op) | octet 0-255") (unDec (defDec :: Dec (R2.Refined2 OZ (Map (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (0 <..> 255)) >> 'True) String)) [SqlString "127.1.0.499"])

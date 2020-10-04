@@ -44,8 +44,8 @@ import Control.Arrow ((&&&))
 import Control.Lens hiding (from)
 import qualified Control.Lens as L (Identity(..))
 import Data.Time
-import Data.List (transpose,intersect,unfoldr)
-import Data.Char (isControl,isSpace,ord)
+import Data.List (transpose, intersect, unfoldr, intercalate)
+import Data.Char (isControl, isSpace, ord)
 import Data.Semigroup (Sum(..))
 import qualified System.IO as SIO
 import Data.Vinyl
@@ -55,19 +55,19 @@ import qualified Data.Vinyl.Functor as V
 import qualified Data.Vinyl.TypeLevel as V
 import HSql.Core.Sql
 import Numeric (showHex)
-import Database.HDBC.ColTypes (SqlTypeId(..),colName)
-import qualified Safe (atNote,headDef,maximumBound)
+import Database.HDBC.ColTypes (SqlTypeId(..), colName)
+import qualified Safe (atNote, headDef, maximumBound)
 import qualified Safe.Exact as SE (zip3Exact)
 import GHC.TypeLits
 import GHC.Stack (HasCallStack)
 import qualified Frames as F
 import Data.Foldable (toList)
 import qualified PCombinators as P
-import Predicate.Refined (Refined,unRefined)
+import Predicate.Refined (Refined, unRefined)
 import Predicate.Refined2 (Refined2(..))
 import Predicate.Refined3 (Refined3(..))
 import Predicate.Core (PP)
-import HSql.Core.VinylUtils (F,recLen)
+import HSql.Core.VinylUtils (F, recLen)
 import HSql.Core.Common
 import Database.HDBC (SqlValue(..))
 import Data.Kind (Type)
@@ -695,10 +695,10 @@ wprintCols' fn = wprintWith (poCols fn (poAscii defT))
 
 wprintWith :: Printer a => Opts -> a -> IO ()
 wprintWith o xs = case _oFile o of
-                    Nothing -> putStrLn $ unlines $ wfn o xs
+                    Nothing -> putStrLn $ intercalate "\n" $ wfn o xs
                     Just fn -> SIO.withFile fn SIO.AppendMode $ \h -> do
                                  SIO.hSetEncoding h SIO.utf8
-                                 SIO.hPutStrLn h $ unlines $ wfn o xs
+                                 SIO.hPutStrLn h $ intercalate "\n" $ wfn o xs
 
 -- | 'Printer' directs the to the implementation that handles printing
 class Printer a where
