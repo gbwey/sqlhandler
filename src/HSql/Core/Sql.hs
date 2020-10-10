@@ -3,6 +3,7 @@
 {-# OPTIONS -Wincomplete-record-updates #-}
 {-# OPTIONS -Wincomplete-uni-patterns #-}
 {-# OPTIONS -Wno-redundant-constraints #-}
+{-# OPTIONS -Wunused-type-patterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}
@@ -22,6 +23,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE TemplateHaskell #-}
 {- |
 Module      : HSql.Core.Sql
 Description : pure functions for describing, prepocessing and postprocessing Sql
@@ -70,20 +72,6 @@ data Sql db a b = Sql { _sDescription :: !Text -- ^ description used for logging
                       , _sEncoders :: !(Rec Enc a) -- ^ a record of encoders matching the input parameters
                       , _sDecoders :: !(Rec SingleIn b) -- ^ a record of decoders matching the output columns
                       , _sSql :: !Text } -- ^ sql
-
--- makeLenses ''Sql -- write out the lens instances manually
-
-sDescription :: Lens' (Sql db a b) Text
-sDescription afa s = (\d' -> s { _sDescription = d' }) <$> afa (_sDescription s)
-
-sEncoders :: Lens (Sql db a b) (Sql db a' b) (Rec Enc a) (Rec Enc a')
-sEncoders afa s = (\d' -> s { _sEncoders = d' }) <$> afa (_sEncoders s)
-
-sDecoders :: Lens (Sql db a b) (Sql db a b') (Rec SingleIn b) (Rec SingleIn b')
-sDecoders afa s = (\d' -> s { _sDecoders = d' }) <$> afa (_sDecoders s)
-
-sSql :: Lens' (Sql db a b) Text
-sSql afa s = (\d' -> s { _sSql = d' }) <$> afa (_sSql s)
 
 instance ToText (Sql db a b) where
   toText = fromText . _sSql
@@ -297,22 +285,6 @@ data RState a =
           }
 
 deriving instance (Show a, Show (SingleIn a), Show (SingleOut a)) => Show (RState a)
-
--- | Lens for accessing the predicate for 'RState'
-rsIn :: Lens' (RState a) (SingleIn a)
-rsIn afb z = (\x -> z { _rsIn = x}) <$> afb (_rsIn z)
-
--- | Lens for accessing the wrapped output value for 'RState'
-rsOutWrapped :: Lens' (RState a) a
-rsOutWrapped afb z = (\x -> z { _rsOutWrapped = x}) <$> afb (_rsOutWrapped z)
-
--- | Lens for accessing the unwrapped output value for 'RState'
-rsOut :: Lens' (RState a) (SingleOut a)
-rsOut afb z = (\x -> z { _rsOut = x}) <$> afb (_rsOut z)
-
--- | Lens for accessing the meta data for 'RState'
-rsMeta :: Lens' (RState a) [RMeta]
-rsMeta afb z = (\x -> z { _rsMeta = x}) <$> afb (_rsMeta z)
 
 -- bearbeiten: how to get around using undefined
 -- | 'toRState' sets up the initial state before processing all the resultsets
@@ -698,11 +670,11 @@ type family WriteableRS (rs :: [Type]) :: Bool where
 type family WriteableOne (r :: Type) :: Bool where
   WriteableOne Upd = 'True
   WriteableOne (UpdN _ _) = 'True
-  WriteableOne (Sel x) = 'False
-  WriteableOne (SelOne x) = 'False
+  WriteableOne (Sel _x) = 'False
+  WriteableOne (SelOne _x) = 'False
   WriteableOne SelRaw = 'False
   WriteableOne (Alle a) = WriteableOne a
-  WriteableOne (Some rev n a) = WriteableOne a
+  WriteableOne (Some _rev _n a) = WriteableOne a
   WriteableOne (a :+: b) = WriteableOne a P.|| WriteableOne b
   WriteableOne o = GL.TypeError ('GL.Text "WriteableOne: programmer error: unhandled type o=" ':<>: 'GL.ShowType o)
 
@@ -711,10 +683,10 @@ type instance P.Apply WriteableOneSym0 x = WriteableOne x
 
 -- | 'ChkLast' fails if you have Alle as the non last element
 type family ChkLast w :: Bool where
-  ChkLast (Alle a) = GL.TypeError ('GL.Text "Alle has to be the last in the HList"
+  ChkLast (Alle _a) = GL.TypeError ('GL.Text "Alle has to be the last in the HList"
                              ':$$: 'GL.Text "It doesnt make sense to have stuff after it as Alle consumes everything"
                                  )
-  ChkLast a = 'True
+  ChkLast _a = 'True
 
 data ChkLastSym0 :: Type ~> Bool
 type instance P.Apply ChkLastSym0 x = ChkLast x
@@ -740,19 +712,22 @@ type family ValidNestAll (rs :: [Type]) :: Bool where
 -- | 'ValidNest' checks to see that there are no nested Alle :+: or Some
 type family ValidNest (r :: Type) :: Bool where
   ValidNest (Alle a) = ValidNest1 a
-  ValidNest (Some rev n a) = ValidNest1 a
+  ValidNest (Some _rev _n a) = ValidNest1 a
   ValidNest (a :+: b) = ValidNest1 a P.&& ValidNest1 b
-  ValidNest a = 'True
+  ValidNest _a = 'True
 
 type family ValidNest1 (w :: Type) :: Bool where
-  ValidNest1 (Alle a) = GL.TypeError ('GL.Text "Alle is nested within another construct"
+  ValidNest1 (Alle _a) = GL.TypeError ('GL.Text "Alle is nested within another construct"
                             ':$$: 'GL.Text "Doesnt make sense cos either Single or Multiple but not a Single(Multiple) or Multiple(Multiple)"
                                  )
-  ValidNest1 (Some rev n a) = GL.TypeError ('GL.Text "Some is nested within another construct"
+  ValidNest1 (Some _rev _n _a) = GL.TypeError ('GL.Text "Some is nested within another construct"
                             ':$$: 'GL.Text "Doesnt make sense cos either Single or Multiple but not a Single(Multiple) or Multiple(Multiple)"
                                  )
   ValidNest1 (a :+: b) = ValidNest1 a P.&& ValidNest1 b
-  ValidNest1 a = 'True
+  ValidNest1 _a = 'True
 
 emptyResultSetMessage :: String
 emptyResultSetMessage = "no more resultsets from the server but the type signature expects another resultset"
+
+makeLenses ''RState
+makeLenses ''Sql

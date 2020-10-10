@@ -34,7 +34,7 @@ import HSql.Core.VinylUtils
 import HSql.Core.Common
 import HSql.Core.One
 import Data.Bool
-import Database.HDBC (SqlValue(..), SqlColDesc(..))
+import Database.HDBC (SqlValue(..))
 import Database.HDBC.ColTypes
 import Test.Hspec
 import qualified Frames as F

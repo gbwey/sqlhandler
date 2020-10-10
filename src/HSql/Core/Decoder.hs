@@ -14,7 +14,13 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DefaultSignatures #-}
-{-# OPTIONS -Wall -Wno-compat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
+{-# OPTIONS -Wall #-}
+{-# OPTIONS -Wcompat #-} 
+{-# OPTIONS -Wincomplete-record-updates #-}
+{-# OPTIONS -Wincomplete-uni-patterns #-}
+{-# OPTIONS -Wredundant-constraints #-}
+{-# OPTIONS -Wunused-type-patterns #-}
+
 {- |
 Module      : HSql.Core.Decoder
 Description : decode from 'SqlValue's to haskell values

@@ -1,4 +1,9 @@
-{-# OPTIONS -Wall -Wno-compat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
+{-# OPTIONS -Wall #-}
+{-# OPTIONS -Wcompat #-}
+{-# OPTIONS -Wincomplete-record-updates #-}
+{-# OPTIONS -Wincomplete-uni-patterns #-}
+{-# OPTIONS -Wredundant-constraints #-}
+{-# OPTIONS -Wunused-type-patterns #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase #-}
@@ -40,19 +45,19 @@ instance Conv Bool where
 instance Conv ByteString where
   conv [SqlByteString b] = Right b
   conv [SqlString b] = Right (TE.encodeUtf8 (T.pack b))
-  conv zs@[z] = failCE "ByteString" ("from " ++ getSqlTypeHack z) zs
+  conv zs@[z] = failCE "ByteString" ("from " ++ showSqlTypeHead z) zs
   conv zs  = failCE "ByteString" ("expected 1 value: found " ++ show (length zs)) zs
 
 instance Conv String where
   conv [SqlString s] = Right s
   conv [SqlByteString bs] = Right (B.unpack bs)
-  conv zs@[z] = failCE "String" ("from " ++ getSqlTypeHack z) zs
+  conv zs@[z] = failCE "String" ("from " ++ showSqlTypeHead z) zs
   conv zs  = failCE "String" ("expected 1 value: found " ++ show (length zs)) zs
 
 instance Conv Text where
   conv [SqlString s] = Right (T.pack s)
   conv [SqlByteString bs] = Right (TE.decodeUtf8 bs)
-  conv zs@[z] = failCE "Text" ("from " ++ getSqlTypeHack z) zs
+  conv zs@[z] = failCE "Text" ("from " ++ showSqlTypeHead z) zs
   conv zs  = failCE "Text" ("expected 1 value: found " ++ show (length zs)) zs
 
 instance Conv Int where
@@ -67,7 +72,7 @@ instance Conv Char where
   conv [SqlChar c] = Right c
   conv zs@[SqlByteString bs] | Just (c,bs') <- B.uncons bs , B.null bs' = Right c
                           | otherwise = failCE "Char" "found ByteString with more than one char" zs
-  conv zs@[z] = failCE "Char" ("from " ++ getSqlTypeHack z) zs
+  conv zs@[z] = failCE "Char" ("from " ++ showSqlTypeHead z) zs
   conv zs = failCE "Char" ("expected 1 value: found " ++ show (length zs)) zs
 
 instance Conv Float where
@@ -82,26 +87,26 @@ instance Conv UTCTime where
   conv [SqlLocalDate a] = return $ localTimeToUTC utc (LocalTime a midnight)
   conv [SqlLocalTime a] = return $ localTimeToUTC utc a
   conv [SqlUTCTime a] = return a
-  conv zs@[z] = failCE "UTCTime" ("from " ++ getSqlTypeHack z) zs
+  conv zs@[z] = failCE "UTCTime" ("from " ++ showSqlTypeHead z) zs
   conv zs  = failCE "UTCTime" ("expected 1 value: found " ++ show (length zs)) zs
 
 instance Conv LocalTime where
   conv [SqlLocalDate a] = return $ LocalTime a midnight
   conv [SqlLocalTime a] = return a
   conv [SqlUTCTime a] = return $ utcToLocalTime utc a
-  conv zs@[z] = failCE "LocalTime" ("from " ++ getSqlTypeHack z) zs
+  conv zs@[z] = failCE "LocalTime" ("from " ++ showSqlTypeHead z) zs
   conv zs  = failCE "LocalTime" ("expected 1 value: found " ++ show (length zs)) zs
 
 instance Conv Day where
   conv [SqlLocalDate a] = return a
   conv [SqlLocalTime a] = return $ localDay a -- you lose the time info
   conv [SqlUTCTime a] = return $ utctDay a
-  conv zs@[z] = failCE "Day" ("from " ++ getSqlTypeHack z) zs
+  conv zs@[z] = failCE "Day" ("from " ++ showSqlTypeHead z) zs
   conv zs  = failCE "Day" ("expected 1 value: found " ++ show (length zs)) zs
 
 instance Conv a => Conv (Maybe a) where
   conv [SqlNull] = Right Nothing
-  conv zs@[z] = left (ConvE "(Maybe a)" ("from " ++ getSqlTypeHack z) zs N.<|) (Just <$> conv @a zs)
+  conv zs@[z] = left (ConvE "(Maybe a)" ("from " ++ showSqlTypeHead z) zs N.<|) (Just <$> conv @a zs)
   conv zs    = failCE "Maybe a" ("expected 1 value: found " ++ show (length zs)) zs
 
 instance (Conv a1,Conv a2) => Conv (a1,a2) where
@@ -182,7 +187,7 @@ convnum = go
       let r = d - fromIntegral (floor d :: Integer) -- yep
       in if r == 0 then return $ fromIntegral (truncate d :: Integer)
          else failCE "Num" "convnum:invalid integer even for oracle as it has a fraction" [z]
-  go o = failCE "Num" ("convnum:invalid number " ++ getSqlTypeHack o) [o]
+  go o = failCE "Num" ("convnum:invalid number " ++ showSqlTypeHead o) [o]
 
 convbool :: SqlValue -> Either EE Bool
 convbool = go
@@ -194,10 +199,30 @@ convbool = go
   go a = convnum @Int a >>= \case
                              1 -> return True
                              0 -> return False
-                             _ -> failCE "Bool" ("convbool: invalid bool as a number: expected 0/1 but found " ++ getSqlTypeHack a) [a]
+                             _ -> failCE "Bool" ("convbool: invalid bool as a number: expected 0/1 but found " ++ showSqlTypeHead a) [a]
 
-getSqlTypeHack :: SqlValue -> String
-getSqlTypeHack = head . words . show
+showSqlTypeHead :: SqlValue -> String
+showSqlTypeHead = \case
+   SqlString {} -> "SqlString"
+   SqlByteString {} -> "SqlByteString"
+   SqlWord32 {} -> "SqlWord32"
+   SqlWord64 {} -> "SqlWord64"
+   SqlInt32 {} -> "SqlInt32"
+   SqlInt64 {} -> "SqlInt64"
+   SqlInteger {} -> "SqlInteger"
+   SqlChar {} -> "SqlChar"
+   SqlBool {} -> "SqlBool"
+   SqlDouble {} -> "SqlDouble"
+   SqlRational {} -> "SqlRational"
+   SqlLocalDate {} -> "SqlLocalDate"
+   SqlLocalTimeOfDay {} -> "SqlLocalTimeOfDay"
+   SqlZonedLocalTimeOfDay {} -> "SqlZonedLocalTimeOfDay"
+   SqlLocalTime {} -> "SqlLocalTime"
+   SqlZonedTime {} -> "SqlZonedTime"
+   SqlUTCTime {} -> "SqlUTCTime"
+   SqlDiffTime {} -> "SqlDiffTime"
+   SqlPOSIXTime {} -> "SqlPOSIXTime"
+   SqlNull {} -> "SqlNull"
 
 trimBS :: ByteString -> ByteString
 trimBS = f . f

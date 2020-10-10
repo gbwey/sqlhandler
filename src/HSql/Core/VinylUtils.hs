@@ -15,7 +15,12 @@ ToFields' P.$$ P.Mconcat P.$$ P.Replicate 10 '[Int,Double] :: [(Symbol,
     '("c13", Int), '("c14", Double), '("c15", Int), '("c16", Double),
     '("c17", Int), '("c18", Double), '("c19", Int), '("c20", Double)]
 -}
-{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns #-}
+{-# OPTIONS -Wall #-}
+{-# OPTIONS -Wcompat #-} 
+{-# OPTIONS -Wincomplete-record-updates #-}
+{-# OPTIONS -Wincomplete-uni-patterns #-}
+{-# OPTIONS -Wredundant-constraints #-}
+{-# OPTIONS -Wunused-type-patterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}
@@ -119,7 +124,7 @@ type family ToFields'Impl (sz :: SZ) (as :: [Type]) (b :: Bool) :: [(Symbol, Typ
   ToFields'Impl 'SMALL as 'True = ToFieldsImpl (XSS X9) as
   ToFields'Impl 'MEDIUM as 'True = ToFieldsImpl (XSS X99) as
   ToFields'Impl 'LARGE as 'True = ToFieldsImpl (XSS X999) as
-  ToFields'Impl x as 'False = GL.TypeError ('GL.Text "ToFields'Impl: shouldnt be called")
+  ToFields'Impl _x _as 'False = GL.TypeError ('GL.Text "ToFields'Impl: shouldnt be called")
 
 data SZ = SMALL | MEDIUM | LARGE
 
@@ -354,8 +359,8 @@ instance (DefVal (Rec f rs), DefVal (f r)) => DefVal (Rec f (r ': rs)) where
 -- | removes first occurence of named field
 -- bearbeiten: has to be a better way -- tricky getting stuff to value level from type level
 type family RemoveField (arg :: Symbol) (rs :: [(Symbol,Type)]) :: [(Symbol,Type)] where
-  RemoveField s '[] = '[] -- should be a typeerror?
-  RemoveField s ('(s,t) ': rs) = rs -- forgot about pattern match by name: ie s == s
+  RemoveField _s '[] = '[] -- should be a typeerror?
+  RemoveField s ('(s,_t) ': rs) = rs -- forgot about pattern match by name: ie s == s
   RemoveField s ('(s1,t) ': rs) = '(s1,t) ': RemoveField s rs
 
 removeField :: forall s rs . (RemoveFieldImpl (MatchField s rs) s rs) => Rec ElField rs -> Rec ElField (RemoveField s rs)
@@ -372,12 +377,12 @@ instance (KnownSymbol s1, RemoveFieldImpl (MatchField s rs) s rs, RemoveField s 
   removeFieldImpl (Field t :& rs) = Field @s1 t :& removeFieldImpl @(MatchField s rs) @s @rs rs
 
 type family MatchField (arg :: Symbol) (rs :: [(Symbol,k)]) :: Bool where
-  MatchField s '[] = 'False
-  MatchField s ('(s1,t) ': rs) = s DTE.== s1 -- is there a difference between pattern match and ==?
+  MatchField _s '[] = 'False
+  MatchField s ('(s1,_t) ': _rs) = s DTE.== s1 -- is there a difference between pattern match and ==?
 
 type family RemoveType (arg :: Type) (rs :: [(Symbol,k)]) :: [(Symbol,k)] where
-  RemoveType t '[] = '[]
-  RemoveType t ('(s,t) ': rs) = rs -- forgot about pattern match by name: ie s == s works so dont need If
+  RemoveType _t '[] = '[]
+  RemoveType t ('(_s,t) ': rs) = rs -- forgot about pattern match by name: ie s == s works so dont need If
   RemoveType t ('(s,t1) ': rs) = '(s,t1) ': RemoveType t rs
 
 removeType :: forall t rs . (RemoveTypeImpl (MatchType t rs) t rs) => Rec ElField rs -> Rec ElField (RemoveType t rs)
@@ -394,9 +399,9 @@ instance (RemoveTypeImpl (MatchType t rs) t rs, RemoveType t ('(s, t1) : rs) ~ (
   removeTypeImpl (Field t :& rs) = Field @s t :& removeTypeImpl @(MatchType t rs) @t @rs rs
 
 type family MatchType (arg :: Type) (rs :: [(Symbol,k)]) :: Bool where
-  MatchType t '[] = 'False
-  MatchType t ('(s,t) ': rs) = 'True
-  MatchType t ('(s,t1) ': rs) = 'False
+  MatchType _t '[] = 'False
+  MatchType t ('(_s,t) ': _rs) = 'True
+  MatchType _t ('(_s,_t1) ': _rs) = 'False
 
 {- doesnt work with polymorphic types unless there is a match just before that field and doesnt need to go further
 -- only for removeType but removeField has no problem cos all labels!
@@ -455,8 +460,8 @@ type family Test1 (s :: Symbol) (s1 :: Symbol) where
   Test1 s s1 = 'False
 -}
 type family RemoveTypes (arg :: Type) (rs :: [(Symbol,k)]) :: [(Symbol,k)] where
-  RemoveTypes t '[] = '[]
-  RemoveTypes t ('(s,t) ': rs) = RemoveTypes t rs
+  RemoveTypes _t '[] = '[]
+  RemoveTypes t ('(_s,t) ': rs) = RemoveTypes t rs
   RemoveTypes t ('(s,t1) ': rs) = '(s,t1) ': RemoveTypes t rs
 
 removeTypes :: forall t rs . (RemoveTypesImpl (MatchType t rs) t rs) => Rec ElField rs -> Rec ElField (RemoveTypes t rs)
@@ -475,7 +480,7 @@ instance (RemoveTypesImpl (MatchType t rs) t rs, RemoveTypes t ('(s, t1) : rs) ~
 
 -- yurk : need a way to generalise this
 type family RemoveOn (p :: k ~> Bool) (rs :: [k]) :: [k] where
-  RemoveOn p '[] = '[]
+  RemoveOn _p '[] = '[]
   RemoveOn p (r ': rs) = P.If (p @@ r) (RemoveOn p rs) (r ': RemoveOn p rs)
 
 class RemoveOnImpl (b :: Bool) (s :: Symbol) (rs :: [(Symbol,Type)]) where
