@@ -1,6 +1,5 @@
 -- rind rind' are also in predicate/vinylhelper but less generic definition
 -- also has Pattern E1 etc
-{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
 {-# OPTIONS -Wno-type-defaults #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}

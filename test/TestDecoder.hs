@@ -5,7 +5,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE LambdaCase #-}
-{-# OPTIONS -Wall #-}
 module TestDecoder where
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -55,8 +54,8 @@ allTests =
   , (@?=) (unDec (defDec :: Dec (DecAlle Int)) [SqlInteger 1,SqlInt32 4,SqlInteger 555,SqlInt32 12]) (Right (DecAlle [1,4,555,12],[]))
   , (@?=) (unDec (defDec :: Dec (V.ElField ("abc" V.::: Int))) [SqlInteger 123,SqlString "x"]) (Right (V.Field @"abc" 123,[SqlString "x"]))
   , (@?=) (unDec (defDec :: Dec (F '["abc" V.::: Int, "def" V.::: String])) [SqlInteger 123,SqlString "x"]) (Right (V.Field @"abc" 123 :& V.Field @"def" "x" :& RNil,[]))
-  , expectD (Right (R3.unsafeRefined3 [127,1,0,199] "127.001.000.199" ,[])) (unDec (defDec :: Dec (R3.Refined3 OZ (Map (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (Between 0 255 Id)) >> 'True) (PrintL 4 "%03d.%03d.%03d.%03d" Id) String)) [SqlString "127.1.0.199"])
-  , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | octet 0-255") (unDec (defDec :: Dec (R3.Refined3 OZ (Map (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (Between 0 255 Id)) >> 'True) (PrintL 4 "%03d.%03d.%03d.%03d" Id) String)) [SqlString "127.1.0.499"])
+  , expectD (Right (R3.unsafeRefined3 [127,1,0,199] "127.001.000.199" ,[])) (unDec (defDec :: Dec (R3.Refined3 OZ (Map' (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (Between 0 255 Id)) >> 'True) (PrintL 4 "%03d.%03d.%03d.%03d" Id) String)) [SqlString "127.1.0.199"])
+  , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | octet 0-255") (unDec (defDec :: Dec (R3.Refined3 OZ (Map' (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (Between 0 255 Id)) >> 'True) (PrintL 4 "%03d.%03d.%03d.%03d" Id) String)) [SqlString "127.1.0.499"])
   , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | octet 3 out of range 0-255 found 499") (unDec (defDec :: Dec (R3.MakeR3 (R3.Ip4 OZ))) [SqlString "127.1.0.499"])
   , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | Guards:invalid length(5) expected 4") (unDec (defDec :: Dec (R3.MakeR3 (R3.Ip4 OZ))) [SqlString "127.1.0.4.5"])
   , expectD (Right (R3.unsafeRefined3 [127,1,0,4] "127.001.000.004", [])) (unDec (defDec :: Dec (R3.MakeR3 (R3.Ip4 OZ))) [SqlString "127.1.0.4"])
@@ -67,8 +66,8 @@ allTests =
   , expectD (Right (unsafeRefined 8, [])) (unDec (defDec :: Dec (Refined 'OL (Between 4 10 Id && Id /= 7) Int)) [SqlInt32 8])
   , expectD (Left "Refined FalseT (False && True | (4 <= 2))") (unDec (defDec :: Dec (Refined 'OL (Between 4 10 Id && Id /= 7) Int)) [SqlInt32 2])
 
-  , expectD (Right (R2.unsafeRefined2 [127,1,0,199] "127.1.0.199" ,[])) (unDec (defDec :: Dec (R2.Refined2 OZ (Map (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (0 <..> 255)) >> 'True)  String)) [SqlString "127.1.0.199"])
-  , expectD (Left "Refined2 Step 2. Failed Boolean Check(op) | octet 0-255") (unDec (defDec :: Dec (R2.Refined2 OZ (Map (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (0 <..> 255)) >> 'True) String)) [SqlString "127.1.0.499"])
+  , expectD (Right (R2.unsafeRefined2 [127,1,0,199] "127.1.0.199" ,[])) (unDec (defDec :: Dec (R2.Refined2 OZ (Map' (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (0 <..> 255)) >> 'True)  String)) [SqlString "127.1.0.199"])
+  , expectD (Left "Refined2 Step 2. Failed Boolean Check(op) | octet 0-255") (unDec (defDec :: Dec (R2.Refined2 OZ (Map' (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (0 <..> 255)) >> 'True) String)) [SqlString "127.1.0.499"])
   , expectD (Left "Refined2 Step 2. Failed Boolean Check(op) | octet 3 out of range 0-255 found 499") (unDec (defDec :: Dec (R2.MakeR2 (R2.Ip4 OZ))) [SqlString "127.1.0.499"])
   , expectD (Left "Refined2 Step 2. Failed Boolean Check(op) | Guards:invalid length(5) expected 4") (unDec (defDec :: Dec (R2.MakeR2 (R2.Ip4 OZ))) [SqlString "127.1.0.4.5"])
 

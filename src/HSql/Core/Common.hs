@@ -1,4 +1,3 @@
-{-# OPTIONS -Wall #-}
 {-# LANGUAGE PatternSynonyms #-}
 module HSql.Core.Common where
 import Database.HDBC (SqlValue, SqlColDesc)

@@ -1,9 +1,4 @@
-{-# OPTIONS -Wall #-}
-{-# OPTIONS -Wcompat #-}
-{-# OPTIONS -Wincomplete-record-updates #-}
-{-# OPTIONS -Wincomplete-uni-patterns #-}
 {-# OPTIONS -Wno-redundant-constraints #-}
-{-# OPTIONS -Wunused-type-patterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- |

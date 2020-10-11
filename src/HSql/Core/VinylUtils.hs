@@ -15,12 +15,6 @@ ToFields' P.$$ P.Mconcat P.$$ P.Replicate 10 '[Int,Double] :: [(Symbol,
     '("c13", Int), '("c14", Double), '("c15", Int), '("c16", Double),
     '("c17", Int), '("c18", Double), '("c19", Int), '("c20", Double)]
 -}
-{-# OPTIONS -Wall #-}
-{-# OPTIONS -Wcompat #-} 
-{-# OPTIONS -Wincomplete-record-updates #-}
-{-# OPTIONS -Wincomplete-uni-patterns #-}
-{-# OPTIONS -Wredundant-constraints #-}
-{-# OPTIONS -Wunused-type-patterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}

@@ -1,6 +1,4 @@
--- {-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
-{-# OPTIONS -Wall #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS -Wno-orphans #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}

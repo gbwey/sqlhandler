@@ -36,7 +36,6 @@ D:\haskell\sqlhandler\test\TestSqlDeferred.hs:75:7: warning: [-Wdeferred-type-er
 -- actually usefull cos doesnt segfault: test on laptop to see if we get the same results
 -- not so useful: need deepseq instance for Rec RState '[Alle Upd :+: Alle Upd]
 {-# OPTIONS_GHC -fdefer-type-errors #-}
-{-# OPTIONS -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints #-}
 {-# OPTIONS -Wno-deferred-type-errors #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
