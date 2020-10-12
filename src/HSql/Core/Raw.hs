@@ -1,6 +1,6 @@
-{-# OPTIONS -Wno-redundant-constraints #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : HSql.Core.Raw
 Description : holds all the sql values untranlated in a list

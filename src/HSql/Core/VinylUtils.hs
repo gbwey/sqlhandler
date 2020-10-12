@@ -30,6 +30,7 @@ ToFields' P.$$ P.Mconcat P.$$ P.Replicate 10 '[Int,Double] :: [(Symbol,
 {-# LANGUAGE AllowAmbiguousTypes #-} -- need this cos of fromIx
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : HSql.Core.VinylUtils
 Description : utilities for holds a singleton value 'One'

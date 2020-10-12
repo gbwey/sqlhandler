@@ -1,7 +1,7 @@
-{-# OPTIONS -Wno-redundant-constraints #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : HSql.Core.One
 Description : holds a singleton value 'One'

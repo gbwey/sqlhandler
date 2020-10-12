@@ -15,6 +15,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE NoStarIsType #-}
 module TestTablePrinter where
 import Data.Data
 import Text.Shakespeare.Text

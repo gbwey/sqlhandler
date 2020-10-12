@@ -14,6 +14,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE NoStarIsType #-}
 
 {- |
 Module      : HSql.Core.Decoder

@@ -28,6 +28,7 @@ GS.deriveGeneric ''LogCmd
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : HSql.Core.Encoder
 Description : encode from a haskell value to 'SqlValue's

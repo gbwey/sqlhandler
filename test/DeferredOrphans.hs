@@ -8,6 +8,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE NoStarIsType #-}
 module DeferredOrphans where
 import Control.DeepSeq
 import GHC.Generics (Generic1)

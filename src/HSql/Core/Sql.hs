@@ -19,6 +19,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : HSql.Core.Sql
 Description : pure functions for describing, prepocessing and postprocessing Sql

@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : HSql.Core.Conv
 Description : Provides default converters from sql values to haskell values

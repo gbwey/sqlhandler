@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoStarIsType #-}
 module TestDecoder where
 import Test.Tasty
 import Test.Tasty.HUnit

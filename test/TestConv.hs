@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoStarIsType #-}
 module TestConv where
 import Test.Tasty
 import Test.Tasty.HUnit

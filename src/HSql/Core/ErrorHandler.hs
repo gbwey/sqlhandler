@@ -1,4 +1,3 @@
-{-# OPTIONS -Wno-redundant-constraints #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -6,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : ErrorHandler
 Description : This module provides methods for creating and displaying errors in the large sum type 'SE'

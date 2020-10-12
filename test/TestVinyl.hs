@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE NoStarIsType #-}
 module TestVinyl where
 import Test.Tasty
 import Test.Tasty.HUnit

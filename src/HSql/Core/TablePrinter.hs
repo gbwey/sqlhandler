@@ -18,6 +18,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : HSql.Core.TablePrinter
 Description : utilities for displaying resultsets in tabular form.

@@ -45,6 +45,7 @@ D:\haskell\sqlhandler\test\TestSqlDeferred.hs:75:7: warning: [-Wdeferred-type-er
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoStarIsType #-}
 module TestSqlDeferred where
 import Data.Vinyl
 import HSql.Core.Sql

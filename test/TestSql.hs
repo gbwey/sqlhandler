@@ -8,7 +8,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE NoStarIsType #-}
 module TestSql where
 import Data.Vinyl
 import Data.Vinyl.TypeLevel hiding (Nat)

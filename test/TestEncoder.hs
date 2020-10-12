@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NoStarIsType #-}
 module TestEncoder where
 import Data.ByteString (ByteString)
 import Data.Text (Text)
