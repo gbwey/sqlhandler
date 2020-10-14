@@ -46,6 +46,7 @@ library:
      ghc-options:
      - -fwrite-ide-info
      - -hiedir=.hie
+     - -Widentities
 
 
 tests:
@@ -66,6 +67,7 @@ tests:
        ghc-options:
        - -fwrite-ide-info
        - -hiedir=.hie
+       - -Widentities
     source-dirs:
       - test
     dependencies:

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e2dd8b5ca370475f6cd55124a79dfcc725f26b15fcd4ebdc637fc0502975b6e4
+-- hash: 2e10c3f57f3816e7138ab483e95d1438346c08f1a7bbb830b1f1693d40f0992e
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -63,7 +63,7 @@ library
     , typelevel
     , vinyl >=0.10.0.1
   if impl(ghc >= 8.8)
-    ghc-options: -fwrite-ide-info -hiedir=.hie
+    ghc-options: -fwrite-ide-info -hiedir=.hie -Widentities
   default-language: Haskell2010
 
 test-suite spec
@@ -115,5 +115,5 @@ test-suite spec
     , typelevel
     , vinyl >=0.10.0.1
   if impl(ghc >= 8.8)
-    ghc-options: -fwrite-ide-info -hiedir=.hie
+    ghc-options: -fwrite-ide-info -hiedir=.hie -Widentities
   default-language: Haskell2010
