@@ -55,10 +55,10 @@ import qualified Predicate.Refined2 as R2
 import qualified Predicate.Refined3 as R3
 import Predicate.Refined
 import Data.Typeable (Typeable,typeRep)
-import Data.Either (partitionEithers)
 import HSql.Core.Raw
 import HSql.Core.ErrorHandler (ConvE(_cvMessage),DecodingE(..),DE',DE,failDE,liftCE)
 import Control.DeepSeq (NFData)
+import Data.These
 -- decoder is associated with a single result set for Selects only
 -- actually for a single row!
 -- need to check if we have consumed everything!!!
@@ -303,10 +303,9 @@ getDecError co =
               :& VC.H Right
               :& RNil
 
-getDecErrors :: DE -> ([ConvE], [DecodingE])
+getDecErrors :: DE -> These (N.NonEmpty ConvE) (N.NonEmpty DecodingE)
 getDecErrors de =
-  partitionEithers $ N.toList (getDecError <$> de)
-
+  partitionEithersNE $ getDecError <$> de
 
 instance (DefDec (Dec t), KnownSymbol s) =>
           DefDec (Dec (ElField (s ::: t))) where

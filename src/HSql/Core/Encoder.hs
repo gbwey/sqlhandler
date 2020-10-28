@@ -56,8 +56,8 @@ import qualified Control.Lens as L
 import HSql.Core.VinylUtils (pattern I1,pattern I2,pattern I3,pattern I4) -- requires patternsynonyms to use pattern keyword in import statement
 import Data.Function (on)
 import qualified Generics.OneLiner as GO
-import qualified Predicate.Refined2 as R2 (Refined2(r2Out))
-import qualified Predicate.Refined3 as R3 (Refined3(r3Out))
+import qualified Predicate.Refined2 as R2
+import qualified Predicate.Refined3 as R3
 import Predicate.Refined (Refined,unRefined)
 import HSql.Core.Raw
 import Control.DeepSeq (NFData)

@@ -123,6 +123,10 @@ doit =
     it "should allow :+: without any Alle data" $
       ext <$> processRetCol valid2 [Right ([], [[SqlInt32 3]])] `shouldBe` Right (Right 3)
 
+valid0 :: Rec SingleIn '[SelOne Int]
+valid0 = E1 (SelOneP defDec)
+
+
 valid1 :: Rec SingleIn '[Some 'False 2 Upd, Alle (SelOne Bool)]
 valid1 = E2 (SomeP defDec) (AlleP defDec)
 
@@ -190,7 +194,7 @@ tst3rbad = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "-123"]])]
 {-
 >tst3rgood
 Right {RState {_zzz1 = SelP PConst TrueP
- Dec<fn>, _zzz2 = Sel {unSel = [One {unOne = Refined3 {r3In = 123, r3Out = "123"}}]}, _zzz3 = [One {unOne = Refined3 {r3In = 123, r3Out = "123"}}], _zzz4 = []}}
+ Dec<fn>, _zzz2 = Sel {unSel = [One {unOne = Refined3 123 "123"}]}, _zzz3 = [One {unOne = Refined3 123 "123"}], _zzz4 = []}}
 it ::
   Either
     SE (Rec RState '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])

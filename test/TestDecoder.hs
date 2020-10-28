@@ -22,6 +22,8 @@ import qualified Predicate.Examples.Refined2 as R2
 import qualified Predicate.Refined3 as R3
 import qualified Predicate.Examples.Refined3 as R3
 import HSql.Core.ErrorHandler
+import qualified Data.List.NonEmpty as N
+import Data.These.Combinators
 
 spec :: SpecWith ()
 spec =
@@ -89,8 +91,8 @@ expectD :: (HasCallStack, Eq r,Show r)
 expectD lhs rhs = do
   let rr = case rhs of
             Right r -> Right r
-            Left es -> case snd $ getDecErrors es of
-                         [] -> error "znork! missing DecodingE"
-                         [s] -> Left $ _deMethod s
-                         o -> error $ "expected only one DecodingE o=" ++ show o
+            Left es -> case justThere $ getDecErrors es of
+                         Nothing -> error "znork! missing DecodingE"
+                         Just (s N.:| []) -> Left $ _deMethod s
+                         Just o -> error $ "expected only one DecodingE found " ++ show (length o) ++ " o=" ++ show o
   rr @?= lhs

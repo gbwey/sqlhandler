@@ -64,8 +64,8 @@ instance NFData DecodingE
 instance Show DecodingE where
   show (DecodingE a b c) =
     "DecodingE method=" ++ a
-    ++ " | " ++ b ++ " | "
-    ++ " sqlvalues=" ++ intercalate "," (map show c)
+    ++ " | " ++ b
+    ++ " | sqlvalues=" ++ intercalate "," (map show c)
 
 -- | predicate failure when retrieving an update resultset
 data UpdNE = UpdNE { _unMethod :: !String, _unPos :: !Int, _unMessage :: !String } deriving (Generic, Show, Eq)

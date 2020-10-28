@@ -61,6 +61,7 @@ import qualified PCombinators as P
 import PCombinators ((:.:), type (~>), Apply)
 import GHC.Stack (HasCallStack)
 import Control.DeepSeq (NFData)
+import Data.These.Combinators
 
 -- | 'Sql' is the core ADT that holds a vinyl record of encoders for the input
 -- and a vinyl record of decoders for the ouput and then the Sql text
@@ -408,10 +409,12 @@ selImpl z@(Right (meta,xxs)) (Dec dec) = do
   ys <- forM (zip [1::Int ..] xxs) $ \(r,xs) -> do
           case dec xs of
             Left es ->
-              case snd $ getDecErrors es of
-                [] -> error "selImpl: missing DecodingE"
-                ss:_ -> let c = length xs - length (_deSqlValues ss)
-                        in Left $ liftDE $ decAddError' "selImpl" ("row/col " ++ show (r,c)) [] es
+            -- change the code so only DecodingE happens?
+              case justThere $ getDecErrors es of -- ConvE can appear as an exception but seemingly always with DecodingE : see liftCE
+                Nothing -> error "selImpl: missing DecodingE" -- cant seem to make this error fire as always has an accompanying DecodingE exception
+                Just (ss N.:| _) ->
+                  let c = length xs - length (_deSqlValues ss)
+                  in Left $ liftDE $ decAddError' "selImpl" ("row/col " ++ show (r,c)) [] es
             Right a -> return a
   ret <- forM (zip [1::Int ..] ys) $ \(i,(a,lft)) -> do
     unless (null lft) $ failUCC "Select" i ("selImpl: didnt consume all values! row " ++ show i ++ ":leftovers=" ++ show lft) [z]

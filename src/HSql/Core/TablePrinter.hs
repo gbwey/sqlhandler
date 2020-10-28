@@ -61,8 +61,8 @@ import qualified Frames as F
 import Data.Foldable (toList)
 import qualified PCombinators as P
 import Predicate.Refined (Refined, unRefined)
-import Predicate.Refined2 (Refined2(..))
-import Predicate.Refined3 (Refined3(..))
+import Predicate.Refined2 (Refined2,r2In,r2Out)
+import Predicate.Refined3 (Refined3,r3In,r3Out)
 import Predicate.Core (PP)
 import HSql.Core.VinylUtils (F, recLen)
 import HSql.Core.Common
