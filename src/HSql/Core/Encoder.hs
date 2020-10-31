@@ -75,7 +75,9 @@ instance DefEnc (Enc a) => DefE a
 gencode :: forall t. (GO.ADT t, GO.Constraints t DefE) => t -> [SqlValue]
 gencode = GO.gfoldMap @DefE (unEnc defE)
 
-newtype RawEnc = RawEnc { unRawEnc :: [SqlValue] } deriving (Show, Generic, NFData)
+newtype RawEnc = RawEnc { unRawEnc :: [SqlValue] }
+  deriving stock (Show, Generic)
+  deriving newtype NFData
 
 instance Contravariant Enc where
   contramap f (Enc g) = Enc (g . f)
@@ -108,7 +110,7 @@ encMaybe :: Enc a -> Enc (Maybe a)
 encMaybe (Enc enc) = Enc $ \mb -> maybe [SqlNull] enc mb
 
 -- | 'EncList' is a way to encode a list of 'a'
-newtype EncList a = EncList { unEncList :: [a] } deriving Show
+newtype EncList a = EncList { unEncList :: [a] } deriving (Eq,Show,Generic)
 
 instance Monoid  (EncList a) where
   mempty = EncList mempty

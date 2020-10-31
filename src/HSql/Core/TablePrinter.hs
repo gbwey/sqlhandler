@@ -73,15 +73,28 @@ import Data.Kind (Type)
 type Fn1 = [(Int, ([String], FType))] -> [Int]
 
 -- | coarse classification of the type of data in a cell
-data FType = Stringy | Numy | Datey | Other deriving (Show,Eq,Bounded,Enum,Ord,G.Generic)
+data FType =
+    Stringy
+  | Numy
+  | Datey
+  | Other
+  deriving (Show,Eq,Bounded,Enum,Ord,G.Generic)
+
 -- makePrisms ''FType
 
 -- | how to handle data that is wider than a cell
-data FixData = FWrap | FTrunc deriving (Eq,Show,G.Generic)
+data FixData =
+    FWrap
+  | FTrunc
+  deriving (Eq,Show,G.Generic)
+
 -- makePrisms ''FixData
 
 -- | how to represent multiple result sets
-data Vertical = Vertical | Horizontal deriving (Eq,Show,G.Generic)
+data Vertical =
+    Vertical
+  | Horizontal
+  deriving (Eq,Show,G.Generic)
 
 
 -- | type synonym used for functions that transform the text of a cell
@@ -95,7 +108,7 @@ data Opts = Opts { _oFile       :: !(Maybe FilePath) -- ^ optionally print to a 
                  , _oVertical :: !Vertical -- ^ align result sets vertically or horizontally
                  , _oRC :: !(Int, Int) -- ^ default row and column size of each cell
                  , _oMorph :: !Morph -- ^ transform the text of a cell: used for handling control characters
-                 }
+                 } deriving G.Generic
 
 instance Show Opts where
   show o = "Opts:"

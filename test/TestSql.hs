@@ -104,7 +104,9 @@ spec =
       ext' <$> tst2' @3 `shouldSatisfy` (Left 1==) . left (length . xes @UpdNE)
     it "tst21' good" $
       ext' <$> tst21' @3 `shouldBe` Right ([5,12,7,3,4,99,22],())
-
+    it "tst3rgood" $
+      right ext tst3rgood `shouldBe` Right [One (unsafeRefined3 123 "123")]
+    it "tst3rbad" $ hasError @DecodingE tst3rbad
 
 doit :: IO ()
 doit =
@@ -193,23 +195,46 @@ tst3rbad :: Either SE (Rec RState '[Sel (One (Refined3 'OA (ReadP Int Id) (Gt 4)
 tst3rbad = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "-123"]])]
 {-
 >tst3rgood
-Right {RState {_zzz1 = SelP PConst TrueP
- Dec<fn>, _zzz2 = Sel {unSel = [One {unOne = Refined3 123 "123"}]}, _zzz3 = [One {unOne = Refined3 123 "123"}], _zzz4 = []}}
+Right {RState {_rsIn = SelP Dec<fn>, _rsOutWrapped = Sel {unSel = [One {unOne = Refined3 123 "123"}]}, _rsOut = [One {unOne = Refined3 123 "123"}], _rsMeta = [[]]}}
 it ::
   Either
-    SE (Rec RState '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
-
+    SE
+    (Rec
+       RState
+       '[Sel
+           (One
+              (Predicate.Refined3.Refined3
+                 'Predicate.Util.OA
+                 (Predicate.Data.ReadShow.ReadP Int Predicate.Core.Id)
+                 (Predicate.Data.Ordering.Gt 4)
+                 (Predicate.Data.ReadShow.ShowP Predicate.Core.Id)
+                 String))])
 >tst3rbad
-Left ((Col SingleColE {_siInstance = "Sel", _siPos = Just 0, _siMessage = "", _siRss = [Right [[SqlString "-123"]]]}) :| [(
-Col DecodingE method=decRefined3 msg=failed e=boolean check false
-[Node {rootLabel = PE {_peBoolP = PresentP, _peStrings = ["ReadP Int (-123) -123 | -123"]}, subForest = [Node {rootLabel
-= PE {_peBoolP = PresentP, _peStrings = ["Id \"-123\""]}, subForest = []}]},Node {rootLabel = PE {_peBoolP = FalseP, _pe
-Strings = ["CMP -123 > 4"]}, subForest = [Node {rootLabel = PE {_peBoolP = PresentP, _peStrings = ["I"]}, subForest = []
-},Node {rootLabel = PE {_peBoolP = PresentP, _peStrings = ["'4"]}, subForest = []}]}]
- sqlvalues=)])
+Left ({|SingleColE {_sicInstance = "Sel", _sicPos = Just 0, _sicMessage = "", _sicRss = [Right ([],[[SqlString "-123"]])]}|} :| [{|DecodingE method=selImpl | row/col (1,1) | sqlvalues=|},{|DecodingE method=Refined3 Step 2. False Boolean Check(op) | { -123 > 4} |
+*** Step 1. Success Initial Conversion(ip) (-123) ***
+P ReadP Int -123
+|
+`- P Id "-123"
+*** Step 2. False Boolean Check(op) ***
+False -123 > 4
+|
++- P Id -123
+|
+`- P '4
+ | sqlvalues=|}])
 it ::
   Either
-    SE (Rec RState '[Sel (One (Refined3 (ReadP Int Id) (Gt 4) (ShowP Id) String))])
+    SE
+    (Rec
+       RState
+       '[Sel
+           (One
+              (Predicate.Refined3.Refined3
+                 'Predicate.Util.OA
+                 (Predicate.Data.ReadShow.ReadP Int Predicate.Core.Id)
+                 (Predicate.Data.Ordering.Gt 4)
+                 (Predicate.Data.ReadShow.ShowP Predicate.Core.Id)
+                 String))])
 -}
 
 tst4 :: Either SE (Rec RState '[Sel (Bool, Char)])

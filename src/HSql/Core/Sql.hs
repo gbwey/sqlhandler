@@ -65,10 +65,13 @@ import Data.These.Combinators
 
 -- | 'Sql' is the core ADT that holds a vinyl record of encoders for the input
 -- and a vinyl record of decoders for the ouput and then the Sql text
-data Sql db a b = Sql { _sDescription :: !Text -- ^ description used for logging and error handling
-                      , _sEncoders :: !(Rec Enc a) -- ^ a record of encoders matching the input parameters
-                      , _sDecoders :: !(Rec SingleIn b) -- ^ a record of decoders matching the output columns
-                      , _sSql :: !Text } -- ^ sql
+data Sql db a b =
+  Sql
+    { _sDescription :: !Text -- ^ description used for logging and error handling
+    , _sEncoders :: !(Rec Enc a) -- ^ a record of encoders matching the input parameters
+    , _sDecoders :: !(Rec SingleIn b) -- ^ a record of decoders matching the output columns
+    , _sSql :: !Text } -- ^ sql
+    deriving Generic
 
 instance ToText (Sql db a b) where
   toText = fromText . _sSql
@@ -99,7 +102,7 @@ instance Applicative (ST e s) where
            Right (s'', a) -> Right (s'', ab a)
 
 -- | simple predicates on the return code from a sql update
-data Op = OPLT | OPLE | OPEQ | OPGE | OPGT | OPNE deriving (Show, Eq)
+data Op = OPLT | OPLE | OPEQ | OPGE | OPGT | OPNE deriving (Show, Eq, Generic)
 
 -- | 'UpdN' is similar to 'Upd' but encodes a type level predicate on the return code
 newtype UpdN (op :: Op) (val :: Nat) = UpdN Int deriving (Show, Eq, Num, Ord, Generic)
@@ -389,8 +392,8 @@ instance PGen '[a,b,c,d,e,f,g] (a,b,c,d,e,f,g) where
 instance PGen '[a,b,c,d,e,f,g,h] (a,b,c,d,e,f,g,h) where
   ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& r8 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4, _rsOut r5, _rsOut r6, _rsOut r7, _rsOut r8)
 
--- nested tuples: not as useful as PGen/ext but works for all sizes!
--- () (a,()) (a,(b,())) (a,(b,(c,()))) (a,(b,(c,(d,())))) etc! a lot yurky!
+-- inductive tuples: not as useful as PGen/ext but works for all sizes!
+-- () (a,()) (a,(b,())) (a,(b,(c,()))) (a,(b,(c,(d,())))) ...
 type family SingleOuts' (rs :: [Type]) :: Type where
   SingleOuts' '[] = ()
   SingleOuts' (a ': as) = (SingleOut a, SingleOuts' as)

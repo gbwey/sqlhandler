@@ -18,7 +18,7 @@ import Control.DeepSeq (NFData)
 
 -- | One holds a single value. To use wprint we need a SOP Generics instance
 newtype One a = One { unOne :: a }
-  deriving stock (G.Generic, Show)
+  deriving stock (G.Generic, Show, Eq)
   deriving newtype (NFData)
 
 instance GS.Generic (One a)

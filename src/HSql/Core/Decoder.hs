@@ -85,7 +85,7 @@ liftDMs :: [Dec a] -> Dec (DM a)
 liftDMs ds = DM <$> sequenceA ds
 
 -- | 'DM' holds a list of decoders of the same type
-newtype DM a = DM { unDM :: [a] } deriving (Show,Eq)
+newtype DM a = DM { unDM :: [a] } deriving (Show,Eq,Generic)
 
 instance Semigroup (DM a) where
   DM xs <> DM ys = DM (xs <> ys)
@@ -102,10 +102,10 @@ instance Show (Dec a) where
   show Dec {} = "Dec<fn>"
 
 -- | 'DecN' holds a list of n decoders -- typelevel version of 'DM'
-newtype DecN (n :: Nat) a = DecN { unDecN :: [a] } deriving (Show,Eq)
+newtype DecN (n :: Nat) a = DecN { unDecN :: [a] } deriving (Show,Eq,Generic)
 
 -- | 'DecAlle' holds a list of decoders but expects to decode all the values
-newtype DecAlle a = DecAlle { unDecAlle :: [a] } deriving (Show,Eq)
+newtype DecAlle a = DecAlle { unDecAlle :: [a] } deriving (Show,Eq,Generic)
 
 instance Functor Dec where
   fmap f (Dec g) = Dec (fmap (first f <$>) g)

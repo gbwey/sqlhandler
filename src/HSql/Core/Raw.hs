@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : HSql.Core.Raw
@@ -14,6 +15,8 @@ import qualified GHC.Generics as G
 import Generics.SOP
 import Control.DeepSeq (NFData)
 
-newtype Raw = Raw { unRaw :: [SqlValue] } deriving (Show,G.Generic,NFData)
+newtype Raw = Raw { unRaw :: [SqlValue] }
+  deriving stock (G.Generic, Show, Eq)
+  deriving newtype (NFData)
 instance Generic Raw
 instance HasDatatypeInfo Raw

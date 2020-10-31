@@ -473,7 +473,7 @@ instance (RemoveTypesImpl (MatchType t rs) t rs, RemoveTypes t ('(s, t1) : rs) ~
   removeTypesImpl (Field t :& rs) = Field @s t :& removeTypesImpl @(MatchType t rs) @t @rs rs
 
 
--- yurk : need a way to generalise this
+-- todo: need a way to generalise this
 type family RemoveOn (p :: k ~> Bool) (rs :: [k]) :: [k] where
   RemoveOn _p '[] = '[]
   RemoveOn p (r ': rs) = P.If (p @@ r) (RemoveOn p rs) (r ': RemoveOn p rs)
