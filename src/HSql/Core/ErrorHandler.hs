@@ -11,7 +11,6 @@ Module      : ErrorHandler
 Description : This module provides methods for creating and displaying errors in the large sum type 'SE'
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
-Maintainer  : gbwey9@gmail.com
 
 -}
 module HSql.Core.ErrorHandler where

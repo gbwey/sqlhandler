@@ -21,7 +21,6 @@ Module      : HSql.Core.Decoder
 Description : decode from 'SqlValue's to haskell values
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
-Maintainer  : gbwey9@gmail.com
 
 'Dec' defines a decoder and 'DefDec' has the default decoder for a given type.
 -}

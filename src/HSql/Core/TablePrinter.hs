@@ -24,7 +24,6 @@ Module      : HSql.Core.TablePrinter
 Description : utilities for displaying resultsets in tabular form.
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
-Maintainer  : gbwey9@gmail.com
 
 'wprint' is the key function
 -}

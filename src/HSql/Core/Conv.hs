@@ -9,13 +9,12 @@ Module      : HSql.Core.Conv
 Description : Provides default converters from sql values to haskell values
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
-Maintainer  : gbwey9@gmail.com
 -}
 module HSql.Core.Conv where
 import qualified Data.ByteString.Char8 as B
 import Data.ByteString (ByteString)
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as TE (encodeUtf8,decodeUtf8)
+import qualified Data.Text.Encoding as TE (encodeUtf8,decodeUtf8')
 import Data.Text (Text)
 import Control.Arrow (left)
 import Data.Time
@@ -51,7 +50,10 @@ instance Conv String where
 
 instance Conv Text where
   conv [SqlString s] = Right (T.pack s)
-  conv [SqlByteString bs] = Right (TE.decodeUtf8 bs)
+  conv zs@[SqlByteString bs] =
+    case TE.decodeUtf8' bs of
+      Right z -> Right z
+      Left e -> failCE "Text" (show e) zs
   conv zs@[z] = failCE "Text" ("from " ++ showSqlTypeHead z) zs
   conv zs  = failCE "Text" ("expected 1 value: found " ++ show (length zs)) zs
 

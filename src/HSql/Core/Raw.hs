@@ -7,7 +7,6 @@ Module      : HSql.Core.Raw
 Description : holds all the sql values untranlated in a list
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
-Maintainer  : gbwey9@gmail.com
 -}
 module HSql.Core.Raw where
 import Database.HDBC (SqlValue)

@@ -7,7 +7,6 @@ Module      : HSql.Core.One
 Description : holds a singleton value 'One'
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
-Maintainer  : gbwey9@gmail.com
 
 handles a tuple of size one. this is a special type that distinguishes a singleton value from a ntuple
 -}

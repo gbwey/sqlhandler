@@ -36,7 +36,6 @@ Module      : HSql.Core.VinylUtils
 Description : utilities for holds a singleton value 'One'
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
-Maintainer  : gbwey9@gmail.com
 
 handles a tuple of size one
 -}
