@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2e10c3f57f3816e7138ab483e95d1438346c08f1a7bbb830b1f1693d40f0992e
+-- hash: 3f3b929373b7aa6803ac0076743c7f7d9ac14a2771b1e9dd95a56e339c9937a5
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -38,7 +38,7 @@ library
       Paths_sqlhandler
   hs-source-dirs:
       src
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wunused-type-patterns -Wredundant-constraints
+  ghc-options: -Wall -Wcompat -Wno-star-is-type -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wunused-type-patterns -Wredundant-constraints
   build-depends:
       Frames >=0.6.1
     , base
