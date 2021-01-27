@@ -55,7 +55,7 @@ import qualified Predicate.Refined3 as R3
 import Predicate.Refined
 import Data.Typeable (Typeable,typeRep)
 import HSql.Core.Raw
-import HSql.Core.ErrorHandler (ConvE(_cvMessage),DecodingE(..),DE',DE,failDE,liftCE)
+import HSql.Core.ErrorHandler (ConvE(cvMessage),DecodingE(..),DE',DE,failDE,liftCE)
 import Control.DeepSeq (NFData)
 import Data.These
 -- decoder is associated with a single result set for Selects only
@@ -292,8 +292,8 @@ instance DefDec (Dec (Rec f '[])) where
 mapDecMessage :: String -> CoRec V.Identity DE' -> CoRec V.Identity DE'
 mapDecMessage s de =
   VC.match de $
-       VC.H (\e -> CoRec $ V.Identity $ e { _cvMessage = s ++ ":" ++ _cvMessage e })
-    :& VC.H (\e -> CoRec $ V.Identity $ e { _deMethod  = s ++ ":" ++ _deMethod e })
+       VC.H (\e -> CoRec $ V.Identity $ e { cvMessage = s ++ ":" ++ cvMessage e })
+    :& VC.H (\e -> CoRec $ V.Identity $ e { deMethod  = s ++ ":" ++ deMethod e })
     :& RNil
 
 getDecError :: CoRec V.Identity DE' -> Either ConvE DecodingE

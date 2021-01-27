@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeApplications #-}
@@ -12,12 +11,9 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : HSql.Core.TablePrinter
@@ -36,7 +32,7 @@ import Data.Text (Text)
 import Text.Layout.Table
 import qualified Generics.SOP as GS
 import qualified GHC.Generics as G (Generic)
-import Control.Arrow ((&&&))
+import Control.Arrow ((&&&),first,second)
 import Control.Lens hiding (from)
 import qualified Control.Lens as L (Identity(..))
 import Data.Time
@@ -79,15 +75,11 @@ data FType =
   | Other
   deriving (Show,Eq,Bounded,Enum,Ord,G.Generic)
 
--- makePrisms ''FType
-
 -- | how to handle data that is wider than a cell
 data FixData =
     FWrap
   | FTrunc
   deriving (Eq,Show,G.Generic)
-
--- makePrisms ''FixData
 
 -- | how to represent multiple result sets
 data Vertical =
@@ -100,90 +92,88 @@ data Vertical =
 type Morph = String -> String
 
 -- | 'Opts' these are the options for displaying resultsets see 'wprintWith'
-data Opts = Opts { _oFile       :: !(Maybe FilePath) -- ^ optionally print to a file
-                 , _oStyle      :: !TableStyle  -- ^ specify style eg unicode ascii etc
-                 , _oFixData    :: !FixData
-                 , _oFn1        :: !Fn1 -- ^ change the order and number of columns to display
-                 , _oVertical :: !Vertical -- ^ align result sets vertically or horizontally
-                 , _oRC :: !(Int, Int) -- ^ default row and column size of each cell
-                 , _oMorph :: !Morph -- ^ transform the text of a cell: used for handling control characters
+data Opts = Opts { oFile       :: !(Maybe FilePath) -- ^ optionally print to a file
+                 , oStyle      :: !TableStyle  -- ^ specify style eg unicode ascii etc
+                 , oFixData    :: !FixData
+                 , oFn1        :: !Fn1 -- ^ change the order and number of columns to display
+                 , oVertical :: !Vertical -- ^ align result sets vertically or horizontally
+                 , oRC :: !(Int, Int) -- ^ default row and column size of each cell
+                 , oMorph :: !Morph -- ^ transform the text of a cell: used for handling control characters
                  } deriving G.Generic
 
 instance Show Opts where
   show o = "Opts:"
-              ++ " _oRC=" ++ show (_oRC o)
-              ++ " _oFile=" ++ show (_oFile o)
-              ++ " _oFixData=" ++ show (_oFixData o)
-              ++ " _oVertical=" ++ show (_oVertical o)
-              ++ " _oStyle=?"
-              ++ " _oFn1=?"
-              ++ " _oMorph=?"
-
-makeLenses ''Opts
+              ++ " oRC=" ++ show (oRC o)
+              ++ " oFile=" ++ show (oFile o)
+              ++ " oFixData=" ++ show (oFixData o)
+              ++ " oVertical=" ++ show (oVertical o)
+              ++ " oStyle=?"
+              ++ " oFn1=?"
+              ++ " oMorph=?"
 
 -- | 'defT' default options
 defT :: Opts
-defT = Opts { _oFile = Nothing
-             , _oStyle = unicodeS
-             , _oFixData = FTrunc
-             , _oFn1 = defFn1
-             , _oVertical = Vertical
-             , _oRC = (5,50)
-             , _oMorph = defMorph1
-             }
+defT = Opts { oFile = Nothing
+            , oStyle = unicodeS
+            , oFixData = FTrunc
+            , oFn1 = defFn1
+            , oVertical = Vertical
+            , oRC = (5,50)
+            , oMorph = defMorph1
+            }
 
 defTSimple :: FixData -> Int -> Int -> Morph -> Opts
 defTSimple xd r c morph =
-  Opts { _oFile = Nothing
-       , _oStyle = unicodeS
-       , _oFixData = xd
-       , _oFn1 = defFn1
-       , _oVertical = Vertical
-       , _oRC = (r,c)
-       , _oMorph = morph
+  Opts { oFile = Nothing
+       , oStyle = unicodeS
+       , oFixData = xd
+       , oFn1 = defFn1
+       , oVertical = Vertical
+       , oRC = (r,c)
+       , oMorph = morph
        }
 
 poStyle :: TableStyle -> Opts -> Opts
-poStyle ts o = o { _oStyle = ts }
+poStyle ts o = o { oStyle = ts }
 
 poMorph :: Morph -> Opts -> Opts
-poMorph m o = o { _oMorph = m }
+poMorph m o = o { oMorph = m }
 
 -- | 'poRC' allows you to adjust the max number of subrows and columns within a cell
 poRC :: ((Int, Int) -> (Int, Int)) -> Opts -> Opts
-poRC f = oRC %~ f
+poRC f opts = opts { oRC = f (oRC opts) }
 
 -- | 'poR' allows you to adjust the max number of subrows within a cell
 poR :: (Int -> Int) -> Opts -> Opts
-poR f = oRC . _1 %~ f
+poR f opts = opts { oRC = first f (oRC opts) }
 
 -- | 'poC' allows you to adjust the max columns size with a cell
 poC :: (Int -> Int) -> Opts -> Opts
-poC f = oRC . _2 %~ f
+poC f opts = opts { oRC = second f (oRC opts) }
 
 -- | 'poCols' allows you to change which columns get shown
 poCols :: ([Int] -> [Int]) -> Opts -> Opts
-poCols fn o = o { _oFn1 = fn . map fst }
+poCols fn o = o { oFn1 = fn . map fst }
 
 -- | 'poFile' allows you send the output to a file
 poFile :: FilePath -> Opts -> Opts
-poFile fn o = o { _oFile = Just fn }
+poFile fn o = o { oFile = Just fn }
 
 -- | 'poHorizontal' allows you to jam multiple results horizontally
 poHorizontal :: Opts -> Opts
-poHorizontal o = o { _oVertical = Horizontal }
+poHorizontal o = o { oVertical = Horizontal }
 
 -- | 'poTrunc' truncates the data in each cell if it is too large
 poTrunc :: Opts -> Opts
-poTrunc o = o { _oFixData = FTrunc }
+poTrunc o = o { oFixData = FTrunc }
 
 -- | 'poWrap' wraps the data in each cell if it is too large
 poWrap :: Opts -> Opts
-poWrap o = o { _oFixData = FWrap }
+poWrap o = o { oFixData = FWrap }
 
 -- | 'poAscii' uses ascii instead of unicode (on windows is useful when writing to a file)
 poAscii :: Opts -> Opts
-poAscii o = o { _oStyle = asciiS }
+poAscii o = o { oStyle = asciiS }
 
 hexChar :: Char -> String
 hexChar c =
@@ -201,7 +191,7 @@ prttableRecH :: (V.RecAll RState rs ZPrint) => Opts -> Rec RState rs -> String
 prttableRecH o xs =
   let ret = VR.reifyConstraint (Proxy @ZPrint) xs
       (cs,hs,MMM rs) = getConst $ VR.rfoldMap (\(V.Compose (V.Dict x)) -> Const $ zprintH x o) ret
-  in tableString cs (_oStyle o) (titlesH hs) (map (colsAllG top) rs)
+  in tableString cs (oStyle o) (titlesH hs) (map (colsAllG top) rs)
 
 -- | prints resultsets as they appear (vertically)
 prttableRecV :: (V.RecAll RState rs ZPrint) => Opts -> Rec RState rs -> String
@@ -337,7 +327,7 @@ fNmsRec (GS.FieldInfo nm GS.:* rest) = nm : fNmsRec rest
 convstring :: FromField a => Opts -> a -> [[String]]
 convstring o a =
   let xxs = fromField a
-  in map (flattenCell o . lines . _oMorph o) xxs
+  in map (flattenCell o . lines . oMorph o) xxs
 
 -- | Defines the supported types that can be displayed using wprint
 class FromField a where
@@ -552,14 +542,14 @@ toRow :: (HasCallStack, GS.Generic a, GS.Code a ~ '[xs], GS.All FromField xs)
    => Opts -> a -> [(ColSpec, [String], FType)]
 toRow o a =
   case GS.from a of
-    GS.SOP (GS.Z xs) -> let ret = GS.hcollapse (GS.hcliftA ff (\(GS.I v) -> GS.K (coltype (_oRC o ^. _2) v, convstring o v, fieldtype (v <$ Proxy) v)) xs)
+    GS.SOP (GS.Z xs) -> let ret = GS.hcollapse (GS.hcliftA ff (\(GS.I v) -> GS.K (coltype (oRC o ^. _2) v, convstring o v, fieldtype (v <$ Proxy) v)) xs)
                   in concatMap (\(as,bs,cs) -> SE.zip3Exact as bs cs) ret
     GS.SOP (GS.S _) -> error "impossible case: toRow SOP S"
   where ff = Proxy :: Proxy FromField
 
 toColSqlValue :: Opts -> SqlValue -> (ColSpec, [String], FType)
 toColSqlValue o x =
-  case (coltype (_oRC o ^. _2) &&& convstring o &&& fieldtype Proxy) x of
+  case (coltype (oRC o ^. _2) &&& convstring o &&& fieldtype Proxy) x of
     (a:_,(b:_,c:_)) -> (a,b,c)
     (y,z) -> error $ "toColSqlValue: " ++ show (null y,z)
 
@@ -597,8 +587,8 @@ morph1 (controlN, controlR, controlT) fn =
 -- show row truncation somehow!
 flattenCell :: Opts -> [String] -> [String]
 flattenCell o s1 =
-  let (r,c) = _oRC o
-      s2 = case _oFixData o of
+  let (r,c) = oRC o
+      s2 = case oFixData o of
               FWrap -> concatMap (chunksOf c) s1
               FTrunc -> map (take (c+1)) s1 -- set upto to value of c
       s3 = take r s2
@@ -621,7 +611,7 @@ prttableHSelRaw _ _ [] = ([upto 20], ["no data"], MMM [[["no data"]]])
 prttableHSelRaw o meta ts =
   case (fmap.fmap) (toColSqlValue o) ts of
     zs@(z' : _) ->
-      let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
+      let is = squarble (oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "prttableHSelRaw cols" z') is
           flds = case meta of
                    [] -> zipWith (\x v -> v <> "_" <> show x) [1::Int ..] (getColumnTypes ts)
@@ -637,7 +627,7 @@ prttableH _ _ [] = ([upto 20], ["no data"], MMM [[["no data"]]])
 prttableH o meta ts =
   case map (toRow o) ts of
     zs@(z' : _) ->
-      let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
+      let is = squarble (oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "prttableH cols" z') is
           flds = case meta of
                    [] -> getFieldNames (Proxy @a)
@@ -653,7 +643,7 @@ prttableV _ _ [] = "*** no data ***"
 prttableV o meta ts =
   case map (toRow o) ts of
     zs@(z' : _) ->
-      let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
+      let is = squarble (oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "prttableV cols" z') is
           flds' = case meta of
                     [] -> getFieldNames (Proxy @a)
@@ -661,7 +651,7 @@ prttableV o meta ts =
           flds = if length is > length flds' then take (length is) (zipWith (\i n -> n <> show i) [1::Int ..] (cycle flds'))
                  else flds'
       in tableString cols
-         (_oStyle o)
+         (oStyle o)
          (titlesH $ map (Safe.atNote ("prttableV flds " ++ show flds ++ " is=" ++ show is) flds) is)
          (map (\z -> colsAllG top (map (view _2 . Safe.atNote "prttableV colsAllG" z) is)) zs)
     [] -> error "prttableV empty list!"
@@ -703,7 +693,7 @@ wprintCols' :: Printer a => ([Int] -> [Int]) -> a -> IO ()
 wprintCols' fn = wprintWith (poCols fn (poAscii defT))
 
 wprintWith :: Printer a => Opts -> a -> IO ()
-wprintWith o xs = case _oFile o of
+wprintWith o xs = case oFile o of
                     Nothing -> putStrLn $ intercalate "\n" $ wfn o xs
                     Just fn -> SIO.withFile fn SIO.AppendMode $ \h -> do
                                  SIO.hSetEncoding h SIO.utf8
@@ -727,7 +717,7 @@ instance (Foldable t, StripFieldNames rs, F.ColumnHeaders rs, ReifyConstraint Fr
    => Printer (t (F rs)) where
   wfn o a = [fprttableRecT o a]
 instance (V.RecAll RState rs ZPrint) => Printer (Rec RState rs) where
-  wfn o a = [(if _oVertical o == Vertical then prttableRecV else prttableRecH) o a]
+  wfn o a = [(if oVertical o == Vertical then prttableRecV else prttableRecH) o a]
 
 -- | 'prtHRetCol' handles printing untyped resultsets with metadata
 prtHRetCol :: Opts -> [ResultSet] -> [String]
@@ -738,11 +728,11 @@ prtHRetCol o lrs =
           (i,Left rc) -> prefix i <> "Update rc=" <> show rc
           (i,Right (cs,rss)) ->
           -- todo: probably not worth using coltype to get ColSpec:just use info from convstring that tells us the width
-              let cols = map (const (upto (_oRC o ^. _2))) cs
+              let cols = map (const (upto (oRC o ^. _2))) cs
                   rows = map (concatMap (convstring o)) rss
               in prefix i <> "Select " <> show (length rows) <> " rows\n"
                           <> tableString cols
-                             (_oStyle o)
+                             (oStyle o)
                              (titlesH $ map colName cs)
                              (map (colsAllG top) rows)
 
@@ -836,11 +826,11 @@ qprttableH _ _ [] = ([upto 20], ["no data"], MMM [[["no data"]]])
 qprttableH o colnames ts =
   let ret = ts <&> \w ->
   -- the dictionary is for V.Identity v not v by itself!
-                 let aaa = rfoldMap (\(V.Compose (V.Dict v)) -> [(coltype (_oRC o ^. _2) v, convstring o v, fieldtype (v <$ Proxy) v)]) $ reifyConstraint @FromField w
+                 let aaa = rfoldMap (\(V.Compose (V.Dict v)) -> [(coltype (oRC o ^. _2) v, convstring o v, fieldtype (v <$ Proxy) v)]) $ reifyConstraint @FromField w
                  in concatMap (\(as,bs,cs) -> SE.zip3Exact as bs cs) aaa
   in case ret of
     zs@(z' : _) ->
-      let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
+      let is = squarble (oFn1 o) ((map.map) (view _2 &&& view _3) zs)
           cols = map (view _1 . Safe.atNote "qprttableH cols" z') is
       in (cols
          ,map (Safe.atNote "qprttableH flds" colnames) is
@@ -853,14 +843,14 @@ qprttableV _ _ [] = "*** no data ***" -- could show the columns?
 qprttableV o colnames ts =
   let ret = ts <&> \w ->
   -- the dictionary is for V.Identity v not v by itself!
-                 let aaa = rfoldMap (\(V.Compose (V.Dict v)) -> [(coltype (_oRC o ^. _2) v, convstring o v, fieldtype (v <$ Proxy) v)]) $ reifyConstraint @FromField w
+                 let aaa = rfoldMap (\(V.Compose (V.Dict v)) -> [(coltype (oRC o ^. _2) v, convstring o v, fieldtype (v <$ Proxy) v)]) $ reifyConstraint @FromField w
                  in concatMap (\(as,bs,cs) -> SE.zip3Exact as bs cs) aaa
   in case ret of
         zs@(z' : _) ->
-          let is = squarble (_oFn1 o) ((map.map) (view _2 &&& view _3) zs)
+          let is = squarble (oFn1 o) ((map.map) (view _2 &&& view _3) zs)
               cols = map (view _1 . Safe.atNote "qprttableV cols" z') is
           in tableString cols
-             (_oStyle o)
+             (oStyle o)
              (titlesH $ map (Safe.atNote ("qprttableV flds " ++ show colnames ++ " is=" ++ show is) colnames) is)
              (map (\z -> colsAllG top (map (view _2 . Safe.atNote "qprttableV colsAllG" z) is)) zs)
         [] -> error "qprttableV empty list!"
@@ -872,7 +862,7 @@ fprttableRec' o (toList -> z@(r1:_)) =
   let len = getSum $ V.rfoldMap (const (Sum @Int 1)) r1
       colnames = map (\i -> '_' : show i) [1 .. len]
       (cs,hs,MMM rs) = qprttableH o colnames (toList z)
-  in tableString cs (_oStyle o) (titlesH hs) (map (colsAllG top) rs)
+  in tableString cs (oStyle o) (titlesH hs) (map (colsAllG top) rs)
 fprttableRec' _ _ = "empty table"
 
 fprttableRecT :: forall (rs :: [(Symbol,Type)]) t . (Foldable t, StripFieldNames rs, F.ColumnHeaders rs, ReifyConstraint FromField V.Identity (Unlabeled rs), RFoldMap (Unlabeled rs), HasCallStack) =>
@@ -880,4 +870,4 @@ fprttableRecT :: forall (rs :: [(Symbol,Type)]) t . (Foldable t, StripFieldNames
 fprttableRecT o z =
   let colnames = F.columnHeaders (Proxy @(F rs))
       (cs,hs,MMM rs) = qprttableH o colnames (map stripNames (toList z))
-  in tableString cs (_oStyle o) (titlesH hs) (map (colsAllG top) rs)
+  in tableString cs (oStyle o) (titlesH hs) (map (colsAllG top) rs)

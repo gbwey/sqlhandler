@@ -39,13 +39,12 @@ failCE a b c = Left (ConvE a b c :| [])
 
 data ConvE =
   ConvE
-    { _cvType :: !String
-    , _cvMessage :: !String
-    , _cvSqlValue :: ![SqlValue]
+    { cvType :: !String
+    , cvMessage :: !String
+    , cvSqlValue :: ![SqlValue]
     } deriving (Generic, Eq)
 
 instance NFData ConvE
--- makeLenses ''ConvE
 
 instance Show ConvE where
   show (ConvE a b c) = "ConvE type=" ++ a ++ " msg=" ++ b ++ " sqlvalues=" ++ intercalate "," (map show c)
@@ -63,14 +62,12 @@ failDE a b c = Left (CoRec (V.Identity (DecodingE a b c)) :| [])
 
 data DecodingE =
   DecodingE
-    { _deMethod :: !String
-    , _deMessage :: !String
-    , _deSqlValues :: ![SqlValue]
+    { deMethod :: !String
+    , deMessage :: !String
+    , deSqlValues :: ![SqlValue]
     } deriving (Eq, Generic)
 
 instance NFData DecodingE
-
--- makeLenses ''DecodingE
 
 instance Show DecodingE where
   show (DecodingE a b c) =
@@ -81,9 +78,9 @@ instance Show DecodingE where
 -- | predicate failure when retrieving an update resultset
 data UpdNE =
   UpdNE
-    { _unMethod :: !String
-    , _unPos :: !Int
-    , _unMessage :: !String
+    { unMethod :: !String
+    , unPos :: !Int
+    , unMessage :: !String
     } deriving (Generic, Show, Eq)
 
 instance NFData UpdNE
@@ -91,20 +88,20 @@ instance NFData UpdNE
 -- | unconsumed resultset ie there were more resultsets returned than the type signature specifies
 data UnconsumedColE =
   UnconsumedColE
-    { _uccMethod :: !String
-    , _uccPos :: !Int
-    , _uccMessage :: !String
-    , _uccRest :: ![ResultSet]
+    { uccMethod :: !String
+    , uccPos :: !Int
+    , uccMessage :: !String
+    , uccRest :: ![ResultSet]
     } deriving (Generic, Show, Eq)
 instance NFData UnconsumedColE
 
 -- | expected exactly one row for SelOne
 data SingleColE =
   SingleColE
-    { _sicInstance :: !String
-    , _sicPos :: !(Maybe Int)
-    , _sicMessage :: !String
-    , _sicRss :: ![ResultSet]
+    { sicInstance :: !String
+    , sicPos :: !(Maybe Int)
+    , sicMessage :: !String
+    , sicRss :: ![ResultSet]
     } deriving (Generic, Show, Eq)
 
 -- | invalid resultset type: ie returned an update type vs a select type
@@ -112,18 +109,18 @@ instance NFData SingleColE
 
 data UnexpectedResultSetTypeE =
   UnexpectedResultSetTypeE
-    { _urstMethod :: !String
-    , _urstMessage :: !String
-    , _urstRss :: !ResultSet
+    { urstMethod :: !String
+    , urstMessage :: !String
+    , urstRss :: !ResultSet
     } deriving (Generic, Show, Eq)
 instance NFData UnexpectedResultSetTypeE
 
 -- | no more resultsets were returned but the type definition expected one
 data NoResultSetE =
   NoResultSetE
-    { _nrMethod :: !String
-    , _nrPos :: !Int
-    , _nrMessage :: !String
+    { nrMethod :: !String
+    , nrPos :: !Int
+    , nrMessage :: !String
     } deriving (Generic, Show, Eq)
 
 instance NFData NoResultSetE
@@ -131,9 +128,9 @@ instance NFData NoResultSetE
 -- | programmer error that shouldn't happen!
 data BadE =
   BadE
-    { _badMethod :: !String
-    , _badMessage :: !String
-    , _badData :: !String
+    { badMethod :: !String
+    , badMessage :: !String
+    , badData :: !String
     } deriving (Generic, Show, Eq)
 
 instance NFData BadE
@@ -162,14 +159,14 @@ seShortMessage x =
   let f :: Typeable a => a -> String
       f e = (tyConName . typeRepTyCon . typeOf) e ++ ": "
   in VC.match x $
-       VC.H (\e -> f e ++ _unMethod e ++ " " ++ _unMessage e)
-    :& VC.H (\e -> f e ++ _uccMethod e ++ " " ++ _uccMessage e)
-    :& VC.H (\e -> f e ++ _sicInstance e ++ " " ++ _sicMessage e)
-    :& VC.H (\e -> f e ++ _urstMethod e ++ " " ++ _urstMessage e)
-    :& VC.H (\e -> f e ++ _nrMethod e ++ " " ++ _nrMessage e)
-    :& VC.H (\e -> f e ++ _badMethod e ++ " " ++ _badMessage e)
-    :& VC.H (\e -> f e ++ _cvType e ++ " " ++ _cvMessage e)
-    :& VC.H (\e -> f e ++ _deMethod e ++ " " ++ _deMessage e)
+       VC.H (\e -> f e ++ unMethod e ++ " " ++ unMessage e)
+    :& VC.H (\e -> f e ++ uccMethod e ++ " " ++ uccMessage e)
+    :& VC.H (\e -> f e ++ sicInstance e ++ " " ++ sicMessage e)
+    :& VC.H (\e -> f e ++ urstMethod e ++ " " ++ urstMessage e)
+    :& VC.H (\e -> f e ++ nrMethod e ++ " " ++ nrMessage e)
+    :& VC.H (\e -> f e ++ badMethod e ++ " " ++ badMessage e)
+    :& VC.H (\e -> f e ++ cvType e ++ " " ++ cvMessage e)
+    :& VC.H (\e -> f e ++ deMethod e ++ " " ++ deMessage e)
     :& RNil
 
 -- | lift a decoding error to the larger SE error

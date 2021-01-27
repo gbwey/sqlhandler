@@ -63,7 +63,7 @@ suite = testGroup "TestSql"
   , testCase "encodemultiple" $ (@?=) (encodeVals (E2 (defEnc @(Enc Int)) (defEnc @(Enc (Bool,String)))) (I2 1 (True,"xxx"))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
   , testCase "encodesingle" $ (@?=) (encodeVals (E1 (defEnc @(Enc (Int, (Bool,String))))) (I1 (1,(True,"xxx")))) [SqlInt32 1,SqlInt32 1,SqlString "xxx"]
   , testCase "single.fail4" $ assertBool "a4" (hasError @ConvE (processRetCol (E1 (SelOneP @Bool defDec)) [Right ([], [[SqlInt32 112]])]))
-  , testCase "single.fail5" $ assertBool "a5" (anyOf (_Left . to (xes @ConvE) . traverse . to _cvType) (=="Bool") (processRetCol (E1 (SelOneP @Bool defDec)) [Right ([], [[SqlInt32 112]])]))
+  , testCase "single.fail5" $ assertBool "a5" (anyOf (_Left . to (xes @ConvE) . traverse . to cvType) (=="Bool") (processRetCol (E1 (SelOneP @Bool defDec)) [Right ([], [[SqlInt32 112]])]))
   , testCase "single.fail6" $ assertBool "a6" (hasn't (_Left . to (xes @UnexpectedResultSetTypeE) . _Empty) (processRetCol (E1 (SelOneP @Bool defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
   , testCase "single.fail7" $ assertBool "a7" (has (_Left . to (xes @UnexpectedResultSetTypeE) . _head) (processRetCol (E1 (SelOneP @Bool defDec)) [Left 4]))  -- (Left "SelOne ResultSet 2:Single (SelOne a):expected 1 row but found 0 xxs=[]")
   , testCase "gtest1" $ assertBool "a8" (xes'' @NoResultSetE gtest1)
@@ -195,7 +195,7 @@ tst3rbad :: Either SE (Rec RState '[Sel (One (Refined3 'OA (ReadP Int Id) (Gt 4)
 tst3rbad = processRetCol (E1 (SelP defDec)) [Right ([], [[SqlString "-123"]])]
 {-
 >tst3rgood
-Right {RState {_rsIn = SelP Dec<fn>, _rsOutWrapped = Sel {unSel = [One {unOne = Refined3 123 "123"}]}, _rsOut = [One {unOne = Refined3 123 "123"}], _rsMeta = [[]]}}
+Right {RState {rsIn = SelP Dec<fn>, rsOutWrapped = Sel {unSel = [One {unOne = Refined3 123 "123"}]}, rsOut = [One {unOne = Refined3 123 "123"}], rsMeta = [[]]}}
 it ::
   Either
     SE
@@ -210,7 +210,7 @@ it ::
                  (Predicate.Data.ReadShow.ShowP Predicate.Core.Id)
                  String))])
 >tst3rbad
-Left ({|SingleColE {_sicInstance = "Sel", _sicPos = Just 0, _sicMessage = "", _sicRss = [Right ([],[[SqlString "-123"]])]}|} :| [{|DecodingE method=selImpl | row/col (1,1) | sqlvalues=|},{|DecodingE method=Refined3 Step 2. False Boolean Check(op) | { -123 > 4} |
+Left ({|SingleColE {sicInstance = "Sel", sicPos = Just 0, sicMessage = "", sicRss = [Right ([],[[SqlString "-123"]])]}|} :| [{|DecodingE method=selImpl | row/col (1,1) | sqlvalues=|},{|DecodingE method=Refined3 Step 2. False Boolean Check(op) | { -123 > 4} |
 *** Step 1. Success Initial Conversion(ip) (-123) ***
 P ReadP Int -123
 |

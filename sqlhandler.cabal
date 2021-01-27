@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3f3b929373b7aa6803ac0076743c7f7d9ac14a2771b1e9dd95a56e339c9937a5
+-- hash: 51fa58fc08614f1c79ab3b8842edec03860ba58902906820103cb0e57fbacc9b
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -91,7 +91,6 @@ test-suite spec
     , contravariant
     , deepseq
     , foldl
-    , generic-lens
     , generics-sop
     , hdbc-odbc2
     , hspec

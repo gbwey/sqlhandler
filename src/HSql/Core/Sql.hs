@@ -18,7 +18,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE NoStarIsType #-}
 {- |
 Module      : HSql.Core.Sql
@@ -43,7 +42,6 @@ import Data.Vinyl
 import Data.Vinyl.CoRec (CoRec(..))
 import Data.Vinyl.TypeLevel hiding (Nat)
 import Control.Arrow (left,second)
-import Control.Lens hiding (rmap,Identity,Const,op)
 import Data.Proxy (Proxy(Proxy))
 import qualified Data.Text as T
 import Data.Text (Text)
@@ -66,17 +64,17 @@ import Data.These.Combinators
 -- and a vinyl record of decoders for the ouput and then the Sql text
 data Sql db a b =
   Sql
-    { _sDescription :: !Text -- ^ description used for logging and error handling
-    , _sEncoders :: !(Rec Enc a) -- ^ a record of encoders matching the input parameters
-    , _sDecoders :: !(Rec SingleIn b) -- ^ a record of decoders matching the output columns
-    , _sSql :: !Text } -- ^ sql
+    { sDescription :: !Text -- ^ description used for logging and error handling
+    , sEncoders :: !(Rec Enc a) -- ^ a record of encoders matching the input parameters
+    , sDecoders :: !(Rec SingleIn b) -- ^ a record of decoders matching the output columns
+    , sSql :: !Text } -- ^ sql
     deriving Generic
 
 instance ToText (Sql db a b) where
-  toText = fromText . _sSql
+  toText = fromText . sSql
 
 instance Show (Sql db a b) where
-  show = T.unpack . _sSql
+  show = T.unpack . sSql
 
 hMetaNull :: SqlColDesc
 hMetaNull = SqlColDesc "hMetaNull" (SqlUnknownT "dummy type:hMetaNull") (Just 5) (Just 7) (Just 11) (Just True)
@@ -277,10 +275,10 @@ instance Single a => Show (SingleIn a) where
 
 -- | 'RState' holds the input/ouput for a given resultset
 data RState a =
-   RState { _rsIn :: !(SingleIn a)
-          , _rsOutWrapped :: a  -- undefined so cannot use strict
-          , _rsOut :: SingleOut a -- undefined so cannot use strict
-          , _rsMeta :: ![RMeta]
+   RState { rsIn :: !(SingleIn a)
+          , rsOutWrapped :: a  -- undefined so cannot use strict
+          , rsOut :: SingleOut a -- undefined so cannot use strict
+          , rsMeta :: ![RMeta]
           }
 
 deriving instance (Show a, Show (SingleIn a), Show (SingleOut a)) => Show (RState a)
@@ -338,15 +336,15 @@ class SingleZ a where
 -- only one instance that wraps 'Single' which is needed for 'processRet' and 'processRetCol'
 instance Single a => SingleZ (RState a) where
   singleColZ w (b,c) =
-    case singleCol (_rsIn w) (b,c) of
+    case singleCol (rsIn w) (b,c) of
       Left e -> Left e
-      Right (z, (hms,(a,wa))) -> Right (z,w { _rsOutWrapped = a, _rsOut = wa, _rsMeta = hms })
+      Right (z, (hms,(a,wa))) -> Right (z,w { rsOutWrapped = a, rsOut = wa, rsMeta = hms })
 
 -- | shortcut to get all the hmetas in one go
 hmall :: Rec RState '[a] -> [RMeta]
 -- cant use Vinyl Const cos no applicative instance!!!!
---hmall rs = L.getConst $ rtraverse (L.Const . _rsMeta) rs
-hmall = VR.rfoldMap _rsMeta
+--hmall rs = L.getConst $ rtraverse (L.Const . rsMeta) rs
+hmall = VR.rfoldMap rsMeta
 
 -- need this to do the conversions
 -- max of 8
@@ -375,21 +373,21 @@ class PGen (rs :: [Type]) (v :: Type) | rs -> v where
 instance PGen '[] () where
   ext RNil = ()
 instance PGen '[a] a where
-  ext (r1 :& RNil) = _rsOut r1
+  ext (r1 :& RNil) = rsOut r1
 instance PGen '[a,b] (a,b) where
-  ext (r1 :& r2 :& RNil) = (_rsOut r1, _rsOut r2)
+  ext (r1 :& r2 :& RNil) = (rsOut r1, rsOut r2)
 instance PGen '[a,b,c] (a,b,c) where
-  ext (r1 :& r2 :& r3 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3)
+  ext (r1 :& r2 :& r3 :& RNil) = (rsOut r1, rsOut r2, rsOut r3)
 instance PGen '[a,b,c,d] (a,b,c,d) where
-  ext (r1 :& r2 :& r3 :& r4 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4)
+  ext (r1 :& r2 :& r3 :& r4 :& RNil) = (rsOut r1, rsOut r2, rsOut r3, rsOut r4)
 instance PGen '[a,b,c,d,e] (a,b,c,d,e) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4, _rsOut r5)
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& RNil) = (rsOut r1, rsOut r2, rsOut r3, rsOut r4, rsOut r5)
 instance PGen '[a,b,c,d,e,f] (a,b,c,d,e,f) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4, _rsOut r5, _rsOut r6)
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& RNil) = (rsOut r1, rsOut r2, rsOut r3, rsOut r4, rsOut r5, rsOut r6)
 instance PGen '[a,b,c,d,e,f,g] (a,b,c,d,e,f,g) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4, _rsOut r5, _rsOut r6, _rsOut r7)
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& RNil) = (rsOut r1, rsOut r2, rsOut r3, rsOut r4, rsOut r5, rsOut r6, rsOut r7)
 instance PGen '[a,b,c,d,e,f,g,h] (a,b,c,d,e,f,g,h) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& r8 :& RNil) = (_rsOut r1, _rsOut r2, _rsOut r3, _rsOut r4, _rsOut r5, _rsOut r6, _rsOut r7, _rsOut r8)
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& r8 :& RNil) = (rsOut r1, rsOut r2, rsOut r3, rsOut r4, rsOut r5, rsOut r6, rsOut r7, rsOut r8)
 
 -- inductive tuples: not as useful as PGen/ext but works for all sizes!
 -- () (a,()) (a,(b,())) (a,(b,(c,()))) (a,(b,(c,(d,())))) ...
@@ -403,7 +401,7 @@ class PGen' (rs :: [Type]) where
 instance PGen' '[] where
   ext' RNil = ()
 instance PGen' as => PGen' (a ': as) where
-  ext' (r :& rs) = (_rsOut r, ext' rs)
+  ext' (r :& rs) = (rsOut r, ext' rs)
 
 -- | 'selImpl' tries to decode a result set based on the decoder and then runs the predicate
 selImpl :: HasCallStack => ResultSet -> Dec a -> Either SE (RMeta, [a])
@@ -415,7 +413,7 @@ selImpl z@(Right (meta,xxs)) (Dec dec) = do
               case justThere $ getDecErrors es of -- ConvE can appear as an exception but seemingly always with DecodingE : see liftCE
                 Nothing -> error "selImpl: missing DecodingE" -- cant seem to make this error fire as always has an accompanying DecodingE exception
                 Just (ss N.:| _) ->
-                  let c = length xs - length (_deSqlValues ss)
+                  let c = length xs - length (deSqlValues ss)
                   in Left $ liftDE $ decAddError' "selImpl" ("row/col " ++ show (r,c)) [] es
             Right a -> return a
   ret <- forM (zip [1::Int ..] ys) $ \(i,(a,lft)) -> do
@@ -729,6 +727,3 @@ type family ValidNest1 (w :: Type) :: Bool where
 
 emptyResultSetMessage :: String
 emptyResultSetMessage = "no more resultsets from the server but the type signature expects another resultset"
-
-makeLenses ''RState
-makeLenses ''Sql

@@ -73,13 +73,13 @@ testeither :: Bool -> RState a -> RState b -> RState (a :+: b)
 testeither p (RState a1 a2 a3 a4) (RState b1 b2 b3 b4) = RState (a1 :+: b1) (EitherRS (bool (Left a2) (Right b2) p)) (bool (Left a3) (Right b3) p) (bool a4 b4 p)
 
 testalle :: DefDec (SingleIn a) => [RState a] -> RState (Alle a)
-testalle zs = RState (AlleP defDec) (Alle (map _rsOutWrapped zs)) (map _rsOut zs) (concatMap _rsMeta zs)
+testalle zs = RState (AlleP defDec) (Alle (map rsOutWrapped zs)) (map rsOut zs) (concatMap rsMeta zs)
 
 testsome :: DefDec (SingleIn a) => [RState a] -> RState (Some 'False n a)
-testsome zs = RState (SomeP defDec) (Some (map _rsOutWrapped zs)) (map _rsOut zs) (concatMap _rsMeta zs)
+testsome zs = RState (SomeP defDec) (Some (map rsOutWrapped zs)) (map rsOut zs) (concatMap rsMeta zs)
 
 testemos :: DefDec (SingleIn a) => [RState a] -> RState (Some 'True n a)
-testemos zs = RState (SomeP defDec) (Some (map _rsOutWrapped zs)) (map _rsOut zs) (concatMap _rsMeta zs)
+testemos zs = RState (SomeP defDec) (Some (map rsOutWrapped zs)) (map rsOut zs) (concatMap rsMeta zs)
 
 testupd :: Int -> RState Upd
 testupd rc = RState UpdP (Upd rc) rc []
@@ -380,7 +380,7 @@ tf22b = RState (SelOneP defDec) undefined ("afield",999) [] :& RNil
 tf33b :: Rec RState '[SelOne (MakeF (String,Int))]
 tf33b = RState (SelOneP defDec) undefined (#c1 =: "afield" :& #c2 =: 999 :& RNil) [] :& RNil
 
-data IP a = IP {_octet1 :: a, _octet2 :: a, _octet3 :: a, _octet4 :: a} deriving (Show,Read,Eq)
+data IP a = IP {_octet1 :: a, _octet2 :: a, _octet3 :: a, _octet4 :: a} deriving (Show,Eq)
 
 instance Show a => FromField (IP a) where
   fromField = pure . show

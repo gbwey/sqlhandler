@@ -93,6 +93,6 @@ expectD lhs rhs = do
             Right r -> Right r
             Left es -> case justThere $ getDecErrors es of
                          Nothing -> error "znork! missing DecodingE"
-                         Just (s N.:| []) -> Left $ _deMethod s
+                         Just (s N.:| []) -> Left $ deMethod s
                          Just o -> error $ "expected only one DecodingE found " ++ show (length o) ++ " o=" ++ show o
   rr @?= lhs

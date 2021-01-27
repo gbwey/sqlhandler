@@ -80,6 +80,5 @@ tests:
       - tasty-hunit
       - tasty-quickcheck
       - tasty
-      - generic-lens
 
 data-files: []
