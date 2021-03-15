@@ -160,6 +160,7 @@ instance Single Upd where
         return ((pos+1,rss'), ([], (Upd rc,rc)))
       [] -> failNR "Upd" pos emptyResultSetMessage
 
+-- | 'UpdN' is similar to 'Upd' but adds a type level predicate on the number of rows returned
 instance (ShowOp op, KnownNat val) => Single (UpdN (op :: Op) (val :: Nat)) where
   data SingleIn (UpdN op val) = UpdNP
   type SingleOut (UpdN op val) = Int
@@ -176,6 +177,7 @@ instance (ShowOp op, KnownNat val) => Single (UpdN (op :: Op) (val :: Nat)) wher
           (_, True) -> pure ((pos+1,rss'), ([], (UpdN rc,rc)))
       [] -> failNR "UpdN" pos emptyResultSetMessage
 
+-- | 'SelOne' is similar to 'Sel' but expects one row
 instance Single (SelOne a) where
   data SingleIn (SelOne a) = SelOneP (Dec a)
   type SingleOut (SelOne a) = a
@@ -190,6 +192,7 @@ instance Single (SelOne a) where
            _ -> failSIC "SelOne" (Just pos) ("expected 1 row but found " ++ show (length xxs)) rss
        [] -> failNR "SelOne" pos emptyResultSetMessage
 
+-- | 'Sel' represents a select query
 instance Single (Sel a) where
   data SingleIn (Sel a) = SelP (Dec a)
   type SingleOut (Sel a) = [a]
@@ -202,6 +205,7 @@ instance Single (Sel a) where
           return ((pos+1,rss'), ([meta],(Sel a,a)))
        [] -> failNR "Sel" pos emptyResultSetMessage
 
+-- | 'Alle' expect the rest of the resultsets are of type "a"
 instance Single a => Single (Alle a) where
   data SingleIn (Alle a) = AlleP (SingleIn a)
   type SingleOut (Alle a) = [SingleOut a]
@@ -217,6 +221,7 @@ instance Single a => Single (Alle a) where
                               ) (([],[]), rss) [1.. n]
          return ((pos+n,rssout), ([], (Alle (map snd ret), wret)))
 
+-- | a sum type on the resultset: ie either type "a" or type "b"
 instance (Single a, Single b) => Single (a :+: b) where
   data SingleIn (a :+: b) = SingleIn a :+: SingleIn b
   type SingleOut (a :+: b) = Either (SingleOut a) (SingleOut b)
@@ -231,6 +236,7 @@ instance (Single a, Single b) => Single (a :+: b) where
                     Right (ret, (hm,(a2,wa2))) -> Right (ret, (hm, (EitherRS (Right a2),Right wa2)))
         Right (ret, (hm,(a1,wa1))) -> Right (ret, (hm, (EitherRS (Left a1),Left wa1)))
 
+-- | represents one or more resultsets of type "a"
 instance (Single a, P.GetBool rev, KnownNat n) => Single (Some (rev :: Bool) (n :: Nat) a) where
   data SingleIn (Some rev n a) = SomeP (SingleIn a)
   type SingleOut (Some rev n a) = [SingleOut a]
@@ -258,6 +264,7 @@ someImpl _ rss =
           | n>length rss -> failNR msg n ("not enough resultsets(" ++ show (length rss) ++ ") n=" ++ show n')
           | otherwise -> return (n,msg)
 
+-- | represents an untyped query resultset
 instance Single SelRaw where
   data SingleIn SelRaw = SelRawP
   type SingleOut SelRaw = [[SqlValue]]

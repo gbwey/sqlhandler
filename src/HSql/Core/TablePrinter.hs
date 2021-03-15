@@ -222,6 +222,7 @@ rsHeader1 (s,i) = "\n\nresultset " <> show (i+1) <> " " <> s <> "\n"
 rsHeader2 :: FnRSHeader
 rsHeader2 = const "\n"
 
+-- | printer for resultsets
 class ZPrint a where
   -- | displays the results horizontally
   zprintH :: HasCallStack => a -> Opts -> ([ColSpec], [String], MMM [String])
@@ -553,6 +554,7 @@ toColSqlValue o x =
     (a:_,(b:_,c:_)) -> (a,b,c)
     (y,z) -> error $ "toColSqlValue: " ++ show (null y,z)
 
+-- | different ways to render the output: ie how to handle newlines
 defMorph1, defMorph2, defMorph3, defMorph4, defMorph5, defMorph6 :: Morph
 defMorph1 = morph1 ("\n", "", " ") (morphFn1 False)
 defMorph2 = morph1 ("\n", "\\r", "\\t") (morphFn1 False)
@@ -573,6 +575,7 @@ morphFn1 hideControlChars c =
      | hideControlChars -> []
      | otherwise -> "?" <> hexChar c <> "?"
 -}
+-- | replace control chars
 morph1 :: (String, String, String) -> (Char -> String) -> Morph
 morph1 (controlN, controlR, controlT) fn =
   concatMap (\case
@@ -585,6 +588,7 @@ morph1 (controlN, controlR, controlT) fn =
 -- todo: somehow need to use upto to show truncation [upto 20] set it to c-1 and make sure not 0
 -- r c have to be reasonable values ie r=1 and c=2 minimum
 -- show row truncation somehow!
+-- | flattens a cell for display based on 'Opts'
 flattenCell :: Opts -> [String] -> [String]
 flattenCell o s1 =
   let (r,c) = oRC o
