@@ -125,7 +125,8 @@ newtype a :+: b = EitherRS { unEitherRS :: Either a b } deriving (Show, Eq, Gene
 instance (NFData a, NFData b) => NFData (a :+: b)
 
 -- | 'Some' is a higher order function that is similar to 'Alle' but holds exactly n resultsets of the same type
---   if rev = 'True then will grab the last n resultsets instead of the first n resultsets
+--   if rev = 'True then will take all but n resultsets instead of the taking the first n resultsets
+--   ie if rev = 'True then takes length rss - n resultsets
 newtype Some (rev :: Bool) (n :: Nat) a = Some { unSome :: [a] } deriving (Show, Eq, Generic)
 instance NFData a => NFData (Some rev n a)
 
