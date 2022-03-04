@@ -1,8 +1,10 @@
+.vscode/
 .ghc.environment.*
 dist-newstyle/
 dist/
 .stack-work/
-.stack-work-profile/
+.stack-work-profiling/
 stack*.yaml.lock
-.hlint.yaml*
 .hie/
+*.bundle
+stan.html

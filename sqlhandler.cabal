@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 61c12d4062858bca1c2cb3ae2bb236d95654223d6ed384657d83636a70f7f39f
+-- hash: 53415081f80c1a54589386e045872d1bec5164861da1b607d5b3a8b2c4b2ee8c
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -29,40 +29,98 @@ library
       HSql.Core.Decoder
       HSql.Core.Encoder
       HSql.Core.ErrorHandler
-      HSql.Core.One
+      HSql.Core.FrameUtils
+      HSql.Core.Operator
       HSql.Core.Raw
+      HSql.Core.RStateBuilder
       HSql.Core.Sql
+      HSql.Core.SqlBuilder
+      HSql.Core.SqlParserMS
       HSql.Core.TablePrinter
       HSql.Core.VinylUtils
   other-modules:
       Paths_sqlhandler
   hs-source-dirs:
       src
-  ghc-options: -Wall -Wcompat -Wno-star-is-type -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wunused-type-patterns -Wredundant-constraints
+  ghc-options: -Wall -Wcompat -Wno-star-is-type -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wunused-type-patterns -Wredundant-constraints -Wsimplifiable-class-constraints -Wmonomorphism-restriction -Wmissing-deriving-strategies -Wmissing-local-signatures -Widentities
   build-depends:
       Frames >=0.6.1
     , base
     , bytestring
     , containers
     , contravariant
+    , coreutils
+    , data-fix
     , deepseq
+    , deriving-compat
+    , docutils
+    , extra
     , foldl
+    , generic-lens
+    , generic-lens-core
     , generics-sop
     , hdbc-odbc2
     , lens
+    , megaparsec
     , mtl
     , one-liner
-    , predicate-typed
+    , parser-combinators
+    , pretty-simple
+    , prettyprinter
     , safe
+    , semigroupoids
     , shakespeare
-    , table-layout ==0.9.0.0
+    , table-layout
     , text
     , these >=1.0.0
     , time
-    , typelevel
+    , validation-selective
     , vinyl >=0.10.0.1
-  if impl(ghc >= 8.8)
-    ghc-options: -fwrite-ide-info -hiedir=.hie -Widentities
+  default-language: Haskell2010
+
+test-suite doctests
+  type: exitcode-stdio-1.0
+  main-is: doctests.hs
+  other-modules:
+      Paths_sqlhandler
+  hs-source-dirs:
+      doctest
+  ghc-options: -Wall -threaded -Wcompat -Wno-star-is-type -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -Wunused-type-patterns -Wmissing-deriving-strategies -Widentities
+  build-depends:
+      Frames >=0.6.1
+    , base
+    , bytestring
+    , containers
+    , contravariant
+    , coreutils
+    , data-fix
+    , deepseq
+    , deriving-compat
+    , doctest
+    , docutils
+    , extra
+    , foldl
+    , generic-lens
+    , generic-lens-core
+    , generics-sop
+    , hdbc-odbc2
+    , lens
+    , megaparsec
+    , mtl
+    , one-liner
+    , parser-combinators
+    , pretty-simple
+    , prettyprinter
+    , safe
+    , semigroupoids
+    , shakespeare
+    , sqlhandler
+    , table-layout
+    , text
+    , these >=1.0.0
+    , time
+    , validation-selective
+    , vinyl >=0.10.0.1
   default-language: Haskell2010
 
 test-suite spec
@@ -73,14 +131,19 @@ test-suite spec
       TestConv
       TestDecoder
       TestEncoder
+      TestOp
+      TestRStateBuilder
       TestSql
       TestSqlDeferred
+      TestSqlHelper
+      TestSqlParserMS
+      TestTableFrames
       TestTablePrinter
       TestVinyl
       Paths_sqlhandler
   hs-source-dirs:
       test
-  ghc-options: -threaded -O0 -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wunused-type-patterns -Wredundant-constraints
+  ghc-options: -threaded -O0 -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wunused-type-patterns -Wredundant-constraints -Wmissing-deriving-strategies -Widentities -Wno-missing-local-signatures
   build-depends:
       Frames >=0.6.1
     , QuickCheck
@@ -88,29 +151,39 @@ test-suite spec
     , bytestring
     , containers
     , contravariant
+    , coreutils
+    , data-fix
     , deepseq
+    , deriving-compat
+    , docutils
+    , extra
     , foldl
+    , generic-lens
+    , generic-lens-core
     , generics-sop
     , hdbc-odbc2
     , hspec
     , lens
+    , megaparsec
     , mtl
     , one-liner
+    , parser-combinators
     , pipes
-    , predicate-typed
+    , pretty-simple
+    , prettyprinter
+    , quickcheck-instances
     , safe
+    , semigroupoids
     , shakespeare
     , should-not-typecheck
     , sqlhandler
-    , table-layout ==0.9.0.0
+    , table-layout
     , tasty
     , tasty-hunit
     , tasty-quickcheck
     , text
     , these >=1.0.0
     , time
-    , typelevel
+    , validation-selective
     , vinyl >=0.10.0.1
-  if impl(ghc >= 8.8)
-    ghc-options: -fwrite-ide-info -hiedir=.hie -Widentities
   default-language: Haskell2010

@@ -1,16 +1,14 @@
-resolver: lts-17.0
+resolver: lts-18.10
 packages:
 - '.'
 extra-deps:
-- pretty-terminal-0.1.0.0
-- Frames-0.7.0
-- discrimination-0.4
-- symbols-0.3.0.0
+- Frames-0.7.2
+- discrimination-0.4.1
+- ../coreutils
+- ../docutils
 - ../hdbc-odbc2
-- ../predicate-typed
 - ../table-layout
-- ../typelevel
 
-ghc-options:
-  "$locals": -fwrite-ide-info
-  "$everything": -haddock
+# ghc-options:
+#  "$locals": -fwrite-ide-info
+#  "$everything": -haddock

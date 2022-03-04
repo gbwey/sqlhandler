@@ -10,23 +10,34 @@ dependencies:
 - bytestring
 - containers
 - contravariant
+- coreutils
+- data-fix
 - deepseq
+- deriving-compat
+- docutils
+- extra
 - foldl
 - Frames >= 0.6.1
+- generic-lens
+- generic-lens-core
 - generics-sop
 - hdbc-odbc2
 - lens
+- megaparsec
 - mtl
 - one-liner
+- parser-combinators
+- prettyprinter
+- pretty-simple
 - safe
+- semigroupoids
 - shakespeare
-- table-layout == 0.9.0.0
+- table-layout
 - text
 - these >= 1.0.0
 - time
-- typelevel
+- validation-selective
 - vinyl >= 0.10.0.1
-- predicate-typed
 
 default-extensions: []
 library:
@@ -41,13 +52,11 @@ library:
   - -Wpartial-fields
   - -Wunused-type-patterns
   - -Wredundant-constraints
-  when:
-   - condition: impl(ghc >= 8.8)
-     ghc-options:
-     - -fwrite-ide-info
-     - -hiedir=.hie
-     - -Widentities
-
+  - -Wsimplifiable-class-constraints
+  - -Wmonomorphism-restriction
+  - -Wmissing-deriving-strategies
+  - -Wmissing-local-signatures
+  - -Widentities
 tests:
   spec:
     main: "Spec.hs"
@@ -61,12 +70,9 @@ tests:
     - -Wpartial-fields
     - -Wunused-type-patterns
     - -Wredundant-constraints
-    when:
-       condition: impl(ghc >= 8.8)
-       ghc-options:
-       - -fwrite-ide-info
-       - -hiedir=.hie
-       - -Widentities
+    - -Wmissing-deriving-strategies
+    - -Widentities
+    - -Wno-missing-local-signatures
     source-dirs:
       - test
     dependencies:
@@ -74,10 +80,31 @@ tests:
       - pipes
       - hspec
       - QuickCheck
+      - quickcheck-instances
       - should-not-typecheck
       - deepseq
       - tasty-hunit
       - tasty-quickcheck
       - tasty
+  doctests:
+    main: doctests.hs
+    source-dirs: doctest
+    ghc-options:
+    - -Wall
+    - -threaded
+    - -Wcompat
+    - -Wno-star-is-type
+    - -Wincomplete-record-updates
+    - -Wincomplete-uni-patterns
+    - -Wpartial-fields
+    - -Wredundant-constraints
+    - -Wunused-type-patterns
+    - -Wmissing-deriving-strategies
+    - -Widentities
+    dependencies:
+    - base
+    - sqlhandler
+    - doctest
+
 
 data-files: []

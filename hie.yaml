@@ -1,9 +1,11 @@
 cradle:
   stack:
-   - path: ".\\src"
-     component: "sqlhandler:lib"
-   - path: ".\\test"
-     component: "sqlhandler:test:spec"
-#  cabal:
-#   - path: "."
-#     component: "lib:sqlhandler"
+    - path: "./src"
+      component: "sqlhandler:lib"
+
+    - path: "./test"
+      component: "sqlhandler:test:spec"
+
+    - path: "./doctest"
+      component: "sqlhandler:test:doctests"
+

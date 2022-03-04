@@ -1,0 +1,27 @@
+[[remove]]
+directory = "test\\"
+
+# length
+[[check]]
+type = "Exclude"
+id = "STAN-0103"
+scope = "all"
+
+# big tuples
+[[check]]
+type = "Exclude"
+id = "STAN-0302"
+scope = "all" 
+
+# reverse
+[[check]]
+type = "Exclude"
+file = "src\\HSql\\Core\\Sql.hs"
+id = "STAN-0101"
+
+# lazy fields
+[[check]]
+type = "Exclude"
+file = "src\\HSql\\Core\\Sql.hs"
+id = "STAN-0206"
+

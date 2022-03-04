@@ -1,737 +1,1229 @@
-{-# OPTIONS -Wno-redundant-constraints #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE NoStarIsType #-}
-{- |
-Module      : HSql.Core.Sql
-Description : pure functions for describing, prepocessing and postprocessing Sql
-Copyright   : (c) Grant Weyburne, 2016
-License     : BSD-3
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
+{- |
+ Module      : HSql.Core.Sql
+ Description : pure functions for describing, prepocessing and postprocessing Sql
+ Copyright   : (c) Grant Weyburne, 2016
+ License     : BSD-3
 -}
 module HSql.Core.Sql where
-import Database.HDBC (SqlValue(..), SqlColDesc(..))
-import Database.HDBC.ColTypes (SqlTypeId (SqlUnknownT))
+
+import Control.Arrow
+import Control.DeepSeq (NFData)
+import Control.Lens (Bifunctor (..), snoc)
+import Control.Monad
+import Control.Monad.State.Strict
+import Data.Bool
+import Data.Coerce
+import Data.Kind
+import Data.List.NonEmpty (NonEmpty (..))
+import qualified Data.List.NonEmpty as N
+import qualified Data.List.NonEmpty.Extra as NE
+import Data.Maybe
+import Data.Proxy (Proxy (Proxy))
+import Data.String (IsString (fromString))
+import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Text.Internal.Builder (fromText)
+import Data.These.Combinators
+import qualified Data.Type.Bool as BT
+import Data.Vinyl
+import Data.Vinyl.CoRec (CoRec (..))
+import qualified Data.Vinyl.Core as V
+import qualified Data.Vinyl.Functor as V
+import qualified Data.Vinyl.Recursive as VR
+import Data.Vinyl.TypeLevel hiding (Nat)
+import Database.HDBC (SqlValue (..))
+import GHC.Generics (Generic)
+import GHC.Stack (HasCallStack)
+import GHC.TypeLits (ErrorMessage ((:$$:), (:<>:)), KnownNat, Nat)
+import qualified GHC.TypeLits as GL
+import HSql.Core.Common
 import HSql.Core.Decoder
 import HSql.Core.Encoder
-import HSql.Core.VinylUtils
 import HSql.Core.ErrorHandler
-import HSql.Core.Common
-import HSql.Core.One
-import qualified Data.Vinyl.Functor as V
-import qualified Data.Vinyl.Core as V
-import qualified Data.Vinyl.Recursive as VR
-import Data.Vinyl
-import Data.Vinyl.CoRec (CoRec(..))
-import Data.Vinyl.TypeLevel hiding (Nat)
-import Control.Arrow (left,second)
-import Data.Proxy (Proxy(Proxy))
-import qualified Data.Text as T
-import Data.Text (Text)
-import GHC.TypeLits (ErrorMessage((:<>:),(:$$:)),Nat,KnownNat)
-import qualified GHC.TypeLits as GL
-import Control.Monad (foldM, unless, forM)
-import Text.Shakespeare.Text (ToText(toText))
-import Data.String (IsString(fromString))
-import Data.Text.Internal.Builder (fromText)
-import qualified Data.List.NonEmpty as N
-import GHC.Generics (Generic)
-import Data.Kind (Type)
-import qualified PCombinators as P
-import PCombinators ((:.:), type (~>), Apply)
-import GHC.Stack (HasCallStack)
-import Control.DeepSeq (NFData)
-import Data.These.Combinators
+import HSql.Core.Operator
+import Text.Shakespeare.Text (ToText (toText))
+import Utils.Error
+import Utils.One
+import Utils.Positive
+import qualified Utils.TypeLevel as TP
 
--- | 'Sql' is the core ADT that holds a vinyl record of encoders for the input
--- and a vinyl record of decoders for the ouput and then the Sql text
-data Sql db a b =
+{- | 'Sql' is the core ADT that holds a vinyl record of encoders for the input
+ and a vinyl record of decoders for the ouput and then the Sql text
+-}
+data Sql db a b = -- | sql
   Sql
-    { sDescription :: !Text -- ^ description used for logging and error handling
-    , sEncoders :: !(Rec Enc a) -- ^ a record of encoders matching the input parameters
-    , sDecoders :: !(Rec SingleIn b) -- ^ a record of decoders matching the output columns
-    , sSql :: !Text } -- ^ sql
-    deriving Generic
+  { sDescription :: !Text
+  -- ^ description used for logging and error handling
+  , sEncoders :: !(Rec Enc a)
+  -- ^ a record of encoders matching the input parameters
+  , sDecoders :: !(Rec SingleIn b)
+  -- ^ a record of decoders matching the output columns
+  , sSql :: !Text
+  }
+  deriving stock (Generic)
+
+-- | constraints for the input encoders
+type RSqlInputC a = (ReifyConstraint Show Enc a, RMap a, RecordToList a)
+
+-- | constraints for the output decoders
+type RSqlOutputC b = (ReifyConstraint Show SingleIn b, RMap b, RecordToList b)
+
+deriving stock instance
+  ( RSqlInputC a
+  , RSqlOutputC b
+  ) =>
+  Show (Sql db a b)
 
 instance ToText (Sql db a b) where
   toText = fromText . sSql
 
-instance Show (Sql db a b) where
-  show = T.unpack . sSql
-
-hMetaNull :: SqlColDesc
-hMetaNull = SqlColDesc "hMetaNull" (SqlUnknownT "dummy type:hMetaNull") (Just 5) (Just 7) (Just 11) (Just True)
-
--- | 'ST' is a simple state applicative with the order of 'a' and 's' swapped
-newtype ST e s a = ST { unST :: s -> Either e (s, a) }
-
-instance Functor (ST e s) where
-  fmap f (ST g) =
-    ST $ \s -> case g s of
-                 Left e -> Left e
-                 Right (s', a) -> Right (s', f a)
-
-instance Applicative (ST e s) where
-  pure a = ST $ \s -> Right (s, a)
-  ST sab <*> ST sa =
-    ST $ \s -> case sab s of
-       Left e -> Left e
-       Right (s', ab) ->
-         case sa s' of
-           Left e -> Left e
-           Right (s'', a) -> Right (s'', ab a)
-
--- | simple predicates on the return code from a sql update
-data Op = OPLT | OPLE | OPEQ | OPGE | OPGT | OPNE deriving (Show, Eq, Generic)
-
 -- | 'UpdN' is similar to 'Upd' but encodes a type level predicate on the return code
-newtype UpdN (op :: Op) (val :: Nat) = UpdN Int deriving (Show, Eq, Num, Ord, Generic)
-instance NFData (UpdN op val)
+newtype UpdN (op :: Op) = UpdN Int
+  deriving stock (Show, Eq, Generic)
+  deriving newtype (Num, Ord)
+
+instance NFData (UpdN op)
 
 -- | 'Upd' holds a return code from a sql update call
-newtype Upd = Upd Int deriving (Show, Eq, Num, Ord, Generic)
+newtype Upd = Upd Int
+  deriving stock (Show, Eq, Generic)
+  deriving newtype (Num, Ord)
+
 instance NFData Upd
 
--- | 'SelOne' holds a single row of data
-newtype SelOne a = SelOne { unSelOne :: a } deriving (Show, Eq, Generic)
-instance NFData a => NFData (SelOne a)
+-- | 'SelRowCol' holds a single row and a single column of data
+data SelRowCol a = SelRowCol !a !RMeta
+  deriving stock (Show, Eq, Generic, Functor)
+
+instance NFData a => NFData (SelRowCol a)
+
+-- | 'SelCol' holds a single column of data
+data SelCol a = SelCol ![a] !RMeta
+  deriving stock (Show, Eq, Generic, Functor)
+
+instance NFData a => NFData (SelCol a)
+
+instance Semigroup (RState (SelCol a)) where
+  RState{rsIn = w, rsOut = SelCol xs meta}
+    <> RState{rsOut = SelCol xs' _} =
+      RState{rsIn = w, rsOut = SelCol (xs <> xs') meta}
+
+-- | 'SelRow' holds a single row of data
+data SelRow a = SelRow !a !RMeta
+  deriving stock (Show, Eq, Generic, Functor)
+
+instance NFData a => NFData (SelRow a)
 
 -- | 'Sel' holds a zero or more rows of data
-newtype Sel a = Sel { unSel :: [a] } deriving (Show, Eq, Generic)
+data Sel a = Sel ![a] !RMeta
+  deriving stock (Show, Eq, Generic, Functor)
+
+instance NFData a => NFData (Sel a)
+
+instance Semigroup (RState (Sel a)) where
+  RState{rsIn = w, rsOut = Sel xss meta}
+    <> RState{rsOut = Sel xss' _} =
+      RState{rsIn = w, rsOut = Sel (xss <> xss') meta}
+
+-- | 'Rev' is a higher order function that reverses the resultsets order and runs the stuff inside then reverses the resulting resultsets
+newtype Rev a = Rev a
+  deriving stock (Show, Eq, Generic, Functor)
+
+instance NFData a => NFData (Rev a)
 
 -- | 'Alle' is a higher order function that holds zero or more resultsets of the same type
-newtype Alle a = Alle { unAlle :: [a] } deriving (Show, Eq, Generic)
+newtype Alle a = Alle [a]
+  deriving stock (Show, Eq, Generic, Functor)
+
 instance NFData a => NFData (Alle a)
 
--- | ':+:' is a higher order function that holds a resultset of type a or of type b
-newtype a :+: b = EitherRS { unEitherRS :: Either a b } deriving (Show, Eq, Generic)
+-- | 'Some' is a higher order function that holds one or more resultsets of the same type
+newtype Some a = Some (NonEmpty a)
+  deriving stock (Show, Eq, Generic, Functor)
+
+instance NFData a => NFData (Some a)
+
+-- | 'May' is a higher order function that holds zero or more resultsets of the same type
+newtype May a = May (Maybe a)
+  deriving stock (Show, Eq, Generic, Functor)
+
+instance NFData a => NFData (May a)
+
+-- | a higher order function that holds a resultset of type a or of type b
+newtype a :+: b = Or (Either a b)
+  deriving stock (Show, Eq, Generic, Functor)
+
 instance (NFData a, NFData b) => NFData (a :+: b)
 
--- | 'Some' is a higher order function that is similar to 'Alle' but holds exactly n resultsets of the same type
---   if rev = 'True then will take all but n resultsets instead of the taking the first n resultsets
---   ie if rev = 'True then takes length rss - n resultsets
-newtype Some (rev :: Bool) (n :: Nat) a = Some { unSome :: [a] } deriving (Show, Eq, Generic)
-instance NFData a => NFData (Some rev n a)
+instance Bifunctor (:+:) where
+  bimap f g (Or lr) = Or $ bimap f g lr
 
-type SomeT (n :: Nat) = Some 'False n
-type EmosT (n :: Nat) = Some 'True n
+-- | a higher order function that holds both a resultset of type a and of type b
+data a :*: b = Both !a !b
+  deriving stock (Show, Eq, Generic, Functor)
 
+instance (NFData a, NFData b) => NFData (a :*: b)
+
+instance Bifunctor (:*:) where
+  bimap f g (Both a b) = Both (f a) (g b)
+
+-- | 'Range' is a higher order function that is similar to 'Alle' but holds from m to n resultsets of the same type
+newtype Range (m :: Nat) (n :: Nat) a = Range [a]
+  deriving stock (Show, Eq, Generic, Functor)
+
+instance NFData a => NFData (Range m n a)
+
+-- | 'Exact' is a higher order function that is similar to 'Alle' but holds exactly n resultsets of the same type
+newtype Exact (n :: Nat) a = Exact (NonEmpty a)
+  deriving stock (Show, Eq, Generic, Functor)
+
+instance NFData a => NFData (Exact n a)
+
+-- | type synonym for any type of resultset
 type AnyRaw = Upd :+: SelRaw
 
 -- | 'SelRaw' holds a query resultset with undecoded data
-newtype SelRaw = SelRaw { unSelRaw :: [[SqlValue]] } deriving (Show, Eq, Generic)
+data SelRaw = SelRaw ![[SqlValue]] !RMeta
+  deriving stock (Show, Eq, Generic)
+
 instance NFData SelRaw
 
--- | 'Single' represents a single result set where 'SingleIn' is the input and 'SingleOut' is the
+-- | keeps track of state as we traverse over the resultsets for post processing
+data SingleState = SingleState
+  { stPos :: !Int
+  , stRss :: ![ResultSet]
+  , stRev :: !Bool
+  }
+  deriving stock (Generic, Show, Eq)
+
+instance NFData SingleState
+
+-- | 'RState' holds the input/ouput for a given resultset
+data RState a = RState
+  { rsIn :: !(SingleIn a)
+  , rsOut :: a -- undefined so cannot use strict
+  }
+  deriving stock (Generic, Show)
+
+deriving stock instance
+  (Eq a, Eq (SingleIn a)) =>
+  Eq (RState a)
+
+-- | 'toRState' sets up the initial state before processing all the resultsets
+toRState :: HasCallStack => Rec SingleIn rs -> Rec RState rs
+toRState = VR.rmap $ \xa ->
+  RState
+    xa
+    (programmerError "RState: rsOut doesn't have a value!")
+
+-- | 'Single' represents a single result set
+type Single :: Type -> Constraint
 class Single a where
+  -- | input type
   data SingleIn a
+
+  -- | output type
   type SingleOut a
+
   showF :: SingleIn a -> String
-  singleCol :: SingleIn a
-           -> (Int, [ResultSet])
-           -> Either SE ((Int, [ResultSet]), ([RMeta],(a, SingleOut a)))
-
--- | 'Upd' represents any non select query eg dml insert / update / delete o ddl create / drop / alter
-instance Single Upd where
-  data SingleIn Upd = UpdP
-  type SingleOut Upd = Int
-  showF UpdP = "UpdP"
-
-  singleCol UpdP (pos,rss) =
-    case rss of
-      rs1:rss' -> left (CoRec (V.Identity (SingleColE "Upd" (Just pos) "" rss)) N.<|) $ do
-        rc <- updImpl rs1
-        return ((pos+1,rss'), ([], (Upd rc,rc)))
-      [] -> failNR "Upd" pos emptyResultSetMessage
-
--- | 'UpdN' is similar to 'Upd' but adds a type level predicate on the number of rows returned
-instance (ShowOp op, KnownNat val) => Single (UpdN (op :: Op) (val :: Nat)) where
-  data SingleIn (UpdN op val) = UpdNP
-  type SingleOut (UpdN op val) = Int
-  showF _ = let v = P.pnat @val
-            in "UpdNP " ++ fst (showOp @op) ++ " " ++ show v
-
-  singleCol UpdNP (pos,rss) =
-    case rss of
-      rs1:rss' -> left (CoRec (V.Identity (SingleColE "UpdN" (Just pos) "" rss)) N.<|) $ do
-        let v = P.pnat @val
-        rc <- updImpl rs1
-        case second (\x -> x rc v) (showOp @op) of
-          (dsp, False) -> failNE "UpdN" pos ("update predicate failed: " ++ show rc ++ " " ++ dsp ++ " " ++ show v)
-          (_, True) -> pure ((pos+1,rss'), ([], (UpdN rc,rc)))
-      [] -> failNR "UpdN" pos emptyResultSetMessage
-
--- | 'SelOne' is similar to 'Sel' but expects one row
-instance Single (SelOne a) where
-  data SingleIn (SelOne a) = SelOneP (Dec a)
-  type SingleOut (SelOne a) = a
-  showF (SelOneP d) = "SelOneP " ++ show d
-
-  singleCol (SelOneP dec) (pos,rss) =
-    case rss of
-       rs1:rss' -> left (CoRec (V.Identity (SingleColE "SelOne" (Just pos) "" rss)) N.<|) $ do
-         (meta,xxs) <- selImpl rs1 dec
-         case xxs of
-           [xs] -> return ((pos+1,rss'), ([meta], (SelOne xs,xs)))
-           _ -> failSIC "SelOne" (Just pos) ("expected 1 row but found " ++ show (length xxs)) rss
-       [] -> failNR "SelOne" pos emptyResultSetMessage
-
--- | 'Sel' represents a select query
-instance Single (Sel a) where
-  data SingleIn (Sel a) = SelP (Dec a)
-  type SingleOut (Sel a) = [a]
-  showF (SelP d) = "SelP " ++ show d
-
-  singleCol (SelP dec) (pos,rss) =
-    case rss of
-       rs1:rss' -> left (CoRec (V.Identity (SingleColE "Sel" (Just pos) "" rss)) N.<|) $ do
-          (meta,a) <- selImpl rs1 dec
-          return ((pos+1,rss'), ([meta],(Sel a,a)))
-       [] -> failNR "Sel" pos emptyResultSetMessage
-
--- | 'Alle' expect the rest of the resultsets are of type "a"
-instance Single a => Single (Alle a) where
-  data SingleIn (Alle a) = AlleP (SingleIn a)
-  type SingleOut (Alle a) = [SingleOut a]
-  showF (AlleP a) = "AlleP " ++ show a
-
-  singleCol (AlleP one) (pos,rss) =
-    let n = length rss
-    in left (CoRec (V.Identity (SingleColE "Alle" (Just pos) (show n ++ " resultsets") rss)) N.<|) $ do
-         ((ret,wret),rssout) <- foldM (\((as,was),rss') i -> do
-                                                 ((i',rss''),(hm,(a,wa))) <- singleCol one (i,rss')
-                                                 unless (i' == i+1) $ failBad "Alle Col" ("pos=" ++ show pos ++ " should not happen: not getting a single resultset! " ++ show (i,i')) ""
-                                                 return ((as++[(hm,a)],was++[wa]), rss'')
-                              ) (([],[]), rss) [1.. n]
-         return ((pos+n,rssout), ([], (Alle (map snd ret), wret)))
-
--- | a sum type on the resultset: ie either type "a" or type "b"
-instance (Single a, Single b) => Single (a :+: b) where
-  data SingleIn (a :+: b) = SingleIn a :+: SingleIn b
-  type SingleOut (a :+: b) = Either (SingleOut a) (SingleOut b)
-  showF (a :+: b) = show a ++ " :+: " ++ show b
-
-  -- try the first: if it fails try the second using the same resultset
-  singleCol (a :+: b) (pos,rss) =
-    left (CoRec (V.Identity (SingleColE "EitherRS" (Just pos) "" rss)) N.<|) $
-      case singleCol a (pos,rss) of
-        Left e1 -> case singleCol b (pos,rss) of
-                    Left e2 -> Left $ CoRec (V.Identity (SingleColE "EitherRS" (Just pos) "failed trying Left and Right" rss)) N.<| (e1 <> e2)
-                    Right (ret, (hm,(a2,wa2))) -> Right (ret, (hm, (EitherRS (Right a2),Right wa2)))
-        Right (ret, (hm,(a1,wa1))) -> Right (ret, (hm, (EitherRS (Left a1),Left wa1)))
-
--- | represents one or more resultsets of type "a"
-instance (Single a, P.GetBool rev, KnownNat n) => Single (Some (rev :: Bool) (n :: Nat) a) where
-  data SingleIn (Some rev n a) = SomeP (SingleIn a)
-  type SingleOut (Some rev n a) = [SingleOut a]
-  showF (SomeP a) = "SomeP" ++ (if P.getBool @rev then " Reverse" else "") ++ "(" ++ show (P.pnat @n) ++  ") " ++ show a
-
-  singleCol w@(SomeP one) (pos,rss) =
-     case someImpl w rss of
-       Left e -> Left e
-       Right (n,msg) ->
-         left (CoRec (V.Identity (SingleColE msg (Just pos) "" rss)) N.<|) $ do
-           ((ret,wret),rssout) <- foldM (\((as,was),rss') i -> do
-                                                   ((i',rss''),(hm,(a,wa))) <- singleCol one (i,rss')
-                                                   unless (i' == i+1) $ failBad (msg ++ " Col") ("pos=" ++ show pos ++ " should not happen: not getting a single resultset!" ++ show (i,i')) ""
-                                                   return ((as++[(hm,a)],was++[wa]), rss'')
-                                ) (([],[]), rss) [1.. n]
-           return ((pos+n,rssout), ([], (Some (map snd ret),wret)))
-
-someImpl :: forall rev n a b . (P.GetBool rev, KnownNat n) => SingleIn (Some rev n a) -> [b] -> Either SE (Int, String)
-someImpl _ rss =
-    let rev = P.getBool @rev
-        n' = P.pnat @n
-        n = if rev then length rss - n' else n'
-        msg = "Some " ++ (if rev then "Reverse " else "") ++ show n'
-    in if | n<0 -> failNR msg n ("not enough resultsets(" ++ show (length rss) ++ ") n=" ++ show n')
-          | n>length rss -> failNR msg n ("not enough resultsets(" ++ show (length rss) ++ ") n=" ++ show n')
-          | otherwise -> return (n,msg)
-
--- | represents an untyped query resultset
-instance Single SelRaw where
-  data SingleIn SelRaw = SelRawP
-  type SingleOut SelRaw = [[SqlValue]]
-  showF SelRawP = "SelRawP"
-
-  singleCol SelRawP (pos,rss) =
-    case rss of
-      rs1:rss' -> left (CoRec (V.Identity (SingleColE "SelRaw" (Just pos) "" rss)) N.<|) $ do
-        (meta,a) <- selRawImpl rs1
-        return ((pos+1,rss'), ([meta], (SelRaw a,a)))
-      [] -> failNR "Sel" pos emptyResultSetMessage
+  singleCol ::
+    HasCallStack =>
+    SingleIn a ->
+    StateT SingleState (Either SE) a
+  toSingleOut :: a -> SingleOut a
+  rsOutUnwrap :: RState a -> SingleOut a
+  rsOutUnwrap = toSingleOut . rsOut
 
 instance Single a => Show (SingleIn a) where
   show = showF
 
--- | 'RState' holds the input/ouput for a given resultset
-data RState a =
-   RState { rsIn :: !(SingleIn a)
-          , rsOutWrapped :: a  -- undefined so cannot use strict
-          , rsOut :: SingleOut a -- undefined so cannot use strict
-          , rsMeta :: ![RMeta]
-          }
+-- | add an error using the current state  (skip the first error message)
+addError :: String -> SingleState -> Either SE a -> Either SE a
+addError = addError' ""
 
-deriving instance (Show a, Show (SingleIn a), Show (SingleOut a)) => Show (RState a)
+-- | add an error using the current state
+addError' :: String -> String -> SingleState -> Either SE a -> Either SE a
+addError' emsg msg z = left (CoRec (V.Identity (SqlE msg (stPos z) emsg (stRss z))) N.<|)
 
--- bearbeiten: how to get around using undefined
--- | 'toRState' sets up the initial state before processing all the resultsets
-toRState :: Rec SingleIn rs -> Rec RState rs
-toRState = VR.rmap $ \xa -> RState xa
-                                   (error "RState: rsOutWrapped doesn't have a value!")
-                                   (error "RState: rsOut doesn't have a value!")
-                                   []
+{-
+type SS a = StateT SingleState (Either SE) a
 
--- | 'ShowOp' extracts a value level predicate from the typelevel for 'UpdN'
-class ShowOp (a :: Op) where
-  showOp :: (String, Int -> Int -> Bool)
-instance ShowOp 'OPLT where
-  showOp = ("<", (<))
-instance ShowOp 'OPLE where
-  showOp = ("<=", (<=))
-instance ShowOp 'OPEQ where
-  showOp = ("==", (==))
-instance ShowOp 'OPGE where
-  showOp = (">=", (>=))
-instance ShowOp 'OPGT where
-  showOp = (">", (>))
-instance ShowOp 'OPNE where
-  showOp = ("/=", (/=))
+addError'' :: String -> String -> StateT SingleState (Either SE) a -> StateT SingleState (Either SE) a
+addError'' emsg msg ma =
+  StateT $ \z -> do
+    left (CoRec (V.Identity (SqlE msg (stPos z) emsg (stRss z))) N.<|) $
+      runStateT ma z
+-}
 
-processRetCol
-  :: (RecAll RState rs SingleZ
-    , ValidateNested rs
-    ) => Rec SingleIn rs
-      -> [ResultSet]
-      -> Either SE (Rec RState rs)
-processRetCol decRec = processRetCol' (toRState decRec)
+-- | 'Upd' represents any non select query eg dml insert / update / delete o ddl create / drop / alter
+instance Single Upd where
+  data SingleIn Upd = UpdP deriving stock (Generic, Eq)
+  type SingleOut Upd = Int
+  showF UpdP = "Upd"
+  toSingleOut (Upd a) = a
 
--- | 'processRetCol'' is the same as 'processRet'' but additionally includes metadata
-processRetCol'
-  :: (RecAll RState rs SingleZ
-    , ValidateNested rs
-    ) => Rec RState rs
-      -> [ResultSet]
-      -> Either SE (Rec RState rs)
-processRetCol' xs rss =
-  case flip unST (0::Int,rss) $ rtraverse (\(V.Compose (V.Dict x)) -> ST (singleColZ x)) (VR.reifyConstraint (Proxy @SingleZ) xs) of
-    Left e -> Left e
-    Right ((pos,rss'), w) | null rss' -> Right w
-                          | otherwise -> failUCC "processRetCol'" pos "Unconsumed" rss'
+  singleCol k@UpdP = StateT $ \z -> do
+    let msg = showF k
+    case stRss z of
+      rs1 : rss' -> addError msg z $ do
+        rc <- updImpl rs1
+        nextSingleStateExit
+          msg
+          z
+          rss'
+          (Upd rc)
+      [] -> failNR msg (stPos z) emptyResultSetMessage
 
--- | 'SingleZ' is a simple state monad wrapper around 'Single' which processes a single 'RState' entry
--- we need this wrapper as vinyl uses Rec RState rs wraps RState around each rs
+-- | 'UpdN' is similar to 'Upd' but adds a type level predicate on the number of rows returned
+instance ExprC op => Single (UpdN (op :: Op)) where
+  data SingleIn (UpdN op) = UpdNP deriving stock (Generic, Eq)
+  type SingleOut (UpdN op) = Int
+  toSingleOut (UpdN a) = a
+  showF UpdNP = "UpdN " ++ opPretty False (evalC @op Nothing)
+
+  singleCol k@UpdNP = StateT $ \z -> do
+    let msg = showF k
+    case stRss z of
+      rs1 : rss' -> addError msg z $ do
+        rc <- updImpl rs1
+        case evalC @op (Just rc) of
+          op@OpRet{opBool = mb} ->
+            case mb of
+              Nothing ->
+                failBad msg ("pos=" ++ show (stPos z) ++ " update predicate returned nothing! how does this happen " ++ opPretty True op) ""
+              Just False ->
+                failUpdN msg (stPos z) ("update predicate failed: rc=" ++ show rc ++ " => " ++ opPretty True op)
+              Just True -> do
+                nextSingleStateExit
+                  msg
+                  z
+                  rss'
+                  (UpdN rc)
+      [] -> failNR msg (stPos z) emptyResultSetMessage
+
+-- | 'SelCol' represents a select query with one column
+instance Single (SelCol a) where
+  newtype SingleIn (SelCol a) = SelColP (Dec a) deriving stock (Generic)
+  type SingleOut (SelCol a) = [a]
+  showF (SelColP _) = "SelCol"
+  toSingleOut (SelCol a _) = a
+
+  singleCol k@(SelColP dec) = StateT $ \z -> do
+    let msg = showF k
+    case stRss z of
+      rs1 : rss' -> addError msg z $ do
+        chkOneColumn msg rs1
+        (meta, a) <- selImpl msg rs1 dec
+        nextSingleStateExit
+          msg
+          z
+          rss'
+          (SelCol a meta)
+      [] -> failNR msg (stPos z) emptyResultSetMessage
+
+-- | 'SelRowCol' is similar to 'Sel' but expects one row and one col
+instance Single (SelRowCol a) where
+  newtype SingleIn (SelRowCol a) = SelRowColP (Dec a) deriving stock (Generic)
+  type SingleOut (SelRowCol a) = a
+  showF (SelRowColP _) = "SelRowCol"
+  toSingleOut (SelRowCol a _) = a
+
+  singleCol k@(SelRowColP dec) = StateT $ \z -> do
+    let msg = showF k
+    case stRss z of
+      rs1 : rss' -> addError msg z $ do
+        chkOneColumn msg rs1
+        (meta, xxs) <- selImpl msg rs1 dec
+        case xxs of
+          [xs] -> do
+            nextSingleStateExit
+              msg
+              z
+              rss'
+              (SelRowCol xs meta)
+          _wrongrowcnt -> failOneRow msg (stPos z) ("expected 1 row but found " ++ show (length xxs)) rs1
+      [] -> failNR msg (stPos z) emptyResultSetMessage
+
+-- | 'SelRow' is similar to 'Sel' but expects one row
+instance Single (SelRow a) where
+  newtype SingleIn (SelRow a) = SelRowP (Dec a) deriving stock (Generic)
+  type SingleOut (SelRow a) = a
+  showF (SelRowP _) = "SelRow"
+  toSingleOut (SelRow a _) = a
+
+  singleCol k@(SelRowP dec) = StateT $ \z -> do
+    let msg = showF k
+    case stRss z of
+      rs1 : rss' -> addError msg z $ do
+        (meta, xxs) <- selImpl msg rs1 dec
+        case xxs of
+          [xs] -> do
+            nextSingleStateExit
+              msg
+              z
+              rss'
+              (SelRow xs meta)
+          _wrongrowcnt -> failOneRow msg (stPos z) ("expected 1 row but found " ++ show (length xxs)) rs1
+      [] -> failNR msg (stPos z) emptyResultSetMessage
+
+-- | 'Sel' represents a select query
+instance Single (Sel a) where
+  newtype SingleIn (Sel a) = SelP (Dec a) deriving stock (Generic)
+  type SingleOut (Sel a) = [a]
+  showF (SelP _) = "Sel"
+  toSingleOut (Sel a _) = a
+
+  singleCol k@(SelP dec) = StateT $ \z -> do
+    let msg = showF k
+    case stRss z of
+      rs1 : rss' -> addError msg z $ do
+        (meta, a) <- selImpl msg rs1 dec
+        nextSingleStateExit
+          msg
+          z
+          rss'
+          (Sel a meta)
+      [] -> failNR msg (stPos z) emptyResultSetMessage
+
+deriving stock instance (Eq (SingleIn a)) => Eq (SingleIn (Range m n a))
+
+-- | 'Range' expects to handle between m and n resultsets of type "a"
+instance
+  ( Single a
+  , KnownNat m
+  , KnownNat n
+  , TP.FailUnless
+      ((m GL.+ 1) GL.<=? n)
+      ( 'GL.Text "Range m n a: requires m < n but found m="
+          ':<>: 'GL.ShowType m
+          ':<>: 'GL.Text " and n="
+          ':<>: 'GL.ShowType n
+          ':$$: 'GL.Text "  a="
+          ':<>: 'GL.ShowType a
+      )
+  ) =>
+  Single (Range m n a)
+  where
+  newtype SingleIn (Range m n a) = RangeP (SingleIn a) deriving stock (Generic)
+  type SingleOut (Range m n a) = [SingleOut a]
+  toSingleOut (Range as) = map toSingleOut as
+
+  showF (RangeP a) =
+    let m = TP.pnat @m
+        n = TP.pnat @n
+     in "Range[" ++ show m ++ "," ++ show n ++ "] " ++ showF a
+
+  singleCol k@(RangeP one) = StateT $ \z -> do
+    let msg = showF k
+    let m = TP.pnat @m
+        n = TP.pnat @n
+    addError' (show (length (stRss z)) ++ " resultsets") msg z $ do
+      (sc, z') <-
+        foldM
+          ( \(sc, zz) i -> do
+              (sc', zz') <-
+                addError (msg ++ "(" ++ show i ++ ")") zz $ do
+                  runStateT (singleCol one) zz
+              checkRssThenExit
+                (msg ++ "(" ++ show i ++ ")")
+                zz
+                zz'
+                (Alle (coerce sc `snoc` sc'))
+          )
+          (Alle [], z)
+          [1 .. m]
+      (sc', z'') <-
+        runStateT
+          ( handleSomeResultSets
+              (Just (n - m))
+              msg
+              one
+              sc
+          )
+          z'
+      pure (coerce sc', z'')
+
+deriving stock instance (Eq (SingleIn a)) => Eq (SingleIn (Rev a))
+
+{- | 'Rev' expect the rest of the resultsets are of type "a"
+   this is a very special case:just moves a cursor from one end to the other
+   then restores the cursor at the end: so the post condition is a bit weird
+   todo: remove checkRss msg z' z'' cos redundant!
+-}
+instance Single a => Single (Rev a) where
+  newtype SingleIn (Rev a) = RevP (SingleIn a) deriving stock (Generic)
+  type SingleOut (Rev a) = SingleOut a
+  showF (RevP a) = "Rev " ++ showF a
+  toSingleOut (Rev a) = toSingleOut a
+
+  singleCol k@(RevP one) = StateT $ \z -> do
+    let msg = showF k
+    addError' (show (length (stRss z)) ++ " resultsets") msg z $ do
+      let nbefore = length (stRss z)
+          posbefore =
+            if stRev z
+              then stPos z - nbefore
+              else stPos z + nbefore
+      let z' =
+            SingleState
+              posbefore -- need to adjust the position if fwd vs bwd
+              (reverse (stRss z)) -- reverse resultsets
+              (not (stRev z))
+      (sc, z'') <- runStateT (singleCol one) z'
+      -- we skip checkRss msg z' z'' cos should have be checked lower down in 'a' in eg Exact Both Sel ...
+      when _CheckRss $ void $ checkRss msg z' z'' -- this is correct but no need cos handled downstream: Rev a means that 'a' is should have been checked in Sel/Exact ...
+      pure (Rev sc, z{stRss = reverse (stRss z'')})
+
+deriving stock instance (Eq (SingleIn a)) => Eq (SingleIn (Alle a))
+
+-- | 'Alle' expect the rest of the resultsets are of type "a"
+instance Single a => Single (Alle a) where
+  newtype SingleIn (Alle a) = AlleP (SingleIn a) deriving stock (Generic)
+  type SingleOut (Alle a) = [SingleOut a]
+  showF (AlleP a) = "Alle " ++ showF a
+  toSingleOut (Alle as) = map toSingleOut as
+
+  singleCol k@(AlleP one) = StateT $ \z -> do
+    let msg = showF k
+    addError' (show (length (stRss z)) ++ " resultsets") msg z $ do
+      runStateT
+        ( handleSomeResultSets
+            Nothing
+            msg
+            one
+            (Alle [])
+        )
+        z
+
+deriving stock instance (Eq (SingleIn a)) => Eq (SingleIn (Some a))
+
+-- | 'Some' expects at least one of type "a" then the rest of the resultsets are of type "a"
+instance Single a => Single (Some a) where
+  newtype SingleIn (Some a) = SomeP (SingleIn a) deriving stock (Generic)
+  type SingleOut (Some a) = NonEmpty (SingleOut a)
+  showF (SomeP a) = "Some " ++ showF a
+  toSingleOut (Some as) = N.map toSingleOut as
+
+  singleCol k@(SomeP one) = StateT $ \z -> do
+    let msg = showF k
+    addError' (show (length (stRss z)) ++ " resultsets") msg z $ do
+      (scg, ss) <-
+        runStateT
+          ( handleSomeResultSets
+              Nothing
+              msg
+              one
+              (Alle [])
+          )
+          z
+      case scg of
+        Alle [] -> failNR msg (stPos z) "expected at least one resultset"
+        Alle (a : as) -> return (Some (a :| as), ss)
+
+deriving stock instance (Eq (SingleIn a)) => Eq (SingleIn (May a))
+
+-- | 'May' expects at most one resultsets of type "a"
+instance Single a => Single (May a) where
+  newtype SingleIn (May a) = MayP (SingleIn a) deriving stock (Generic)
+  type SingleOut (May a) = Maybe (SingleOut a)
+  showF (MayP a) = "May " ++ showF a
+  toSingleOut (May a) = toSingleOut <$> a
+
+  singleCol k@(MayP one) = StateT $ \z -> do
+    let msg = showF k
+    addError' (show (length (stRss z)) ++ " resultsets") msg z $ do
+      case runStateT (singleCol one) z of
+        Left _ ->
+          Right (May Nothing, z)
+        Right (sc, z') -> do
+          checkRssThenExit
+            msg
+            z
+            z'
+            (May (Just sc))
+
+deriving stock instance
+  (Single a, Single b, Eq (SingleIn a), Eq (SingleIn b)) =>
+  Eq (SingleIn (a :+: b))
+
+-- | a sum type on the resultset: ie either type "a" or type "b"
+instance (Single a, Single b) => Single (a :+: b) where
+  data SingleIn (a :+: b) = SingleIn a :+: SingleIn b deriving stock (Generic)
+  type SingleOut (a :+: b) = Either (SingleOut a) (SingleOut b)
+  showF (a :+: b) = showF a ++ " :+: " ++ showF b
+  toSingleOut (Or lr) = either (Left . toSingleOut) (Right . toSingleOut) lr
+
+  -- try the first: if it fails try the second using the same initial resultsets as input
+  singleCol k@(a :+: b) = StateT $ \z -> do
+    let msg = showF k
+        msg' rgt = msg ++ "(" ++ bool "lhs" "rhs" rgt ++ ")"
+    addError msg z $ do
+      (rgt, (sc, z')) <- case runStateT (singleCol a) z of
+        Left e1 ->
+          case runStateT (singleCol b) z of
+            Left e2 -> addError' "failed trying Left and Right" (msg' False) z $ Left (e1 <> e2)
+            Right (sc, z') -> Right (False, (Or (Right sc), z'))
+        Right (sc, z') -> Right (True, (Or (Left sc), z'))
+      checkRssThenExit
+        (msg' rgt)
+        z
+        z'
+        sc
+
+deriving stock instance
+  (Single a, Single b, Eq (SingleIn a), Eq (SingleIn b)) =>
+  Eq (SingleIn (a :*: b))
+
+-- | a product type on the resultset: type "a" and type "b"
+instance (Single a, Single b) => Single (a :*: b) where
+  data SingleIn (a :*: b) = SingleIn a :*: SingleIn b deriving stock (Generic)
+  type SingleOut (a :*: b) = (SingleOut a, SingleOut b)
+  showF (a :*: b) = showF a ++ " :*: " ++ showF b
+  toSingleOut (Both a b) = (toSingleOut a, toSingleOut b)
+  singleCol k@(a :*: b) = StateT $ \z -> do
+    let msg rgt = showF k ++ "(" ++ bool "lhs" "rhs" rgt ++ ")"
+    (sc1, z') <- addError (msg False) z $ do
+      (sc1, z') <- runStateT (singleCol a) z
+      checkRssThenExit
+        (msg False)
+        z
+        z'
+        sc1
+
+    addError (msg True) z' $ do
+      (sc2, z'') <- runStateT (singleCol b) z'
+      checkRssThenExit
+        (msg True)
+        z'
+        z''
+        (Both sc1 sc2)
+
+deriving stock instance Eq (SingleIn a) => Eq (SingleIn (Exact n a))
+
+-- | represents exactly "n" resultsets of type "a"
+instance
+  ( Single a
+  , KnownNat n
+  , TP.FailUnless
+      (1 GL.<=? n)
+      ( 'GL.Text "Exact n a: requires n >= 1 but found n="
+          ':<>: 'GL.ShowType n
+          ':$$: 'GL.Text "  a="
+          ':<>: 'GL.ShowType a
+      )
+  ) =>
+  Single (Exact (n :: Nat) a)
+  where
+  newtype SingleIn (Exact n a) = ExactP (SingleIn a) deriving stock (Generic)
+  type SingleOut (Exact n a) = NonEmpty (SingleOut a)
+  showF (ExactP a) = "Exact[" ++ show (TP.pnat @n) ++ "] " ++ showF a
+  toSingleOut (Exact xs) = N.map toSingleOut xs
+  singleCol k@(ExactP one) = StateT $ \z -> do
+    -- remember i and i' are just for bookkeeping
+    -- how much is used is determined by rss before and after
+    -- pos+n should probably be pos + length rss - length rssout
+    let msg = showF k
+    let n = TP.pnat @n
+    -- use a list then convert to nonempty is easiest and less code repetition
+    -- tricky cos cant start with empty list cos non empty
+    -- CORRECT BY CONSTRUCTION
+    (sc0, z0) <- addError (msg ++ "(1)") z $ do
+      (sc0, z0) <- runStateT (singleCol one) z
+      checkRssThenExit
+        (msg ++ " i=1")
+        z
+        z0
+        (Exact (pure sc0))
+
+    foldM
+      ( \(sc, zz) i -> do
+          -- left msg singleCol so we can add context of which iteration in this Exact loop
+          -- ie add context exception if fails
+          (sc', zz') <-
+            addError (msg ++ " i=" ++ show i) zz $ do
+              runStateT (singleCol one) zz
+          checkRssThenExit
+            (msg ++ " i=" ++ show i)
+            zz
+            zz'
+            (coerce $ coerce sc NE.|> sc')
+      )
+      (sc0, z0)
+      [2 .. n]
+
+-- | represents an untyped query resultset
+instance Single SelRaw where
+  data SingleIn SelRaw = SelRawP deriving stock (Generic, Eq)
+  type SingleOut SelRaw = [[SqlValue]]
+  showF SelRawP = "SelRaw"
+  toSingleOut (SelRaw xs _) = xs
+
+  singleCol k@SelRawP = StateT $ \z -> do
+    let msg = showF k
+    case stRss z of
+      rs1 : rss' -> addError msg z $ do
+        (meta, a) <- selRawImpl rs1
+        nextSingleStateExit
+          msg
+          z
+          rss'
+          (SelRaw a meta)
+      [] -> failNR msg (stPos z) emptyResultSetMessage
+
+-- | parses the resultsets into the dsl slots
+processRetCol ::
+  ( RecAll RState rs SingleZ
+  , ( ValidateNested rs
+    , HasCallStack
+    )
+  ) =>
+  Rec SingleIn rs ->
+  [ResultSet] ->
+  Either SE (Rec RState rs)
+processRetCol !decRec !rss = do
+  (w, z) <-
+    flip runStateT (SingleState 0 rss False) $
+      rtraverse
+        (\(V.Compose (V.Dict x)) -> singleColZ x)
+        (VR.reifyConstraint (Proxy @SingleZ) (toRState decRec))
+  case stRss z of
+    [] -> Right w
+    _ : _ -> failUncRS "processRetCol'" (stPos z) "Unconsumed" (stRss z)
+
+{- | 'SingleZ' is a simple state monad wrapper around 'Single' which processes a single 'RState' entry
+ we need this wrapper as vinyl uses Rec RState rs wraps RState around each rs
+-}
+type SingleZ :: Type -> Constraint
 class SingleZ a where
-  singleColZ :: a -> (Int, [ResultSet]) -> Either SE ((Int, [ResultSet]), a)
+  singleColZ ::
+    HasCallStack =>
+    a ->
+    StateT SingleState (Either SE) a
 
 -- only one instance that wraps 'Single' which is needed for 'processRet' and 'processRetCol'
 instance Single a => SingleZ (RState a) where
-  singleColZ w (b,c) =
-    case singleCol (rsIn w) (b,c) of
-      Left e -> Left e
-      Right (z, (hms,(a,wa))) -> Right (z,w { rsOutWrapped = a, rsOut = wa, rsMeta = hms })
+  singleColZ rstate = do
+    sc <- singleCol (rsIn rstate)
+    pure
+      rstate
+        { rsOut = sc
+        }
 
--- | shortcut to get all the hmetas in one go
-hmall :: Rec RState '[a] -> [RMeta]
--- cant use Vinyl Const cos no applicative instance!!!!
---hmall rs = L.getConst $ rtraverse (L.Const . rsMeta) rs
-hmall = VR.rfoldMap rsMeta
+-- | handles a single resultset
+nextSingleStateExit ::
+  String ->
+  SingleState ->
+  [ResultSet] ->
+  a ->
+  Either SE (a, SingleState)
+nextSingleStateExit msg z rss sc = do
+  let z' =
+        z
+          { stPos = if stRev z then stPos z - 1 else stPos z + 1
+          , stRss = rss
+          }
+  when _CheckRss $ void $ checkRss msg z z'
+  pure (sc, z')
 
--- need this to do the conversions
--- max of 8
---type family SingleOuts (rs :: [Type]) = w | w -> rs where  -- doesnt work cos overlaps
--- | convert up to 8 resultsets to tuples
-type family SingleOuts (rs :: [Type]) :: Type where
+-- | check that state is valid and if ok then return
+checkRssThenExit ::
+  String ->
+  SingleState ->
+  SingleState ->
+  a ->
+  Either SE (a, SingleState)
+checkRssThenExit msg z z' sc = do
+  when _CheckRss $ void $ checkRss msg z z'
+  pure (sc, z')
+
+-- | convert up to n resultsets to tuples
+type SingleOuts :: [Type] -> Type
+type family SingleOuts rs where
   SingleOuts '[] = ()
   SingleOuts '[a] = SingleOut a
-  SingleOuts '[a,b] = (SingleOut a, SingleOut b)
-  SingleOuts '[a,b,c] = (SingleOut a, SingleOut b, SingleOut c)
-  SingleOuts '[a,b,c,d] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d)
-  SingleOuts '[a,b,c,d,e] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d, SingleOut e)
-  SingleOuts '[a,b,c,d,e,f] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d, SingleOut e, SingleOut f)
-  SingleOuts '[a,b,c,d,e,f,g] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d, SingleOut e, SingleOut f, SingleOut g)
-  SingleOuts '[a,b,c,d,e,f,g,h] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d, SingleOut e, SingleOut f, SingleOut g, SingleOut h)
-
-
--- makes use of unique structure of vinyl record or at least the rs part of Rec f rs
--- no problem cos going the right direction from rs to v which is well defined
--- going the other way is problematic
--- max of 8
+  SingleOuts '[a, b] = (SingleOut a, SingleOut b)
+  SingleOuts '[a, b, c] = (SingleOut a, SingleOut b, SingleOut c)
+  SingleOuts '[a, b, c, d] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d)
+  SingleOuts '[a, b, c, d, e] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d, SingleOut e)
+  SingleOuts '[a, b, c, d, e, f] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d, SingleOut e, SingleOut f)
+  SingleOuts '[a, b, c, d, e, f, g] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d, SingleOut e, SingleOut f, SingleOut g)
+  SingleOuts '[a, b, c, d, e, f, g, h] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d, SingleOut e, SingleOut f, SingleOut g, SingleOut h)
+  SingleOuts '[a, b, c, d, e, f, g, h, i] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d, SingleOut e, SingleOut f, SingleOut g, SingleOut h, SingleOut i)
+  SingleOuts '[a, b, c, d, e, f, g, h, i, j] = (SingleOut a, SingleOut b, SingleOut c, SingleOut d, SingleOut e, SingleOut f, SingleOut g, SingleOut h, SingleOut i, SingleOut j)
 
 -- | convert Rec RState rs to tuple
-class PGen (rs :: [Type]) (v :: Type) | rs -> v where
+type PGen :: [Type] -> Constraint
+class PGen rs where
   ext :: Rec RState rs -> SingleOuts rs
-instance PGen '[] () where
-  ext RNil = ()
-instance PGen '[a] a where
-  ext (r1 :& RNil) = rsOut r1
-instance PGen '[a,b] (a,b) where
-  ext (r1 :& r2 :& RNil) = (rsOut r1, rsOut r2)
-instance PGen '[a,b,c] (a,b,c) where
-  ext (r1 :& r2 :& r3 :& RNil) = (rsOut r1, rsOut r2, rsOut r3)
-instance PGen '[a,b,c,d] (a,b,c,d) where
-  ext (r1 :& r2 :& r3 :& r4 :& RNil) = (rsOut r1, rsOut r2, rsOut r3, rsOut r4)
-instance PGen '[a,b,c,d,e] (a,b,c,d,e) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& RNil) = (rsOut r1, rsOut r2, rsOut r3, rsOut r4, rsOut r5)
-instance PGen '[a,b,c,d,e,f] (a,b,c,d,e,f) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& RNil) = (rsOut r1, rsOut r2, rsOut r3, rsOut r4, rsOut r5, rsOut r6)
-instance PGen '[a,b,c,d,e,f,g] (a,b,c,d,e,f,g) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& RNil) = (rsOut r1, rsOut r2, rsOut r3, rsOut r4, rsOut r5, rsOut r6, rsOut r7)
-instance PGen '[a,b,c,d,e,f,g,h] (a,b,c,d,e,f,g,h) where
-  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& r8 :& RNil) = (rsOut r1, rsOut r2, rsOut r3, rsOut r4, rsOut r5, rsOut r6, rsOut r7, rsOut r8)
 
--- inductive tuples: not as useful as PGen/ext but works for all sizes!
--- () (a,()) (a,(b,())) (a,(b,(c,()))) (a,(b,(c,(d,())))) ...
-type family SingleOuts' (rs :: [Type]) :: Type where
+instance PGen '[] where
+  ext RNil = ()
+
+instance Single a => PGen '[a] where
+  ext (r1 :& RNil) = rsOutUnwrap r1
+
+instance (Single a, Single b) => PGen '[a, b] where
+  ext (r1 :& r2 :& RNil) = (rsOutUnwrap r1, rsOutUnwrap r2)
+
+instance (Single a, Single b, Single c) => PGen '[a, b, c] where
+  ext (r1 :& r2 :& r3 :& RNil) = (rsOutUnwrap r1, rsOutUnwrap r2, rsOutUnwrap r3)
+
+instance (Single a, Single b, Single c, Single d) => PGen '[a, b, c, d] where
+  ext (r1 :& r2 :& r3 :& r4 :& RNil) = (rsOutUnwrap r1, rsOutUnwrap r2, rsOutUnwrap r3, rsOutUnwrap r4)
+
+instance (Single a, Single b, Single c, Single d, Single e) => PGen '[a, b, c, d, e] where
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& RNil) = (rsOutUnwrap r1, rsOutUnwrap r2, rsOutUnwrap r3, rsOutUnwrap r4, rsOutUnwrap r5)
+
+instance (Single a, Single b, Single c, Single d, Single e, Single f) => PGen '[a, b, c, d, e, f] where
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& RNil) = (rsOutUnwrap r1, rsOutUnwrap r2, rsOutUnwrap r3, rsOutUnwrap r4, rsOutUnwrap r5, rsOutUnwrap r6)
+
+instance (Single a, Single b, Single c, Single d, Single e, Single f, Single g) => PGen '[a, b, c, d, e, f, g] where
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& RNil) = (rsOutUnwrap r1, rsOutUnwrap r2, rsOutUnwrap r3, rsOutUnwrap r4, rsOutUnwrap r5, rsOutUnwrap r6, rsOutUnwrap r7)
+
+instance (Single a, Single b, Single c, Single d, Single e, Single f, Single g, Single h) => PGen '[a, b, c, d, e, f, g, h] where
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& r8 :& RNil) = (rsOutUnwrap r1, rsOutUnwrap r2, rsOutUnwrap r3, rsOutUnwrap r4, rsOutUnwrap r5, rsOutUnwrap r6, rsOutUnwrap r7, rsOutUnwrap r8)
+
+instance (Single a, Single b, Single c, Single d, Single e, Single f, Single g, Single h, Single i) => PGen '[a, b, c, d, e, f, g, h, i] where
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& r8 :& r9 :& RNil) = (rsOutUnwrap r1, rsOutUnwrap r2, rsOutUnwrap r3, rsOutUnwrap r4, rsOutUnwrap r5, rsOutUnwrap r6, rsOutUnwrap r7, rsOutUnwrap r8, rsOutUnwrap r9)
+
+instance (Single a, Single b, Single c, Single d, Single e, Single f, Single g, Single h, Single i, Single j) => PGen '[a, b, c, d, e, f, g, h, i, j] where
+  ext (r1 :& r2 :& r3 :& r4 :& r5 :& r6 :& r7 :& r8 :& r9 :& r10 :& RNil) = (rsOutUnwrap r1, rsOutUnwrap r2, rsOutUnwrap r3, rsOutUnwrap r4, rsOutUnwrap r5, rsOutUnwrap r6, rsOutUnwrap r7, rsOutUnwrap r8, rsOutUnwrap r9, rsOutUnwrap r10)
+
+-- | type family for inductive tuples types
+type SingleOuts' :: [Type] -> Type
+type family SingleOuts' rs where
   SingleOuts' '[] = ()
   SingleOuts' (a ': as) = (SingleOut a, SingleOuts' as)
 
 -- | alternative approach of converting vinyl record of results to a nested tuple
-class PGen' (rs :: [Type]) where
-  ext' :: Rec RState rs -> SingleOuts' rs
+type PGen' :: [Type] -> Constraint
+class PGen' rs where
+  ext' :: HasCallStack => Rec RState rs -> SingleOuts' rs
+
 instance PGen' '[] where
   ext' RNil = ()
-instance PGen' as => PGen' (a ': as) where
-  ext' (r :& rs) = (rsOut r, ext' rs)
 
--- | 'selImpl' tries to decode a result set based on the decoder and then runs the predicate
-selImpl :: HasCallStack => ResultSet -> Dec a -> Either SE (RMeta, [a])
-selImpl z@(Right (meta,xxs)) (Dec dec) = do
-  ys <- forM (zip [1::Int ..] xxs) $ \(r,xs) -> do
-          case dec xs of
-            Left es ->
-            -- change the code so only DecodingE happens?
-              case justThere $ getDecErrors es of -- ConvE can appear as an exception but seemingly always with DecodingE : see liftCE
-                Nothing -> error "selImpl: missing DecodingE" -- cant seem to make this error fire as always has an accompanying DecodingE exception
-                Just (ss N.:| _) ->
-                  let c = length xs - length (deSqlValues ss)
-                  in Left $ liftDE $ decAddError' "selImpl" ("row/col " ++ show (r,c)) [] es
-            Right a -> return a
-  ret <- forM (zip [1::Int ..] ys) $ \(i,(a,lft)) -> do
-    unless (null lft) $ failUCC "Select" i ("selImpl: didnt consume all values! row " ++ show i ++ ":leftovers=" ++ show lft) [z]
-    return a
-  return (meta, ret)
-selImpl z _ = failURST "selImpl(Select)" "expected a select but found an update" z
+instance (Single a, PGen' as) => PGen' (a ': as) where
+  ext' (r :& rs) = (rsOutUnwrap r, ext' rs)
+
+-- | checks that there is exactly one column in the resultset
+chkOneColumn ::
+  String ->
+  Either Int (RMeta, [[SqlValue]]) ->
+  Either SE ()
+chkOneColumn msg =
+  \case
+    z@(Right (_meta, xss)) ->
+      case filter ((/= 1) . length . snd) (zip [1 :: Int ..] xss) of
+        [] -> pure ()
+        (i, xs) : _ ->
+          failOneCol msg i ("expected one column only but found " ++ show (length xs) ++ " row=" ++ show i ++ " " ++ show xs) z
+    Left _rc -> pure () -- let downstream handle this
+
+-- | handler for a select* style resultsets
+selImpl ::
+  HasCallStack =>
+  String ->
+  ResultSet ->
+  Dec a ->
+  Either SE (RMeta, [a])
+selImpl msg z@(Right (meta, xxs)) (Dec dec) = do
+  ys <- forM (zip [1 :: Int ..] xxs) $ \(r, xs) -> do
+    case dec xs of
+      Left es ->
+        -- change the code so only DecodingE happens?
+        case justThere $ getDecErrors es of -- ConvE can appear as an exception but seemingly always with DecodingE : see liftCE
+          Nothing -> normalError $ msg ++ ":selImpl: missing DecodingE" -- cant seem to make this error fire as always has an accompanying DecodingE exception
+          Just (ss N.:| _) ->
+            let c = length xs - length (deSqlValues ss)
+             in Left $ liftDE $ decAddError' msg ("selImpl: row/col " ++ show (r, c)) "" [] es
+      Right a -> pure a
+  ret <- forM (zip [1 :: Int ..] ys) $ \(i, (a, lft)) -> do
+    unless (null lft) $ failUncCol msg i ("selImpl: didnt consume all the columns! row " ++ show i ++ ":leftovers=" ++ show lft) z
+    pure a
+  pure (meta, ret)
+selImpl msg z _ = failURST (msg ++ "(selImpl)") "expected a select but found an update" z
 
 -- | 'updImpl' processes an Update resultset and runs the predicate
 updImpl :: ResultSet -> Either SE Int
 updImpl (Left i) = pure i
-updImpl z@Right {} = failURST "updImpl(Update)" "expected an update but found a select" z
+updImpl z@Right{} = failURST "updImpl(Update)" "expected an update but found a select" z
 
 -- | 'selRawImpl' processes a Query resultset and runs the predicate
 selRawImpl :: ResultSet -> Either SE (RMeta, [[SqlValue]])
-selRawImpl (Right (meta,xs)) = pure (meta,xs)
-selRawImpl z@Left {} = failURST "selRawImpl(Select)" "expected a select but found an update" z
+selRawImpl (Right (meta, xs)) = pure (meta, xs)
+selRawImpl z@Left{} = failURST "selRawImpl(Select)" "expected a select but found an update" z
 
 -- | 'IsString' instance for 'Sql'
 instance (DefEnc (Rec Enc a), DefDec (Rec SingleIn b)) => IsString (Sql db a b) where
   fromString s = mkSql "<fromString>" (T.pack s)
 
+-- | unsafely convert from 'Sql' to another
 unsafeCoerceSql :: Text -> Rec Enc a -> Rec SingleIn b -> Sql db1 ax bx -> Sql db2 a b
-unsafeCoerceSql str e d (Sql desc _ _ sql) = Sql (str <> "[" <> desc <> "]:coerced") e d sql
+unsafeCoerceSql str e d s = Sql (str <> "[" <> sDescription s <> "]:coerced") e d (sSql s)
 
-type ISql db a b = Int -> (Sql db a b, Int)
+-- | given a number of rows the user needs to calculate the effective number of fields needed ie rows * cols
+type ISql db a b = Positive -> (Sql db a b, Positive)
 
--- | 'ToTuple' converts Rec V.Identity to tuples
---   single Tuple is a special case.
---   pulls Rec L.Identity (r1,r2,...) into (r1,r2,...)
+{- | 'ToTuple' converts Rec V.Identity to tuples
+   single Tuple is a special case.
+   pulls Rec L.Identity (r1,r2,...) into (r1,r2,...)
+-}
+type ToTuple :: Type -> Type -> Constraint
 class ToTuple a b | a -> b, b -> a where
   fromRec :: b -> a
   toRec :: a -> b
+
 instance ToTuple () (Rec V.Identity '[]) where
   fromRec RNil = ()
   toRec () = RNil
+
 instance ToTuple (One a1) (Rec V.Identity '[a1]) where
   fromRec (V.Identity a1 :& RNil) = One a1
   toRec (One a1) = V.Identity a1 :& RNil
-instance ToTuple (a1,a2) (Rec V.Identity '[a1,a2]) where
-  fromRec (V.Identity a1 :& V.Identity a2 :& RNil) = (a1,a2)
-  toRec (a1,a2) = V.Identity a1 :& V.Identity a2 :& RNil
-instance ToTuple (a1,a2,a3) (Rec V.Identity '[a1,a2,a3]) where
-  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& RNil) = (a1,a2,a3)
-  toRec (a1,a2,a3) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& RNil
-instance ToTuple (a1,a2,a3,a4) (Rec V.Identity '[a1,a2,a3,a4]) where
-  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& RNil) = (a1,a2,a3,a4)
-  toRec (a1,a2,a3,a4) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& RNil
-instance ToTuple (a1,a2,a3,a4,a5) (Rec V.Identity '[a1,a2,a3,a4,a5]) where
-  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& RNil) = (a1,a2,a3,a4,a5)
-  toRec (a1,a2,a3,a4,a5) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& RNil
-instance ToTuple (a1,a2,a3,a4,a5,a6) (Rec V.Identity '[a1,a2,a3,a4,a5,a6]) where
-  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& RNil) = (a1,a2,a3,a4,a5,a6)
-  toRec (a1,a2,a3,a4,a5,a6) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& RNil
-instance ToTuple (a1,a2,a3,a4,a5,a6,a7) (Rec V.Identity '[a1,a2,a3,a4,a5,a6,a7]) where
-  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& RNil) = (a1,a2,a3,a4,a5,a6,a7)
-  toRec (a1,a2,a3,a4,a5,a6,a7) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& RNil
-instance ToTuple (a1,a2,a3,a4,a5,a6,a7,a8) (Rec V.Identity '[a1,a2,a3,a4,a5,a6,a7,a8]) where
-  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& RNil) = (a1,a2,a3,a4,a5,a6,a7,a8)
-  toRec (a1,a2,a3,a4,a5,a6,a7,a8) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& RNil
-instance ToTuple (a1,a2,a3,a4,a5,a6,a7,a8,a9) (Rec V.Identity '[a1,a2,a3,a4,a5,a6,a7,a8,a9]) where
-  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& V.Identity a9 :& RNil) = (a1,a2,a3,a4,a5,a6,a7,a8,a9)
-  toRec (a1,a2,a3,a4,a5,a6,a7,a8,a9) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& V.Identity a9 :& RNil
-instance ToTuple (a1,a2,a3,a4,a5,a6,a7,a8,a9,a10) (Rec V.Identity '[a1,a2,a3,a4,a5,a6,a7,a8,a9,a10]) where
-  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& V.Identity a9 :& V.Identity a10 :& RNil) = (a1,a2,a3,a4,a5,a6,a7,a8,a9,a10)
-  toRec (a1,a2,a3,a4,a5,a6,a7,a8,a9,a10) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& V.Identity a9 :& V.Identity a10 :& RNil
+
+instance ToTuple (a1, a2) (Rec V.Identity '[a1, a2]) where
+  fromRec (V.Identity a1 :& V.Identity a2 :& RNil) = (a1, a2)
+  toRec (a1, a2) = V.Identity a1 :& V.Identity a2 :& RNil
+
+instance ToTuple (a1, a2, a3) (Rec V.Identity '[a1, a2, a3]) where
+  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& RNil) = (a1, a2, a3)
+  toRec (a1, a2, a3) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& RNil
+
+instance ToTuple (a1, a2, a3, a4) (Rec V.Identity '[a1, a2, a3, a4]) where
+  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& RNil) = (a1, a2, a3, a4)
+  toRec (a1, a2, a3, a4) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& RNil
+
+instance ToTuple (a1, a2, a3, a4, a5) (Rec V.Identity '[a1, a2, a3, a4, a5]) where
+  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& RNil) = (a1, a2, a3, a4, a5)
+  toRec (a1, a2, a3, a4, a5) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& RNil
+
+instance ToTuple (a1, a2, a3, a4, a5, a6) (Rec V.Identity '[a1, a2, a3, a4, a5, a6]) where
+  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& RNil) = (a1, a2, a3, a4, a5, a6)
+  toRec (a1, a2, a3, a4, a5, a6) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& RNil
+
+instance ToTuple (a1, a2, a3, a4, a5, a6, a7) (Rec V.Identity '[a1, a2, a3, a4, a5, a6, a7]) where
+  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& RNil) = (a1, a2, a3, a4, a5, a6, a7)
+  toRec (a1, a2, a3, a4, a5, a6, a7) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& RNil
+
+instance ToTuple (a1, a2, a3, a4, a5, a6, a7, a8) (Rec V.Identity '[a1, a2, a3, a4, a5, a6, a7, a8]) where
+  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& RNil) = (a1, a2, a3, a4, a5, a6, a7, a8)
+  toRec (a1, a2, a3, a4, a5, a6, a7, a8) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& RNil
+
+instance ToTuple (a1, a2, a3, a4, a5, a6, a7, a8, a9) (Rec V.Identity '[a1, a2, a3, a4, a5, a6, a7, a8, a9]) where
+  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& V.Identity a9 :& RNil) = (a1, a2, a3, a4, a5, a6, a7, a8, a9)
+  toRec (a1, a2, a3, a4, a5, a6, a7, a8, a9) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& V.Identity a9 :& RNil
+
+instance ToTuple (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) (Rec V.Identity '[a1, a2, a3, a4, a5, a6, a7, a8, a9, a10]) where
+  fromRec (V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& V.Identity a9 :& V.Identity a10 :& RNil) = (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+  toRec (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) = V.Identity a1 :& V.Identity a2 :& V.Identity a3 :& V.Identity a4 :& V.Identity a5 :& V.Identity a6 :& V.Identity a7 :& V.Identity a8 :& V.Identity a9 :& V.Identity a10 :& RNil
 
 -- adds a delimiter ; cos required by postgres (only mssql and postgres support multiple resultsets)
+
 -- | combines two queries as separate resultsets
 sqlCombine :: Sql db a1 b1 -> Sql db a2 b2 -> Sql db (a1 ++ a2) (b1 ++ b2)
 sqlCombine (Sql desc1 a1 b1 q1) (Sql desc2 a2 b2 q2) =
-  Sql ("[" <> desc1 <> "][" <> desc2 <> "]")  (rappend a1 a2) (rappend b1 b2) (q1 <> ";\n" <> q2)
+  Sql ("[" <> desc1 <> "][" <> desc2 <> "]") (rappend a1 a2) (rappend b1 b2) (q1 <> ";\n" <> q2)
 
 -- [*] fails so use [Type]  -- Type == * (* and Type are in Data.Kind)
 -- flipped around so DefDec is first: runSql sets the defEnc so defDec is more important
 -- runSql usually determines DefEnc so we only need specify DefDec
 -- explicit signatures so we can move 'k' away from from first 2 positions
 -- not true: k doesnt matter
--- | helper methods for defining Sql but using defaults for encoding and decoding
+
+-- | helper method for defining Sql but using defaults for encoding and decoding
 mkSql' :: -- forall (b :: [Type]) (a :: [Type]) k (db :: k).
-     (DefDec (Rec SingleIn b), DefEnc (Rec Enc a)) =>
-     Text -> Sql db a b
+  (DefDec (Rec SingleIn b), DefEnc (Rec Enc a)) =>
+  Text ->
+  Sql db a b
 mkSql' = mkSql "sqlDef"
 
+-- | helper method for defining Sql but using defaults for encoding and decoding
 mkSql :: -- forall (b :: [Type]) (a :: [Type]) k (db :: k).
-     (DefDec (Rec SingleIn b), DefEnc (Rec Enc a)) =>
-     Text -> Text -> Sql db a b
+  (DefDec (Rec SingleIn b), DefEnc (Rec Enc a)) =>
+  Text ->
+  Text ->
+  Sql db a b
 mkSql s = Sql s defEnc defDec
 
--- bearbeiten: still need a sensible way to compose all this stuff
--- should be able to choose the dec and pred and then do the next result set
-
--- remember have to have a Dec forall of 'a' so have to provide a list of up to 8 Decs
--- use defD @String not defDec ...
--- not sure how useful this
-selWithDec :: forall rs
-   . DecList rs
-   => Rec Dec rs
-   -> Rec SingleIn '[Sel (DecTuples rs)]
-selWithDec d = E1 (SelP (decList d))
-
-selOneWithDec :: forall rs
-   . DecList rs
-   => Rec Dec rs
-   -> Rec SingleIn '[SelOne (DecTuples rs)]
-selOneWithDec d = E1 (SelOneP (decList d))
-
--- provide a vinyl list of Decs and then it will convert to the sized tuple
--- of course each defDec must have a type! eg defDec @(Dec String)
--- or better defD @String
--- fd $ runSql pglocal RNil $ selSqlWithDec  (decIp :& defD @String :& RNil) "select '124.11.123.45 xx','abc'"
-selSqlWithDec :: forall rs a db
-   . (DecList rs, DefEnc (Rec Enc a))
-   => Rec Dec rs
-   -> Text
-   -> Sql db a '[Sel (DecTuples rs)]
-selSqlWithDec d = Sql "selSqlWithDec" defEnc (E1 (SelP (decList d)))
-
-selOneSqlWithDec :: forall rs a db
-   . (DecList rs, DefEnc (Rec Enc a))
-   => Rec Dec rs
-   -> Text
-   -> Sql db a '[SelOne (DecTuples rs)]
-selOneSqlWithDec d = Sql "selOneSqlWithDec" defEnc (E1 (SelOneP (decList d)))
-
--- you provide a vinyl list of decs and then it will work for a vinyl list result
-selSqlWithDecW :: forall rs a db
-   . (DecW rs, DefEnc (Rec Enc a))
-   => Rec Dec rs
-   -> Text
-   -> Sql db a '[Sel (WW rs)]
-selSqlWithDecW d = Sql "selSqlWithDecW" defEnc (E1 (SelP (decW d)))
-
-selOneSqlWithDecW :: forall rs a db
-   . (DecW rs, DefEnc (Rec Enc a))
-   => Rec Dec rs
-   -> Text
-   -> Sql db a '[SelOne (WW rs)]
-selOneSqlWithDecW d = Sql "selOneSqlWithDecW" defEnc (E1 (SelOneP (decW d)))
-
--- for ElFields but you provide a vinyl dec list: still have to have rs defined
--- fd $ runSql pglocal RNil $ selSqlWithDecH @'["aa" ::: IP Int, "bb" ::: String] (decIp :& defD :& RNil) "select '124.11.123.45 xx','abc'"
-selSqlWithDecH :: forall rs a db
-   . (DecH rs, DefEnc (Rec Enc a))
-   => Rec Dec (P.Map P.SndSym0 rs)
-   -> Text
-   -> Sql db a '[Sel (Rec ElField rs)]
-selSqlWithDecH d = Sql "selSqlWithDecH" defEnc (E1 (SelP (decH d)))
-
--- you provide just the rs with ==: ie labels and all and it figures out the rs result
--- fd $ runSql pglocal RNil $ selSqlWithDecI (#xx ==: decIp :& #yy ==: defD @String :& RNil) "select '124.11.123.45 xx','abc'"
-selSqlWithDecI :: forall rs a db
-   . (DecI rs, DefEnc (Rec Enc a))
-   => Rec ElFieldDec rs
-   -> Text
-   -> Sql db a '[Sel (Rec ElField rs)]
-selSqlWithDecI d = Sql "selSqlWithDecI" defEnc (E1 (SelP (decI d)))
-
-selSql :: (DefDec (Dec b), DefEnc (Rec Enc a))
-   => Text
-   -> Sql db a '[Sel b]
-selSql = mkSql "selSql"
-
-selSqlF :: (DefDec (Dec (F rs)), DefEnc (Rec Enc a))
-   => Text
-   -> Sql db a '[Sel (F rs)]
-selSqlF = mkSql "selSqlF"
-
-selOneSql :: (DefDec (Dec b), DefEnc (Rec Enc a))
-   => Text
-   -> Sql db a '[SelOne b]
-selOneSql = mkSql "selOneSql"
-
-selOneSqlF :: (DefDec (Dec (F rs)), DefEnc (Rec Enc a))
-   => Text
-   -> Sql db a '[SelOne (F rs)]
-selOneSqlF = mkSql "selOneSqlF"
-
-instance DefDec (SingleIn (UpdN op val)) where
-  defDec = UpdNP
+-- | decoder instance for Upd
 instance DefDec (SingleIn Upd) where
   defDec = UpdP
+
+-- | decoder instance for UpdN
+instance DefDec (SingleIn (UpdN op)) where
+  defDec = UpdNP
+
 instance DefDec (SingleIn SelRaw) where
   defDec = SelRawP
+
 instance DefDec (Dec a) => DefDec (SingleIn (Sel a)) where
   defDec = SelP defDec
-instance DefDec (Dec a) => DefDec (SingleIn (SelOne a)) where
-  defDec = SelOneP defDec
+
+instance DefDec (Dec a) => DefDec (SingleIn (SelRow a)) where
+  defDec = SelRowP defDec
+
+instance DefDec (Dec a) => DefDec (SingleIn (SelRowCol a)) where
+  defDec = SelRowColP defDec
+
+instance DefDec (Dec a) => DefDec (SingleIn (SelCol a)) where
+  defDec = SelColP defDec
+
+instance DefDec (SingleIn a) => DefDec (SingleIn (Rev a)) where
+  defDec = RevP defDec
 
 instance DefDec (SingleIn a) => DefDec (SingleIn (Alle a)) where
   defDec = AlleP defDec
-instance DefDec (SingleIn a) => DefDec (SingleIn (Some rev n a)) where
+
+instance DefDec (SingleIn a) => DefDec (SingleIn (Some a)) where
   defDec = SomeP defDec
+
+instance DefDec (SingleIn a) => DefDec (SingleIn (Range m n a)) where
+  defDec = RangeP defDec
+
+instance DefDec (SingleIn a) => DefDec (SingleIn (Exact n a)) where
+  defDec = ExactP defDec
+
 instance (DefDec (SingleIn a), DefDec (SingleIn b)) => DefDec (SingleIn (a :+: b)) where
   defDec = defDec :+: defDec
 
+instance (DefDec (SingleIn a), DefDec (SingleIn b)) => DefDec (SingleIn (a :*: b)) where
+  defDec = defDec :*: defDec
+
+instance DefDec (SingleIn a) => DefDec (SingleIn (May a)) where
+  defDec = MayP defDec
+
 -- | predicate (==0) for an update result set
-type family U0 where U0 = UpdN 'OPEQ 0
+type family U0 where
+  U0 = UpdN ( 'OEQ ( 'Pos 0))
+
 -- | predicate (==1) for an update result set
-type family U1 where U1 = UpdN 'OPEQ 1
+type family U1 where
+  U1 = UpdN ( 'OEQ ( 'Pos 1))
+
 -- | predicate (>0) for an update result set
-type family UGT0 where UGT0 = UpdN 'OPGT 0
+type family UGT0 where
+  UGT0 = UpdN ( 'OGT ( 'Pos 0))
 
 -- | Allows user to provide a equality predicate at the type level for an update result set
-type family UEQ (n :: Nat) = (w :: Type) | w -> n where
-  UEQ n = UpdN 'OPEQ n
+type UEQ :: Nat -> Type
+type family UEQ n = w | w -> n where
+  UEQ n = UpdN ( 'OEQ ( 'Pos n))
 
 -- | Allows user to provide a "greater then or equal to" predicate at the type level for an update result set
-type family UGE (n :: Nat) = (w :: Type) | w -> n where
-  UGE n = UpdN 'OPGE n
+type UGE :: Nat -> Type
+type family UGE n = w | w -> n where
+  UGE n = UpdN ( 'OGE ( 'Pos n))
 
 -- | Allows user to provide a "greater then" predicate at the type level for an update result set
-type family UGT (n :: Nat) = (w :: Type) | w -> n where
-  UGT n = UpdN 'OPGT n
+type UGT :: Nat -> Type
+type family UGT n = w | w -> n where
+  UGT n = UpdN ( 'OGT ( 'Pos n))
 
 -- | Allows user to provide a "less then or equal to" predicate at the type level for an update result set
-type family ULE (n :: Nat) = (w :: Type) | w -> n where
-  ULE n = UpdN 'OPLE n
+type ULE :: Nat -> Type
+type family ULE n = w | w -> n where
+  ULE n = UpdN ( 'OLE ( 'Pos n))
 
 -- | Allows user to provide a "less then" predicate at the type level for an update result set
-type family ULT (n :: Nat) = (w :: Type) | w -> n where
-  ULT n = UpdN 'OPLT n
-
--- | generates n sql input placeholders (used for sql inserts)
-qqsn :: Int -> Text
-qqsn = vvs . flip replicate "?"
-
--- | generates length n sql input placeholders (used for sql inserts)
-qqs :: [a] -> Text
-qqs = qqsn . length
-
--- | concatenates column names together used for sql inserts
-vvs :: [Text] -> Text
-vvs xs = "(" <> T.intercalate "," xs <> ")"
-
--- | generates m by n sql input placeholders (used for sql inserts for multiple rows at a time)
-qqrc :: (Int, Int) -> Text
-qqrc (r,c) = T.intercalate ", " (replicate r (qqsn c))
+type ULT :: Nat -> Type
+type family ULT n = w | w -> n where
+  ULT n = UpdN ( 'OLT ( 'Pos n))
 
 -- | determines if a database is writeable or not
-type family WriteableDB (arg :: db) :: Bool
-
-{-
-type family AssertMsg (tf :: Bool) (msg :: Symbol) :: Constraint where
-  AssertMsg 'True msg = ()
-  AssertMsg 'False msg = GL.TypeError ('GL.Text msg)
--}
+type WriteableDB :: db -> Bool
+type family WriteableDB arg
 
 -- | determines if the resultsets require update access or not
-type family WriteableRS (rs :: [Type]) :: Bool where
-  WriteableRS rs = P.SUnWrap (P.FoldMap (P.SAllSym0 :.: WriteableOneSym0) rs)
+type WriteableRS :: [Type] -> Bool
+type family WriteableRS rs where
+  WriteableRS '[] = 'True
+  WriteableRS (r ': rs) = WriteableOne r BT.&& WriteableRS rs
 
-type family WriteableOne (r :: Type) :: Bool where
+-- | identifies which resultset type is writeable
+type WriteableOne :: Type -> Bool
+type family WriteableOne r where
   WriteableOne Upd = 'True
-  WriteableOne (UpdN _ _) = 'True
+  WriteableOne (UpdN _) = 'True
   WriteableOne (Sel _x) = 'False
-  WriteableOne (SelOne _x) = 'False
+  WriteableOne (SelRow _x) = 'False
+  WriteableOne (SelCol _x) = 'False
+  WriteableOne (SelRowCol _x) = 'False
   WriteableOne SelRaw = 'False
+  WriteableOne (Rev a) = WriteableOne a
   WriteableOne (Alle a) = WriteableOne a
-  WriteableOne (Some _rev _n a) = WriteableOne a
-  WriteableOne (a :+: b) = WriteableOne a P.|| WriteableOne b
-  WriteableOne o = GL.TypeError ('GL.Text "WriteableOne: programmer error: unhandled type o=" ':<>: 'GL.ShowType o)
-
-data WriteableOneSym0 :: Type ~> Bool
-type instance P.Apply WriteableOneSym0 x = WriteableOne x
+  WriteableOne (Some a) = WriteableOne a
+  WriteableOne (Exact _n a) = WriteableOne a
+  WriteableOne (Range _m _n a) = WriteableOne a
+  WriteableOne (May a) = WriteableOne a
+  WriteableOne (a :+: b) = WriteableOne a BT.|| WriteableOne b
+  WriteableOne (a :*: b) = WriteableOne a BT.&& WriteableOne b
+  WriteableOne o = GL.TypeError ( 'GL.Text "WriteableOne: programmer error: unhandled type o=" ':<>: 'GL.ShowType o)
 
 -- | 'ChkLast' fails if you have Alle as the non last element
-type family ChkLast w :: Bool where
-  ChkLast (Alle _a) = GL.TypeError ('GL.Text "Alle has to be the last in the HList"
-                             ':$$: 'GL.Text "It doesnt make sense to have stuff after it as Alle consumes everything"
-                                 )
+type ChkLast :: Type -> Bool
+type family ChkLast w where
+  ChkLast (Alle _a) =
+    GL.TypeError
+      ( 'GL.Text "Alle has to be the last in the HList"
+          ':$$: 'GL.Text "It doesnt make sense to have stuff after it as Alle consumes everything"
+      )
+  ChkLast (Some _a) =
+    GL.TypeError
+      ( 'GL.Text "Some has to be the last in the HList"
+          ':$$: 'GL.Text "It doesnt make sense to have stuff after it as Some consumes everything"
+      )
   ChkLast _a = 'True
 
-data ChkLastSym0 :: Type ~> Bool
-type instance P.Apply ChkLastSym0 x = ChkLast x
-
+-- | convenient group of constraints for validating the dsl
 type ValidateNested rs = (MultiLast rs ~ 'True, ValidNestAll rs ~ 'True)
 
-{-
-type family MultiLast (rs :: [Type]) :: Bool where
-  MultiLast '[] = 'True
-  MultiLast (r ': s ': rs) = ChkLast r P.&& MultiLast (s ': rs)
-  MultiLast (r ': rs) = MultiLast rs
--}
 -- | 'MultiLast' checks that if Alle is present then it is the last entry only
-type family MultiLast (rs :: [Type]) :: Bool where
-  MultiLast rs = P.Maybe' 'True (P.All'Sym1 ChkLastSym0 :.: P.FstSym0) (P.UnSnoc rs)
+type MultiLast :: [Type] -> Bool
+type family MultiLast rs where
+  MultiLast '[] = 'True
+  MultiLast '[_] = 'True
+  MultiLast (r ': r1 ': rs) = ChkLast r BT.&& MultiLast (r1 ': rs)
 
-data ValidNestSym0 :: Type ~> Bool
-type instance Apply ValidNestSym0 x = ValidNest x
+-- | checks that combinations of the dsl are valid for all the resultsets
+type ValidNestAll :: [Type] -> Bool
+type family ValidNestAll rs where
+  ValidNestAll '[] = 'True
+  ValidNestAll (r ': rs) = ValidNest r BT.&& ValidNestAll rs
 
-type family ValidNestAll (rs :: [Type]) :: Bool where
-  ValidNestAll rs = P.SUnWrap (P.FoldMap (P.SAllSym0 :.: ValidNestSym0) rs)
-
--- | 'ValidNest' checks to see that there are no nested Alle :+: or Some
-type family ValidNest (r :: Type) :: Bool where
+-- | 'ValidNest' checks to see that there are no nested Alle :+: or Range or May ie nested zeroes
+type ValidNest :: Type -> Bool
+type family ValidNest r where
+  ValidNest (Rev a) = ValidNest a
   ValidNest (Alle a) = ValidNest1 a
-  ValidNest (Some _rev _n a) = ValidNest1 a
-  ValidNest (a :+: b) = ValidNest1 a P.&& ValidNest1 b
+  ValidNest (Some a) = ValidNest1 a
+  ValidNest (Range _m _n a) = ValidNest1 a
+  ValidNest (Exact _n a) = ValidNest1 a
+  ValidNest (a :+: b) = ValidNest1 a BT.&& ValidNest1 b
+  ValidNest (a :*: b) = ValidNest1 a BT.&& ValidNest1 b
+  ValidNest (May a) = ValidNest1 a
   ValidNest _a = 'True
 
-type family ValidNest1 (w :: Type) :: Bool where
-  ValidNest1 (Alle _a) = GL.TypeError ('GL.Text "Alle is nested within another construct"
-                            ':$$: 'GL.Text "Doesnt make sense cos either Single or Multiple but not a Single(Multiple) or Multiple(Multiple)"
-                                 )
-  ValidNest1 (Some _rev _n _a) = GL.TypeError ('GL.Text "Some is nested within another construct"
-                            ':$$: 'GL.Text "Doesnt make sense cos either Single or Multiple but not a Single(Multiple) or Multiple(Multiple)"
-                                 )
-  ValidNest1 (a :+: b) = ValidNest1 a P.&& ValidNest1 b
+-- | checks that combinations of the dsl are valid
+type ValidNest1 :: Type -> Bool
+type family ValidNest1 r where
+  ValidNest1 (Rev a) = ValidNest1 a
+  ValidNest1 (Alle a) =
+    GL.TypeError
+      ( 'GL.Text "Alle is nested within another construct"
+          ':$$: 'GL.Text "Doesnt make sense cos either Single or Multiple but not a Single(Multiple) or Multiple(Multiple)"
+          ':<>: 'GL.Text " a="
+          ':<>: 'GL.ShowType a
+      )
+  ValidNest1 (Some a) =
+    GL.TypeError
+      ( 'GL.Text "Some is nested within another construct"
+          ':$$: 'GL.Text "Doesnt make sense cos either Single or Multiple but not a Single(Multiple) or Multiple(Multiple)"
+          ':<>: 'GL.Text " a="
+          ':<>: 'GL.ShowType a
+      )
+  ValidNest1 (Range _m _n a) = ValidNest a
+  ValidNest1 (Exact _n a) = ValidNest a
+  ValidNest1 (a :+: b) = ValidNest1 a BT.&& ValidNest1 b
+  ValidNest1 (a :*: b) = ValidNest1 a BT.&& ValidNest1 b
+  ValidNest1 (May a) =
+    GL.TypeError
+      ( 'GL.Text "May is nested within another construct"
+          ':$$: 'GL.Text "Doesnt make sense cos either Single or Multiple but not a Single(Multiple) or Multiple(Multiple)"
+          ':<>: 'GL.Text " a="
+          ':<>: 'GL.ShowType a
+      )
   ValidNest1 _a = 'True
 
+-- | empty result set message
 emptyResultSetMessage :: String
 emptyResultSetMessage = "no more resultsets from the server but the type signature expects another resultset"
+
+-- | check that state before and after is valid
+checkRss ::
+  String ->
+  SingleState ->
+  SingleState ->
+  Either SE (Int, Int, String)
+checkRss
+  msg
+  SingleState{stPos = pos, stRss = rss, stRev = rev}
+  SingleState{stPos = posAfter, stRss = rssAfter, stRev = revAfter} = do
+    let p =
+          if revAfter
+            then pos - posAfter
+            else posAfter - pos
+        r = length rss - length rssAfter -- flipped!
+        p2 = show (pos, posAfter)
+        r2 = show (length rss, length rssAfter)
+        extra = " extra: pos=" ++ p2 ++ " rss=" ++ r2 ++ " rev=" ++ show (rev, revAfter) ++ " r1=" ++ show (posAfter - pos) ++ " r2=" ++ show (pos - posAfter) ++ " p=" ++ show p
+    if p < 0
+      then failBad ("checkRss:" ++ msg) ("invalid state: p < 0" ++ extra) ""
+      else pure (p, r, msg)
+
+-- | checks that there is at least one resultset
+expectAtLeastOneResultSet ::
+  String ->
+  SingleState ->
+  SingleState ->
+  Either SE ()
+expectAtLeastOneResultSet msg' z z' = do
+  let msg = "expectAtLeastOneResultSet:" ++ msg'
+  (p, _r, extra) <- checkRss msg z z'
+  when (p == 0) $ failBad msg ("not consuming any resultsets pos=" ++ show p ++ extra) ""
+
+-- | process the rest of the result sets
+handleSomeResultSets ::
+  (HasCallStack, Single a) =>
+  -- | if nothing then must complete else limit to max number and if failure then exit without an error (Range)
+  Maybe Int ->
+  String ->
+  SingleIn a ->
+  Alle a ->
+  StateT SingleState (Either SE) (Alle a)
+handleSomeResultSets mn msg one sc0 = StateT $ \z -> go (0 :: Int) z sc0
+ where
+  go !i !z !sc
+    | mn == Just i = pure (sc, z)
+    | otherwise =
+        case stRss z of
+          [] -> pure (sc, z)
+          _ : _ -> do
+            case runStateT (singleCol one) z of
+              Left e
+                | isJust mn -> pure (sc, z) -- dont die: this is for Range where stuff is optional
+                | otherwise -> Left e
+              Right (sc', z') -> do
+                expectAtLeastOneResultSet (msg ++ ":handleSomeResultSets(" ++ show i ++ ")") z z'
+                when (i > 200) $ normalError $ "handleSomeResultSets: looping?? " ++ msg ++ " pos=" ++ show (stPos z')
+                go
+                  (i + 1)
+                  z'
+                  (Alle (coerce sc `snoc` sc'))
+
+-- | turn off/on checkRss
+_CheckRss :: Bool
+_CheckRss = False
