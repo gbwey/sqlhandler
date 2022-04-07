@@ -25,7 +25,6 @@ License     : BSD-3
 -}
 module HSql.Core.VinylUtils where
 
-import Control.Lens (type Lens, type Lens')
 import qualified Data.ByteString as BS (ByteString)
 import qualified Data.ByteString.Lazy as BL (ByteString)
 import qualified Data.IntMap as IM (IntMap)
@@ -41,8 +40,9 @@ import Data.Vinyl.TypeLevel (Nat (..), RIndex)
 import GHC.Natural
 import qualified GHC.TypeLits as GL (ErrorMessage (..), KnownSymbol, Nat, Symbol, TypeError)
 import GHC.TypeNats hiding (Nat)
-import Utils.One
-import qualified Utils.TypeLevel as TP (Length)
+import HSql.Core.One
+import Primus.Lens (type Lens, type Lens')
+import qualified Primus.TypeLevel as TP (LengthT, pnat)
 
 -- | convert from 'Nat' to 'GL.Nat'
 type FromP :: Nat -> GL.Nat
@@ -100,12 +100,12 @@ type family ToFields'' fs as where
   ToFields'' (f ': fs) (a ': as) = '(f, a) ': ToFields'' fs as
 
 -- | 'recLen' returns number of elements in PFoldable container
-recLen :: forall rs. KnownNat (TP.Length rs) => Int -- let ghc figure it out (polykinds)
-recLen = fromIntegral (natVal (Proxy @(TP.Length rs)))
+recLen :: forall rs. KnownNat (TP.LengthT rs) => Int -- let ghc figure it out (polykinds)
+recLen = TP.pnat @(TP.LengthT rs)
 
 -- | 'recLenP' same as 'recLen' but with an explicit proxy
-recLenP :: forall rs p. KnownNat (TP.Length rs) => p rs -> Int
-recLenP _ = recLen @rs -- fromIntegral (natVal (Proxy @(TP.Length rs)))
+recLenP :: forall rs p. KnownNat (TP.LengthT rs) => p rs -> Int
+recLenP _ = recLen @rs -- fromIntegral (natVal (Proxy @(TP.LengthT rs)))
 
 -- | 'recGet' gets the first value of a given type from a vinyl V.Identity list
 recGet ::
@@ -178,73 +178,73 @@ elLens afb (Field a) = Field <$> afb a
 elLens1 :: forall t s a b. GL.KnownSymbol t => Lens (ElField '(s, a)) (ElField '(t, b)) a b
 elLens1 afb (Field a) = Field <$> afb a
 
--- | convenience patterns for creating and destructing a vinyl record of 'V.identity'
+-- | convenience pattern synonyms for creating and destructing a vinyl record of 'V.identity'
 {-# COMPLETE I1 #-}
 
 pattern I1 :: a -> Rec V.Identity '[a]
 pattern I1 a = V.Identity a :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of 'V.identity'
+-- | convenience pattern synonyms for creating and destructing a vinyl record of 'V.identity'
 {-# COMPLETE I2 #-}
 
 pattern I2 :: a -> b -> Rec V.Identity '[a, b]
 pattern I2 a b = V.Identity a :& V.Identity b :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of 'V.identity'
+-- | convenience pattern synonyms for creating and destructing a vinyl record of 'V.identity'
 {-# COMPLETE I3 #-}
 
 pattern I3 :: a -> b -> c -> Rec V.Identity '[a, b, c]
 pattern I3 a b c = V.Identity a :& V.Identity b :& V.Identity c :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of 'V.identity'
+-- | convenience pattern synonyms for creating and destructing a vinyl record of 'V.identity'
 {-# COMPLETE I4 #-}
 
 pattern I4 :: a -> b -> c -> d -> Rec V.Identity '[a, b, c, d]
 pattern I4 a b c d = V.Identity a :& V.Identity b :& V.Identity c :& V.Identity d :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of 'V.identity'
+-- | convenience pattern synonyms for creating and destructing a vinyl record of 'V.identity'
 {-# COMPLETE I5 #-}
 
 pattern I5 :: a -> b -> c -> d -> e -> Rec V.Identity '[a, b, c, d, e]
 pattern I5 a b c d e = V.Identity a :& V.Identity b :& V.Identity c :& V.Identity d :& V.Identity e :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of 'V.identity'
+-- | convenience pattern synonyms for creating and destructing a vinyl record of 'V.identity'
 {-# COMPLETE I6 #-}
 
 pattern I6 :: a -> b -> c -> d -> e -> f -> Rec V.Identity '[a, b, c, d, e, f]
 pattern I6 a b c d e f = V.Identity a :& V.Identity b :& V.Identity c :& V.Identity d :& V.Identity e :& V.Identity f :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of any type f
+-- | convenience pattern synonyms for creating and destructing a vinyl record of any type f
 {-# COMPLETE E1 #-}
 
 pattern E1 :: f a -> Rec f '[a]
 pattern E1 fa = fa :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of any type f
+-- | convenience pattern synonyms for creating and destructing a vinyl record of any type f
 {-# COMPLETE E2 #-}
 
 pattern E2 :: f a -> f b -> Rec f '[a, b]
 pattern E2 fa fb = fa :& fb :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of any type f
+-- | convenience pattern synonyms for creating and destructing a vinyl record of any type f
 {-# COMPLETE E3 #-}
 
 pattern E3 :: f a -> f b -> f c -> Rec f '[a, b, c]
 pattern E3 fa fb fc = fa :& fb :& fc :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of any type f
+-- | convenience pattern synonyms for creating and destructing a vinyl record of any type f
 {-# COMPLETE E4 #-}
 
 pattern E4 :: f a -> f b -> f c -> f d -> Rec f '[a, b, c, d]
 pattern E4 fa fb fc fd = fa :& fb :& fc :& fd :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of any type f
+-- | convenience pattern synonyms for creating and destructing a vinyl record of any type f
 {-# COMPLETE E5 #-}
 
 pattern E5 :: f a -> f b -> f c -> f d -> f e -> Rec f '[a, b, c, d, e]
 pattern E5 fa fb fc fd fe = fa :& fb :& fc :& fd :& fe :& RNil
 
--- | convenience patterns for creating and destructing a vinyl record of any type f
+-- | convenience pattern synonyms for creating and destructing a vinyl record of any type f
 {-# COMPLETE E6 #-}
 
 pattern E6 :: f a -> f b -> f c -> f d -> f e -> f f' -> Rec f '[a, b, c, d, e, f']

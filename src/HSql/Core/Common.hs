@@ -9,15 +9,15 @@ License     : BSD-3
 -}
 module HSql.Core.Common where
 
-import Control.Lens (unsnoc)
+import Control.Lens
 import Data.Bool
 import Data.List.NonEmpty (NonEmpty (..))
+import Data.Pos
 import Data.Semigroup.Foldable (intercalate1)
 import Data.Text (Text)
 import qualified Data.Vinyl.Functor as V
 import Database.HDBC (SqlColDesc (..), SqlTypeId (..), SqlValue (..))
-import Utils.NonEmpty
-import Utils.Positive
+import Primus.NonEmpty
 
 -- | pattern synonym for vinyl's identity type
 {-# COMPLETE I #-}
@@ -48,7 +48,7 @@ showMeta :: Bool -> SqlColDesc -> String
 showMeta verbose cd =
   let a1 = case colType cd of
         SqlUnknownT s -> "[Unknown:" <> s <> "]"
-        x -> maybe mempty fst (unsnoc (drop 3 (show x)))
+        x -> drop 3 (show x) ^. _init
       a2 = maybe mempty show (colSize cd)
       a3 = maybe mempty show (colOctetLength cd)
       a4 = maybe mempty show (colDecDigits cd)
@@ -60,17 +60,17 @@ showMeta verbose cd =
    in a1 <> "(" <> a2 <> a34 <> ")" <> bool mempty a5 verbose
 
 -- | generates n sql input placeholders (used for sql inserts)
-qqsn :: Positive -> Text
+qqsn :: Pos -> Text
 qqsn = vvs . flip replicate1 "?"
 
 -- | generates length n sql input placeholders (used for sql inserts) -- can be zero length if no insertable fields eg identity only!
 qqs :: NonEmpty a -> Text
-qqs = qqsn . lengthPositive
+qqs = qqsn . lengthP
 
 -- | concatenates column names together used for sql inserts
 vvs :: NonEmpty Text -> Text
 vvs xs = "(" <> intercalate1 "," xs <> ")"
 
 -- | generates m by n sql input placeholders (used for sql inserts for multiple rows at a time)
-qqrc :: (Positive, Positive) -> Text
+qqrc :: (Pos, Pos) -> Text
 qqrc (r, c) = intercalate1 ", " (replicate1 r (qqsn c))

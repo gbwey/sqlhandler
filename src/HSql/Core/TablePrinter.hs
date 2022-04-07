@@ -29,7 +29,6 @@ module HSql.Core.TablePrinter where
 import Control.Applicative
 import Control.Arrow
 import Control.Lens hiding (from)
-import qualified Control.Lens as L (Identity (..))
 import Control.Monad.State.Strict
 import Data.Bool
 import Data.ByteString (ByteString)
@@ -37,12 +36,14 @@ import qualified Data.ByteString.Char8 as B8
 import Data.Char (isControl, isSpace, ord)
 import Data.Either
 import Data.Foldable (toList)
+import qualified Data.Functor.Identity as L
 import Data.Generics.Product hiding (Rec)
 import Data.Generics.Sum
 import Data.Kind
 import qualified Data.List as L
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as N
+import Data.Pos
 import Data.Proxy
 import Data.Semigroup
 import Data.Sequence (Seq)
@@ -68,20 +69,18 @@ import qualified GHC.TypeLits as GL
 import qualified Generics.SOP as GS
 import HSql.Core.Common
 import HSql.Core.Decoder
+import HSql.Core.One
 import HSql.Core.Operator
 import HSql.Core.Sql
 import HSql.Core.VinylUtils (F, recLen)
 import Numeric (showHex)
+import Primus.Error
+import Primus.List
+import qualified Primus.TypeLevel as TP (FailUnless, LengthT, pnat)
 import qualified Safe
 import qualified System.IO as SIO
 import Text.Layout.Table
 import Text.Shakespeare.Text (st)
-import Utils.Error
-import Utils.List
-import Utils.NonEmpty
-import Utils.One
-import Utils.Positive
-import qualified Utils.TypeLevel as TP (FailUnless, Length, pnat)
 
 -- | holds a user defined header or sql metadata
 type HDR = These String SqlColDesc
@@ -131,7 +130,7 @@ class FromCell a where
     Seq (Int, String) ->
     RealField ->
     a ->
-    StateT CellState Identity (NonEmpty Cell)
+    StateT CellState L.Identity (NonEmpty Cell)
 
 -- we could directly pass in this parent info to the child fromCell eg (1,"One")
 -- or use csPrefix in cellState
@@ -154,7 +153,7 @@ instance
   FromCell (DecNE n a)
   where
   fromCell o iss lr (DecNE ns) = do
-    let n = natVal @n Proxy
+    let n = TP.pnat @n
     -- let hdr1 = hdrPrefix $ cellHeader (N.head ns)
     sconcat <$> mapM (fromCell o (iss |> (1, "DecNE(" ++ show n ++ ")")) lr) ns
 
@@ -362,7 +361,7 @@ getHeaderS o lr = do
   modify (\s -> s{csPosition = csPosition s + 1})
   case (ret, csHeaders cs) of
     (RealHeader{}, _ : hs) -> modify (\s -> s{csHeaders = hs})
-    (RealHeader{}, []) -> programmerError $ "how does this happen " ++ psiS cs
+    (RealHeader{}, []) -> programmError $ "how does this happen " ++ psiS cs
     _nometadata -> return ()
   return ret
 
@@ -414,7 +413,7 @@ toRow ::
   Opts ->
   Seq (Int, String) ->
   a ->
-  StateT CellState Identity (NonEmpty Cell)
+  StateT CellState L.Identity (NonEmpty Cell)
 toRow o iss a =
   case GS.from a of
     GS.SOP (GS.Z xs) ->
@@ -432,7 +431,7 @@ toRow o iss a =
        in sequenceA ret <&> \case
             [] -> normalError "toRow: empty row found" -- todo: can this ever happen?
             b : bs -> sconcat (b :| bs)
-    GS.SOP (GS.S _) -> programmerError "impossible case: toRow SOP S"
+    GS.SOP (GS.S _) -> programmError "impossible case: toRow SOP S"
  where
   ff = Proxy :: Proxy FromCell
 
@@ -532,11 +531,11 @@ data Opts = Opts
   , oFixData :: !FixData
   , oFn1 :: !(Maybe Fn1)
   -- ^ change the order and number of columns to display
-  , oRC :: !(Positive, Positive)
+  , oRC :: !(Pos, Pos)
   -- ^ default row and column size of each cell
   , oMorph :: !Morph
   -- ^ transform the text of a cell: used for handling control characters
-  , oMaxSizeFields :: !(Maybe Positive)
+  , oMaxSizeFields :: !(Maybe Pos)
   -- ^ filter out fields that are bigger than the given size and return the sql
   , oVerbose :: !Int
   }
@@ -571,7 +570,7 @@ defT =
     }
 
 -- | default options but allow some common customisation
-defTSimple :: FixData -> Positive -> Positive -> Morph -> Opts
+defTSimple :: FixData -> Pos -> Pos -> Morph -> Opts
 defTSimple xd r c morph =
   Opts
     { oFile = Nothing
@@ -589,7 +588,7 @@ poStyle :: TableStyle -> Opts -> Opts
 poStyle ts o = o{oStyle = ts}
 
 -- | set the max field size option
-poMaxSizeFields :: Positive -> Opts -> Opts
+poMaxSizeFields :: Pos -> Opts -> Opts
 poMaxSizeFields i o = o{oMaxSizeFields = Just i}
 
 -- | set the 'Morph' option
@@ -597,15 +596,15 @@ poMorph :: Morph -> Opts -> Opts
 poMorph m o = o{oMorph = m}
 
 -- | 'poRC' allows you to adjust the max number of subrows and columns within a cell
-poRC :: ((Positive, Positive) -> (Positive, Positive)) -> Opts -> Opts
+poRC :: ((Pos, Pos) -> (Pos, Pos)) -> Opts -> Opts
 poRC f opts = opts{oRC = f (oRC opts)}
 
 -- | 'poR' allows you to adjust the max number of subrows within a cell
-poR :: (Positive -> Positive) -> Opts -> Opts
+poR :: (Pos -> Pos) -> Opts -> Opts
 poR f opts = opts{oRC = first f (oRC opts)}
 
 -- | 'poC' allows you to adjust the max columns size with a cell
-poC :: (Positive -> Positive) -> Opts -> Opts
+poC :: (Pos -> Pos) -> Opts -> Opts
 poC f opts = opts{oRC = second f (oRC opts)}
 
 -- | 'poCols' allows you to change which columns get shown
@@ -758,8 +757,8 @@ fNms :: HasCallStack => GS.NP GS.ConstructorInfo a -> Either Int [String]
 fNms (GS.Record _ xs GS.:* _) = Right (fNmsRec xs)
 fNms ((GS.Constructor _ :: GS.ConstructorInfo z) GS.:* _) =
   Left (GS.lengthSList (Proxy @z))
-fNms GS.Nil = programmerError "impossible case: fNms Nil"
-fNms (GS.Infix{} GS.:* _) = programmerError "impossible case: fNms Infix"
+fNms GS.Nil = programmError "impossible case: fNms Nil"
+fNms (GS.Infix{} GS.:* _) = programmError "impossible case: fNms Infix"
 
 -- | get list of field names for a record
 fNmsRec :: GS.NP GS.FieldInfo a -> [String]
@@ -767,8 +766,8 @@ fNmsRec GS.Nil = []
 fNmsRec (GS.FieldInfo nm GS.:* rest) = nm : fNmsRec rest
 
 -- | set the maximum column size
-upto :: Positive -> ColSpec
-upto (unPositive -> i) = column (expandUntil i) Text.Layout.Table.left def def
+upto :: Pos -> ColSpec
+upto (Pos i) = column (expandUntil i) Text.Layout.Table.left def def
 
 -- | different ways to render the output: ie how to handle newlines
 defMorph1 :: Morph
@@ -816,7 +815,7 @@ morph1 (controlN, controlR, controlT) fn =
 -- | flattens a cell for display based on 'Opts'
 flattenCell :: Opts -> [String] -> [String]
 flattenCell o s1 =
-  let (unPositive -> r, unPositive -> c) = oRC o
+  let (Pos r, Pos c) = oRC o
       s2 = case oFixData o of
         FWrap -> concatMap (chunksOf (snd (oRC o))) s1
         FTrunc -> map (take (c + 1)) s1 -- set upto to value of c
@@ -861,7 +860,7 @@ lastStep o cells =
 reindexTable :: HasCallStack => Fn1 -> NonEmpty (NonEmpty Cell) -> NonEmpty (NonEmpty Cell)
 reindexTable fn1 css =
   let iis = reindexTableImpl fn1 $ (fmap . fmap) (pure . cellValue &&& cellFieldType &&& cellHeader) css
-   in css <&> \cs -> N.map (at1Note "reindexTable" cs) iis
+   in css <&> \cs -> N.map (atNoteL "reindexTable" (N.toList cs)) iis
 
 -- | determines the order in which columns based on 'Fn1'
 reindexTableImpl ::
@@ -879,7 +878,7 @@ reindexTableImpl fn css =
         errindexes@(_ : _) -> normalError $ "reindexTableImpl:out of bounds: numcols=" <> show numcols <> " errindexes=\n" <> psiS errindexes
 
 -- | associates a sql column type with a 'ColSpec'
-whatcoltype :: Positive -> SqlTypeId -> ColSpec
+whatcoltype :: Pos -> SqlTypeId -> ColSpec
 whatcoltype i x
   | x `elem` [SqlCharT, SqlVarCharT, SqlLongVarCharT, SqlWCharT, SqlWVarCharT, SqlWLongVarCharT] =
       upto i
@@ -896,11 +895,11 @@ whatcoltype i x
 -- varchar(max) show as SqlVarCharT with length Just 0! so have to special case for all string types
 
 -- | creates a select statement that restricts the size of the columns to a maximum of "mmx"
-getMssqlFromMeta :: Maybe Positive -> RMeta -> Text
+getMssqlFromMeta :: Maybe Pos -> RMeta -> Text
 getMssqlFromMeta mmx meta =
   let ret = case mmx of
         Nothing -> map (T.pack . colName) meta
-        Just (unPositive -> mx) ->
+        Just (Pos mx) ->
           let (as, bs) = L.partition (\m -> Just mx >= colSize m || (colSize m == Just 0 && colType m `elem` [SqlVarCharT, SqlLongVarCharT, SqlWCharT, SqlWVarCharT, SqlWLongVarCharT, SqlBinaryT, SqlVarBinaryT, SqlLongVarBinaryT])) meta
               ln1 = map (T.pack . colName) as
               ln2 = map ((\nm -> [st|convert(varchar(#{mx}),substring(#{nm},1,#{mx})) as #{nm}|]) . colName) bs
@@ -954,16 +953,16 @@ colDescFn1Pred b p =
   maybe b p . preview (_Ctor @"RealHeader" . param @0)
 
 -- | exclude all columns with a size over "n"
-limitColSizeFn1 :: Positive -> Fn1
-limitColSizeFn1 (unPositive -> n) = colTypeFn1 (colDescFn1Pred True ((<= Just n) . colSize))
+limitColSizeFn1 :: Pos -> Fn1
+limitColSizeFn1 (Pos n) = colTypeFn1 (colDescFn1Pred True ((<= Just n) . colSize))
 
 -- | excludes any column where the length of the sum of all the strings >=i
-lengthFn1 :: Positive -> Fn1
-lengthFn1 (unPositive -> i) = Fn1 $ map (view _1) . filter ((< i) . length . concat . view (_2 . _1))
+lengthFn1 :: Pos -> Fn1
+lengthFn1 (Pos i) = Fn1 $ map (view _1) . filter ((< i) . length . concat . view (_2 . _1))
 
 -- | exclude columns if any field is over a certain size
-lengthAnyFn1 :: Positive -> Fn1
-lengthAnyFn1 (unPositive -> i) = Fn1 $ map (view _1) . filter ((< i) . Safe.maximumBound 0 . map length . view (_2 . _1))
+lengthAnyFn1 :: Pos -> Fn1
+lengthAnyFn1 (Pos i) = Fn1 $ map (view _1) . filter ((< i) . Safe.maximumBound 0 . map length . view (_2 . _1))
 
 -- | 'typeFn1' allows you to filter columns by type:ie if DateY/Numy/StringY/Other
 typeFn1 :: (FType -> Bool) -> Fn1
@@ -1037,7 +1036,7 @@ qprttableImpl ::
   ) =>
   Opts ->
   [Rec V.Identity rs] ->
-  Maybe (StateT CellState Identity (NonEmpty (NonEmpty Cell)))
+  Maybe (StateT CellState L.Identity (NonEmpty (NonEmpty Cell)))
 qprttableImpl o =
   \case
     [] -> Nothing
@@ -1154,7 +1153,7 @@ instance
     )
 
 instance
-  (KnownNat (TP.Length rs), ReifyConstraint FromCell V.Identity rs, RFoldMap rs) =>
+  (KnownNat (TP.LengthT rs), ReifyConstraint FromCell V.Identity rs, RFoldMap rs) =>
   ZPrint (RState (SelRow (Rec V.Identity rs)))
   where
   zprintV z@RState{rsOut = SelRow _ meta} o fn pos =
@@ -1185,7 +1184,7 @@ instance
     )
 
 instance
-  (KnownNat (TP.Length rs), ReifyConstraint FromCell V.Identity rs, RFoldMap rs) =>
+  (KnownNat (TP.LengthT rs), ReifyConstraint FromCell V.Identity rs, RFoldMap rs) =>
   ZPrint (RState (Sel (Rec V.Identity rs)))
   where
   zprintV z@RState{rsOut = Sel _ meta} o fn pos =

@@ -26,7 +26,7 @@ import DocUtils.Doc
 import HSql.Core.Decoder
 import HSql.Core.Encoder
 import HSql.Core.Sql
-import Utils.Error
+import Primus.Error
 
 -- | modify RState contents within a vinyl record at the first position
 mapRState1 :: DefDec (SingleIn c) => (a -> c) -> Rec RState (a : rs) -> Rec RState (c : rs)
@@ -52,7 +52,7 @@ rstateChange1 f = runIdentity . rstateChange1' (Identity <$> f)
 rstateChange2 :: (RState b -> RState b') -> Rec RState (a ': b ': rs) -> Rec RState (a ': b' ': rs)
 rstateChange2 f = runIdentity . rstateChange2' (Identity <$> f)
 
--- | combinator for concatenating a non empty list of vinyl records into one
+-- | combinator for concatenating a nonempty list of vinyl records into one
 recRStateSelAnyConcat :: Semigroup (RState a) => NonEmpty (Rec RState '[a]) -> Rec RState '[a]
 recRStateSelAnyConcat rs =
   let ns = N.map (\(r :& _) -> r) rs

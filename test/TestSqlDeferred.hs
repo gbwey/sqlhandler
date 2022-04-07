@@ -1,5 +1,4 @@
 {-# OPTIONS -Wno-deferred-type-errors #-}
-{-# OPTIONS -Wno-unused-imports #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -13,8 +12,6 @@
 
 module TestSqlDeferred where
 
-import Control.DeepSeq
-import qualified Control.Exception as E
 import DeferredOrphans ()
 import HSql.Core.Decoder
 import HSql.Core.Sql

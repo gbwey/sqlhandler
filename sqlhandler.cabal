@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 53415081f80c1a54589386e045872d1bec5164861da1b607d5b3a8b2c4b2ee8c
+-- hash: b90a949f6495c2f76fe2282a0060e46a3e9f781de13073d5bf867a2c42a1f556
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -30,6 +30,7 @@ library
       HSql.Core.Encoder
       HSql.Core.ErrorHandler
       HSql.Core.FrameUtils
+      HSql.Core.One
       HSql.Core.Operator
       HSql.Core.Raw
       HSql.Core.RStateBuilder
@@ -49,7 +50,6 @@ library
     , bytestring
     , containers
     , contravariant
-    , coreutils
     , data-fix
     , deepseq
     , deriving-compat
@@ -65,8 +65,10 @@ library
     , mtl
     , one-liner
     , parser-combinators
+    , pos >=0.2.0.0
     , pretty-simple
     , prettyprinter
+    , primus >=0.2.0.0
     , safe
     , semigroupoids
     , shakespeare
@@ -92,7 +94,6 @@ test-suite doctests
     , bytestring
     , containers
     , contravariant
-    , coreutils
     , data-fix
     , deepseq
     , deriving-compat
@@ -109,8 +110,10 @@ test-suite doctests
     , mtl
     , one-liner
     , parser-combinators
+    , pos >=0.2.0.0
     , pretty-simple
     , prettyprinter
+    , primus >=0.2.0.0
     , safe
     , semigroupoids
     , shakespeare
@@ -151,7 +154,6 @@ test-suite spec
     , bytestring
     , containers
     , contravariant
-    , coreutils
     , data-fix
     , deepseq
     , deriving-compat
@@ -169,8 +171,10 @@ test-suite spec
     , one-liner
     , parser-combinators
     , pipes
+    , pos >=0.2.0.0
     , pretty-simple
     , prettyprinter
+    , primus >=0.2.0.0
     , quickcheck-instances
     , safe
     , semigroupoids

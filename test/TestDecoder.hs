@@ -61,8 +61,8 @@ allTests =
   , (@?=) (unDec (defDec :: Dec (DecN 3 Int)) [SqlInt32 1, SqlInt32 4, SqlInt32 555, SqlInt32 12]) (Right (DecN [1, 4, 555], [SqlInt32 12]))
   , (@?=) (unDec defDec [SqlString "aa", SqlBool True, SqlChar 'x']) (Right (S1 "aa" True 'x', []))
   , (@?=) (unDec (defDec :: Dec (DecAlle Int)) [SqlInteger 1, SqlInt32 4, SqlInteger 555, SqlInt32 12]) (Right (DecAlle [1, 4, 555, 12], []))
-  , (@?=) (unDec (defDec :: Dec (V.ElField ("abc" V.::: Int))) [SqlInteger 123, SqlString "x"]) (Right (V.Field @"abc" 123, [SqlString "x"]))
-  , (@?=) (unDec (defDec :: Dec (F '["abc" V.::: Int, "def" V.::: String])) [SqlInteger 123, SqlString "x"]) (Right (V.Field @"abc" 123 :& V.Field @"def" "x" :& RNil, []))
+  , (@?=) (unDec (defDec :: Dec (V.ElField ("abc" V.::: Int))) [SqlInteger 123, SqlString "x"]) (Right (V.Field 123, [SqlString "x"]))
+  , (@?=) (unDec (defDec :: Dec (F '["abc" V.::: Int, "def" V.::: String])) [SqlInteger 123, SqlString "x"]) (Right (V.Field 123 :& V.Field "x" :& RNil, []))
   {-
     , expectD (Right (R3.unsafeRefined3 [127, 1, 0, 199] "127.001.000.199", [])) (unDec (defDec :: Dec (R3.Refined3 OZ (Map' (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (Between 0 255 Id)) >> 'True) (PrintL 4 "%03d.%03d.%03d.%03d" Id) String)) [SqlString "127.1.0.199"])
     , expectD (Left "Refined3 Step 2. Failed Boolean Check(op) | octet 0-255") (unDec (defDec :: Dec (R3.Refined3 OZ (Map' (ReadP Int Id) (Resplit "\\.")) (Guard "length" (Len == 4) >> Guard "octet 0-255" (All (Between 0 255 Id)) >> 'True) (PrintL 4 "%03d.%03d.%03d.%03d" Id) String)) [SqlString "127.1.0.499"])

@@ -105,10 +105,10 @@ spec =
 
     it "test Range failed" $ hasError @NoResultSetE $ processRetCol @'[Range 3 5 Upd] defDec [Left 4, Left 5]
 
-    it "test UpdN failed" $ hasError @UpdNE $ ext <$> processRetCol @'[UpdN ( 'OGT ( 'Pos 24) ':||: 'OLT ( 'Pos 14))] defDec [Left 23]
+    it "test UpdN failed" $ hasError @UpdNE $ ext <$> processRetCol @'[UpdN ( 'OGT ( 'SPos 24) ':||: 'OLT ( 'SPos 14))] defDec [Left 23]
 
     it "should allow complex UpdN predicate" $
-      ext <$> processRetCol @'[UpdN ( 'OGT ( 'Pos 24) ':||: 'OLT ( 'Pos 14))] defDec [Left 8]
+      ext <$> processRetCol @'[UpdN ( 'OGT ( 'SPos 24) ':||: 'OLT ( 'SPos 14))] defDec [Left 8]
         `shouldBe` Right 8
 
     it "should allow Rev Upd then SelRow" $
@@ -188,27 +188,27 @@ spec =
         `shouldBe` Right (7, True :| [False], 12)
 
     it "should chooose between the first of three Upd types" $
-      ext <$> processRetCol @'[UpdN ( 'OEQ ( 'Pos 7)) :+: UpdN ( 'OEQ ( 'Pos 3)) :+: Upd] defDec (map Left [7])
+      ext <$> processRetCol @'[UpdN ( 'OEQ ( 'SPos 7)) :+: UpdN ( 'OEQ ( 'SPos 3)) :+: Upd] defDec (map Left [7])
         `shouldBe` Right (Left (Left 7))
 
     it "should chooose between the second of three Upd types" $
-      ext <$> processRetCol @'[UpdN ( 'OEQ ( 'Pos 7)) :+: UpdN ( 'OEQ ( 'Pos 3)) :+: Upd] defDec (map Left [3])
+      ext <$> processRetCol @'[UpdN ( 'OEQ ( 'SPos 7)) :+: UpdN ( 'OEQ ( 'SPos 3)) :+: Upd] defDec (map Left [3])
         `shouldBe` Right (Left (Right 3))
 
     it "should chooose between the third of three Upd types" $
-      ext <$> processRetCol @'[UpdN ( 'OEQ ( 'Pos 7)) :+: UpdN ( 'OEQ ( 'Pos 3)) :+: Upd] defDec (map Left [9])
+      ext <$> processRetCol @'[UpdN ( 'OEQ ( 'SPos 7)) :+: UpdN ( 'OEQ ( 'SPos 3)) :+: Upd] defDec (map Left [9])
         `shouldBe` Right (Right 9)
 
     it "should optionally consume the Upd type" $
-      ext <$> processRetCol @'[May (UpdN ( 'OEQ ( 'Pos 7))), Upd] defDec (map Left [9])
+      ext <$> processRetCol @'[May (UpdN ( 'OEQ ( 'SPos 7))), Upd] defDec (map Left [9])
         `shouldBe` Right (Nothing, 9)
 
     it "should optionally consume the Upd type" $
-      ext <$> processRetCol @'[May (UpdN ( 'OEQ ( 'Pos 7)))] defDec (map Left [7])
+      ext <$> processRetCol @'[May (UpdN ( 'OEQ ( 'SPos 7)))] defDec (map Left [7])
         `shouldBe` Right (Just 7)
 
     it "should optionally consume the Sel type" $
-      ext <$> processRetCol @'[May (UpdN ( 'OEQ ( 'Pos 7))), SelRow Bool] defDec [trueRS1]
+      ext <$> processRetCol @'[May (UpdN ( 'OEQ ( 'SPos 7))), SelRow Bool] defDec [trueRS1]
         `shouldBe` Right (Nothing, True)
 
     it "test out RangeT" $
@@ -381,11 +381,11 @@ tst2 :: Either SE (Rec RState '[Sel (Bool, Char), Upd, Sel R1])
 tst2 = processRetCol defDec [rsa, rsb, rsc]
 
 -- test type level predicate for update: expected @4
-tst2' :: forall n. KnownNat n => Either SE (Rec RState '[Sel (Bool, Char), UpdN ( 'OEQ ( 'Pos n)), Sel R1])
+tst2' :: forall n. KnownNat n => Either SE (Rec RState '[Sel (Bool, Char), UpdN ( 'OEQ ( 'SPos n)), Sel R1])
 tst2' = processRetCol defDec [rsa, rsb, rsc]
 
 -- predicate on length of results and n=0,1,2,3 work but nothing above that
-tst21A :: forall n. KnownNat n => Either SE (Rec RState '[Alle (UpdN ( 'OGE ( 'Pos n)))])
+tst21A :: forall n. KnownNat n => Either SE (Rec RState '[Alle (UpdN ( 'OGE ( 'SPos n)))])
 tst21A = processRetCol defDec [Left 5, Left 12, Left 7, Left 3, Left 4, Left 99, Left 22]
 
 -- UGE n == UpdN 'OGE n
@@ -605,12 +605,12 @@ t11 ::
   ()
 t11 x = x
 
-t12 :: forall db. Sql db '[Int] '[UpdN ( 'OEQ ( 'Pos 0)), Sel Int, SelRow Bool]
+t12 :: forall db. Sql db '[Int] '[UpdN ( 'OEQ ( 'SPos 0)), Sel Int, SelRow Bool]
 t12 =
   let _a :: Text
       _b :: Rec Enc '[Int]
-      _c :: Rec SingleIn '[UpdN ( 'OEQ ( 'Pos 0)), Sel Int, SelRow Bool]
+      _c :: Rec SingleIn '[UpdN ( 'OEQ ( 'SPos 0)), Sel Int, SelRow Bool]
       _d :: Text
-      z :: Sql db '[Int] '[UpdN ( 'OEQ ( 'Pos 0)), Sel Int, SelRow Bool]
+      z :: Sql db '[Int] '[UpdN ( 'OEQ ( 'SPos 0)), Sel Int, SelRow Bool]
       z@(Sql _a _b _c _d) = sqlCombine (mkSql @'[U0] @'[] "[sqlA]" "select 1") (mkSql @'[Sel Int, SelRow Bool] @'[Int] "[sqlB]" "select 2")
    in z

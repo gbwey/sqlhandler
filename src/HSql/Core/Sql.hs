@@ -31,9 +31,9 @@ module HSql.Core.Sql where
 
 import Control.Arrow
 import Control.DeepSeq (NFData)
-import Control.Lens (Bifunctor (..), snoc)
 import Control.Monad
 import Control.Monad.State.Strict
+import Data.Bifunctor
 import Data.Bool
 import Data.Coerce
 import Data.Kind
@@ -41,6 +41,7 @@ import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as N
 import qualified Data.List.NonEmpty.Extra as NE
 import Data.Maybe
+import Data.Pos
 import Data.Proxy (Proxy (Proxy))
 import Data.String (IsString (fromString))
 import Data.Text (Text)
@@ -63,12 +64,13 @@ import HSql.Core.Common
 import HSql.Core.Decoder
 import HSql.Core.Encoder
 import HSql.Core.ErrorHandler
+import HSql.Core.One
 import HSql.Core.Operator
+import Primus.Error
+import Primus.Fold
+import Primus.List
+import qualified Primus.TypeLevel as TP
 import Text.Shakespeare.Text (ToText (toText))
-import Utils.Error
-import Utils.One
-import Utils.Positive
-import qualified Utils.TypeLevel as TP
 
 {- | 'Sql' is the core ADT that holds a vinyl record of encoders for the input
  and a vinyl record of decoders for the ouput and then the Sql text
@@ -237,7 +239,7 @@ toRState :: HasCallStack => Rec SingleIn rs -> Rec RState rs
 toRState = VR.rmap $ \xa ->
   RState
     xa
-    (programmerError "RState: rsOut doesn't have a value!")
+    (programmError "RState: rsOut doesn't have a value!")
 
 -- | 'Single' represents a single result set
 type Single :: Type -> Constraint
@@ -451,7 +453,7 @@ instance
                 (msg ++ "(" ++ show i ++ ")")
                 zz
                 zz'
-                (Alle (coerce sc `snoc` sc'))
+                (Alle (coerce sc `snocL` sc'))
           )
           (Alle [], z)
           [1 .. m]
@@ -490,12 +492,12 @@ instance Single a => Single (Rev a) where
       let z' =
             SingleState
               posbefore -- need to adjust the position if fwd vs bwd
-              (reverse (stRss z)) -- reverse resultsets
+              (reverseF (stRss z)) -- reverse resultsets
               (not (stRev z))
       (sc, z'') <- runStateT (singleCol one) z'
       -- we skip checkRss msg z' z'' cos should have be checked lower down in 'a' in eg Exact Both Sel ...
       when _CheckRss $ void $ checkRss msg z' z'' -- this is correct but no need cos handled downstream: Rev a means that 'a' is should have been checked in Sel/Exact ...
-      pure (Rev sc, z{stRss = reverse (stRss z'')})
+      pure (Rev sc, z{stRss = reverseF (stRss z'')})
 
 deriving stock instance (Eq (SingleIn a)) => Eq (SingleIn (Alle a))
 
@@ -648,7 +650,7 @@ instance
     let msg = showF k
     let n = TP.pnat @n
     -- use a list then convert to nonempty is easiest and less code repetition
-    -- tricky cos cant start with empty list cos non empty
+    -- tricky cos cant start with empty list cos nonempty
     -- CORRECT BY CONSTRUCTION
     (sc0, z0) <- addError (msg ++ "(1)") z $ do
       (sc0, z0) <- runStateT (singleCol one) z
@@ -886,7 +888,7 @@ unsafeCoerceSql :: Text -> Rec Enc a -> Rec SingleIn b -> Sql db1 ax bx -> Sql d
 unsafeCoerceSql str e d s = Sql (str <> "[" <> sDescription s <> "]:coerced") e d (sSql s)
 
 -- | given a number of rows the user needs to calculate the effective number of fields needed ie rows * cols
-type ISql db a b = Positive -> (Sql db a b, Positive)
+type ISql db a b = Pos -> (Sql db a b, Pos)
 
 {- | 'ToTuple' converts Rec V.Identity to tuples
    single Tuple is a special case.
@@ -1018,40 +1020,40 @@ instance DefDec (SingleIn a) => DefDec (SingleIn (May a)) where
 
 -- | predicate (==0) for an update result set
 type family U0 where
-  U0 = UpdN ( 'OEQ ( 'Pos 0))
+  U0 = UpdN ( 'OEQ ( 'SPos 0))
 
 -- | predicate (==1) for an update result set
 type family U1 where
-  U1 = UpdN ( 'OEQ ( 'Pos 1))
+  U1 = UpdN ( 'OEQ ( 'SPos 1))
 
 -- | predicate (>0) for an update result set
 type family UGT0 where
-  UGT0 = UpdN ( 'OGT ( 'Pos 0))
+  UGT0 = UpdN ( 'OGT ( 'SPos 0))
 
 -- | Allows user to provide a equality predicate at the type level for an update result set
 type UEQ :: Nat -> Type
 type family UEQ n = w | w -> n where
-  UEQ n = UpdN ( 'OEQ ( 'Pos n))
+  UEQ n = UpdN ( 'OEQ ( 'SPos n))
 
 -- | Allows user to provide a "greater then or equal to" predicate at the type level for an update result set
 type UGE :: Nat -> Type
 type family UGE n = w | w -> n where
-  UGE n = UpdN ( 'OGE ( 'Pos n))
+  UGE n = UpdN ( 'OGE ( 'SPos n))
 
 -- | Allows user to provide a "greater then" predicate at the type level for an update result set
 type UGT :: Nat -> Type
 type family UGT n = w | w -> n where
-  UGT n = UpdN ( 'OGT ( 'Pos n))
+  UGT n = UpdN ( 'OGT ( 'SPos n))
 
 -- | Allows user to provide a "less then or equal to" predicate at the type level for an update result set
 type ULE :: Nat -> Type
 type family ULE n = w | w -> n where
-  ULE n = UpdN ( 'OLE ( 'Pos n))
+  ULE n = UpdN ( 'OLE ( 'SPos n))
 
 -- | Allows user to provide a "less then" predicate at the type level for an update result set
 type ULT :: Nat -> Type
 type family ULT n = w | w -> n where
-  ULT n = UpdN ( 'OLT ( 'Pos n))
+  ULT n = UpdN ( 'OLT ( 'SPos n))
 
 -- | determines if a database is writeable or not
 type WriteableDB :: db -> Bool
@@ -1222,7 +1224,7 @@ handleSomeResultSets mn msg one sc0 = StateT $ \z -> go (0 :: Int) z sc0
                 go
                   (i + 1)
                   z'
-                  (Alle (coerce sc `snoc` sc'))
+                  (Alle (coerce sc `snocL` sc'))
 
 -- | turn off/on checkRss
 _CheckRss :: Bool

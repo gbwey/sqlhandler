@@ -25,6 +25,7 @@ import qualified Data.Text as T
 import Data.These
 import DocUtils.Condition
 import DocUtils.Doc
+import DocUtils.Parser
 import DocUtils.Time
 import HSql.Core.SqlParserMS
 import Prettyprinter (Pretty (..))
@@ -32,7 +33,6 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Text.Megaparsec
 import Text.Shakespeare.Text (st)
-import Utils.Parser
 import qualified Validation as V
 
 doit :: IO ()
@@ -45,15 +45,15 @@ suite =
     [ testCase "unquoted tname" $ runP (tNameP' (pure dq)) "abc" @?= Right (TName "abc" Nothing)
     , testCase "quoted tname1" $ runP (tNameP' (pure dq)) "\"abc\"" @?= Right (TName "abc" (Just dq))
     , testCase "quoted tname1 with embedded quotes" $ runP (tNameP' (pure dq)) "\"a\"\"bc\"" @?= Right (TName "a\"bc" (Just dq))
-    , testCase "quoted tname but wrong delimiter" $ expectLeftWithT (pure "expecting '[' or undelimited") (runP (tNameP' (pure bq)) "\"abc\"") @?= Right ()
-    , testCase "unquoted tname with invalid char" $ expectLeftWithT (pure "expecting end of input or rest of") (runP (tNameP' (pure bq) *> eof) "abcd+") @?= Right ()
-    , testCase "missing end quote" $ expectLeftWithT (pure "expecting ']'") (runP (tNameP' (pure bq)) "[abc  ") @?= Right ()
+    , testCase "quoted tname but wrong delimiter" $ expectLeftInfix (pure "expecting '[' or undelimited") (runP (tNameP' (pure bq)) "\"abc\"") @?= Right ()
+    , testCase "unquoted tname with invalid char" $ expectLeftInfix (pure "expecting end of input or rest of") (runP (tNameP' (pure bq) *> eof) "abcd+") @?= Right ()
+    , testCase "missing end quote" $ expectLeftInfix (pure "expecting ']'") (runP (tNameP' (pure bq)) "[abc  ") @?= Right ()
     , testCase "quoted tname2" $ runP (tNameP' (pure bq)) "[abc]" @?= Right (TName "abc" (Just bq))
     , testCase "quoted tname3" $ runP (tNameP' msprefix) "[abc]" @?= Right (TName "abc" (Just bq))
     , testCase "quoted tname4" $ runP (tNameP' msprefix) "\"abc\"" @?= Right (TName "abc" (Just dq))
-    , testCase "tname with extra junk" $ expectLeftWithT (pure "end of input") (runP (tNameP' msprefix <* eof) "[abc] extra junk") @?= Right ()
+    , testCase "tname with extra junk" $ expectLeftInfix (pure "end of input") (runP (tNameP' msprefix <* eof) "[abc] extra junk") @?= Right ()
     , testCase "quoted tname can start with a number" $ runP (tNameP' msprefix) "\" 4abc   \"" @?= Right (TName " 4abc   " (Just dq))
-    , testCase "unquoted tname cannot start with a digit" $ expectLeftWithT (pure "unexpected '4'") (runP (tNameP' msprefix) "4abc") @?= Right ()
+    , testCase "unquoted tname cannot start with a digit" $ expectLeftInfix (pure "unexpected '4'") (runP (tNameP' msprefix) "4abc") @?= Right ()
     , testCase "paren empty" $ runP sqlParenP "()" @?= Right (STParens [])
     , testCase "paren 1 char" $ runP sqlParenP "(x)" @?= Right (STParens [STUnquoted "x"])
     , testCase "paren quotes iside" $ runP sqlParenP "(x'11''a'b)" @?= Right (STParens [STUnquoted "x", STQuoted (XQuotedString ('\'', '\'') "11'a"), STUnquoted "b"])

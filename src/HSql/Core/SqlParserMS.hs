@@ -45,13 +45,12 @@ import qualified GHC.Generics as G
 import GHC.Stack
 import Prettyprinter (Doc, Pretty (..), dot, (<+>))
 import qualified Prettyprinter as P
+import Primus.Error
 import Text.Megaparsec
 import qualified Text.Megaparsec as Z
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as ZL
 import Text.Shakespeare.Text
-import Utils.Error
-import Utils.Parser
 import qualified Validation as V
 
 -- | space consumer for megaparsec
@@ -105,7 +104,7 @@ instance Pretty TName where
 tNameRawLens :: Lens' TName (NonEmpty Char)
 tNameRawLens = the @"tNameRaw" . nonEmptyTextIso
 
--- | iso from 'NonEmptyText' to a non empty list of characters
+-- | iso from 'NonEmptyText' to a nonempty list of characters
 nonEmptyTextIso :: Iso' NonEmptyText (NonEmpty Char)
 nonEmptyTextIso =
   iso
@@ -140,7 +139,7 @@ toNonEmptyTextUnsafe ts' = case T.uncons ts' of
   Nothing -> normalError "toNonEmptyText: no data"
   Just (c, ts) -> NonEmptyText c ts
 
--- | convert non empty list of characters to 'NonEmptyText'
+-- | convert nonempty list of characters to 'NonEmptyText'
 toNonEmptyText :: NonEmpty Char -> NonEmptyText
 toNonEmptyText (c :| cs) = NonEmptyText c (T.pack cs)
 
@@ -171,7 +170,7 @@ msprefix :: NonEmpty (Char, Char)
 msprefix = bq :| [dq]
 
 -- | parse a sql serve table name
-tableParser :: NonEmpty (Char, Char) -> Text -> Either Text TNames
+tableParser :: NonEmpty (Char, Char) -> Text -> Either String TNames
 tableParser ns = runP (tNamesP' ns <* eof <?> "tableParser")
 
 -- | parser for a tablename using the given delimiters if quoted
@@ -271,7 +270,7 @@ fromColumn' (Column' a b mrg mns mid mdef _mlrpkuniq _mcfk) =
 createTable :: Text -> VE CreateTable
 createTable txt = do
   case runP createTableP txt of
-    Left e -> V.failure (ExpectFail, e)
+    Left e -> V.failure (ExpectFail, T.pack e)
     Right (a, b) -> toCreateTable a b
 
 -- | sql table parser
@@ -647,7 +646,7 @@ instance Pretty XQuotedString where
 reifyXQuotedString :: XQuotedString -> Text
 reifyXQuotedString (XQuotedString (s, e) ts) = s `T.cons` ts `T.snoc` e
 
--- | non empty text
+-- | nonempty text
 data NonEmptyText = NonEmptyText
   { neChar :: !Char
   , neText :: !Text
@@ -661,7 +660,7 @@ instance Pretty NonEmptyText where
 reifyXQuotedString1 :: XQuotedString1 -> Text
 reifyXQuotedString1 (XQuotedString1 (s, e) net) = s `T.cons` fromNonEmptyText net `T.snoc` e
 
--- | non empty quoted string
+-- | nonempty quoted string
 data XQuotedString1 = XQuotedString1
   { xq1StartEnd :: !(Char, Char)
   , xq1NonEmptyText :: !NonEmptyText
@@ -780,7 +779,7 @@ fkOnActionP =
     <|> FKCascade <$ lexstring "cascade"
     <|> lexstring "set" *> (FKSetNull <$ lexstring "null" <|> FKSetDefault <$ lexstring "default")
 
--- | parser for an unquoted non empty string
+-- | parser for an unquoted nonempty string
 unquotedTokenPY :: ZParser Text
 unquotedTokenPY =
   lexeme $

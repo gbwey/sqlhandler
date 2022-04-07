@@ -19,10 +19,10 @@ import Data.String
 import Data.Vinyl
 import qualified Data.Vinyl.Functor as V
 import HSql.Core.FrameUtils
+import HSql.Core.One
 import HSql.Core.VinylUtils
 import Test.Tasty
 import Test.Tasty.HUnit
-import Utils.One
 
 statictests ::
   ( ( ToFields' Tst10T ~ Tst10T'
@@ -39,8 +39,8 @@ suite :: TestTree
 suite =
   testGroup
     "TestVinyl"
-    [ testCase "rind1" $ (@?=) (rind' @1 tst9a) (Field @"b" True)
-    , testCase "rind2" $ (@?=) (rind' @0 tst9a) (Field @"a" 'x')
+    [ testCase "rind1" $ (@?=) (rind' @1 tst9a) (Field True)
+    , testCase "rind2" $ (@?=) (rind' @0 tst9a) (Field 'x')
     , testCase "rix1" $ (@?=) (I5 'd' True 14 "hello" 21 ^. rixI @2) 14
     , testCase "rix2" $ (@?=) (I5 'd' True 14 "hello" "abc" & rixI @3 <>~ "there") (I5 'd' True 14 "hellothere" "abc")
     , testCase "rix3" $ (@?=) (I4 'd' True 14 "hello" ^. rixI @0) 'd'

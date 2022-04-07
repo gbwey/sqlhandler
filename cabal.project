@@ -1,6 +1,4 @@
-packages: *.cabal ../{table-layout,hdbc-odbc2,coreutils,docutils}
-
-package these
-  flags: -aeson -assoc -semigroupoids -QuickCheck
+packages: *.cabal ../{table-layout,hdbc-odbc2,pos,primus,docutils}
+-- packages: *.cabal ../{table-layout,hdbc-odbc2,docutils}
 
 tests: True

@@ -45,11 +45,11 @@ import Data.Proxy (Proxy (Proxy))
 import DocUtils.Doc
 import GHC.Generics (Generic)
 import GHC.TypeLits
+import Primus.NonEmpty
+import qualified Primus.TypeLevel as TP (Cons1T, pnat)
 import Text.Show.Deriving (deriveShow1)
-import Utils.NonEmpty
-import qualified Utils.TypeLevel as TP (Cons1T)
 
--- | convert a type level non empty list of signed to non empty list of ints
+-- | convert a type level nonempty list of signed to nonempty list of ints
 type SignedToInts :: NonEmpty Signed -> Constraint
 class SignedToInts xs where
   getSignedToInts :: NonEmpty Int
@@ -59,30 +59,30 @@ instance SignedC n => SignedToInts (n ':| '[]) where
 instance (SignedC n, SignedToInts (n' ':| ns)) => SignedToInts (n ':| n' ': ns) where
   getSignedToInts = toSign @n N.<| getSignedToInts @(n' ':| ns)
 
--- | creates a signed positive non empty list
+-- | creates a signed positive nonempty list
 type PosList :: NonEmpty Nat -> NonEmpty Signed
 type family PosList ns = result where
-  PosList (n ':| '[]) = 'Pos n ':| '[]
-  PosList (n ':| n1 ': ns) = TP.Cons1T ( 'Pos n) (PosList (n1 ':| ns))
+  PosList (n ':| '[]) = 'SPos n ':| '[]
+  PosList (n ':| n1 ': ns) = TP.Cons1T ( 'SPos n) (PosList (n1 ':| ns))
 
--- | creates a signed negative non empty list
+-- | creates a signed negative nonempty list
 type NegList :: NonEmpty Nat -> NonEmpty Signed
 type family NegList ns = result where
-  NegList (n ':| '[]) = 'Neg n ':| '[]
-  NegList (n ':| n1 ': ns) = TP.Cons1T ( 'Neg n) (NegList (n1 ':| ns))
+  NegList (n ':| '[]) = 'SNeg n ':| '[]
+  NegList (n ':| n1 ': ns) = TP.Cons1T ( 'SNeg n) (NegList (n1 ':| ns))
 
 -- | signed version of 'Nat'
-data Signed = Neg !Nat | Pos !Nat
+data Signed = SNeg !Nat | SPos !Nat
 
 -- | returns the signed value for 'Signed'
 type SignedC :: Signed -> Constraint
 class SignedC s where
   toSign :: Int
 
-instance KnownNat n => SignedC ( 'Neg n) where
-  toSign = negate (fromIntegral (natVal @n Proxy))
-instance KnownNat n => SignedC ( 'Pos n) where
-  toSign = fromIntegral (natVal @n Proxy)
+instance KnownNat n => SignedC ( 'SNeg n) where
+  toSign = negate (TP.pnat @n)
+instance KnownNat n => SignedC ( 'SPos n) where
+  toSign = TP.pnat @n
 
 {- $setup
  >>> :m + Control.Lens
@@ -113,26 +113,26 @@ deriveShow1 ''ExprF
 -- synonyms for positive values which are the most commonly used
 
 -- | less than or equal for positive values
-type OLE (n :: Nat) = 'OLE ( 'Pos n)
+type OLE (n :: Nat) = 'OLE ( 'SPos n)
 
 -- | less than or equal for positive values
-type OLT (n :: Nat) = 'OLT ( 'Pos n)
+type OLT (n :: Nat) = 'OLT ( 'SPos n)
 
 -- | equal for positive values
-type OEQ (n :: Nat) = 'OEQ ( 'Pos n)
+type OEQ (n :: Nat) = 'OEQ ( 'SPos n)
 
 -- | greater than for positive values
-type OGT (n :: Nat) = 'OGT ( 'Pos n)
+type OGT (n :: Nat) = 'OGT ( 'SPos n)
 
 -- | greater than or equal for positive values
-type OGE (n :: Nat) = 'OGE ( 'Pos n)
+type OGE (n :: Nat) = 'OGE ( 'SPos n)
 
 -- | not equal for positive values
-type ONE (n :: Nat) = 'ONE ( 'Pos n)
+type ONE (n :: Nat) = 'ONE ( 'SPos n)
 
 -- | between "m" and "n' for positive values
 type (:-:) :: Nat -> Nat -> Op
-type m :-: n = 'Pos m ':-: 'Pos n
+type m :-: n = 'SPos m ':-: 'SPos n
 
 -- | 'elem' for a list of positive numbers
 type OElem (ns :: NonEmpty Nat) = 'OElem (PosList ns)
@@ -290,7 +290,7 @@ pattern EBoolP b = Fix (EBool b)
 pattern ENotP :: Expr -> Expr
 pattern ENotP a = Fix (ENot a)
 
--- | pattern synonym for lifting a non empty list of ints into 'EElem'
+-- | pattern synonym for lifting a nonempty list of ints into 'EElem'
 pattern EElemP :: NonEmpty Int -> Expr
 pattern EElemP ns = Fix (EElem ns)
 

@@ -17,7 +17,6 @@ License     : BSD-3
 module HSql.Core.ErrorHandler where
 
 import Control.DeepSeq (NFData)
-import Control.Lens hiding (Const, Identity, op, rmap)
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as N
 import Data.Maybe
@@ -192,7 +191,7 @@ type SE = NonEmpty (CoRec V.Identity SE')
 
 -- | extract the short messages from 'SE'
 seShortMessages' :: Either SE x -> [String]
-seShortMessages' x = x ^.. _Left . traverse . to seShortMessage
+seShortMessages' = either seShortMessages (const mempty)
 
 -- | extract the short messages from 'SE'
 seShortMessages :: SE -> [String]

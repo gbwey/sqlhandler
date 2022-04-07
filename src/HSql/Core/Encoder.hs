@@ -36,11 +36,11 @@ License     : BSD-3
 module HSql.Core.Encoder where
 
 import Control.DeepSeq (NFData)
-import qualified Control.Lens as L
 import Data.ByteString (ByteString)
 import Data.Coerce
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
+import qualified Data.Functor.Identity as L
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
@@ -53,6 +53,7 @@ import GHC.Generics (Generic)
 import qualified Generics.OneLiner as GO
 import HSql.Core.Raw
 import HSql.Core.VinylUtils (pattern I1, pattern I2, pattern I3, pattern I4)
+import Primus.Extra
 
 {-
 import Predicate.Refined (Refined, unRefined)
@@ -132,11 +133,11 @@ encodeList = unEnc . encList'
 
 -- | encoder that takes a list of "a" and returns an list of 'SqlValue'
 encodeList' :: Enc a -> [a] -> EncList SqlValue
-encodeList' = (EncList .) . encodeList
+encodeList' = EncList .@ encodeList
 
 -- | encoder that takes a list of "a" and returns an list of 'SqlValue' as a first entry in a vinyl list using the given encoder
 encodeListV :: Enc a -> [a] -> Rec V.Identity '[EncList SqlValue]
-encodeListV = (I1 .) . encodeList'
+encodeListV = I1 .@ encodeList'
 
 -- | encoder that takes a list of "a" and returns an list of 'SqlValue' using the default encoder
 encodeListDef :: DefEnc (Enc a) => [a] -> EncList SqlValue

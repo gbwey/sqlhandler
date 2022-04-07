@@ -10,7 +10,8 @@ dependencies:
 - bytestring
 - containers
 - contravariant
-- coreutils
+- pos >= 0.2.0.0
+- primus >= 0.2.0.0
 - data-fix
 - deepseq
 - deriving-compat

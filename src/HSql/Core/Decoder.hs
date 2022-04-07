@@ -52,15 +52,15 @@ import Database.HDBC (SqlValue (..))
 import DocUtils.Doc
 import GHC.Generics
 import GHC.Stack (HasCallStack)
-import GHC.TypeLits (ErrorMessage (..), KnownNat, KnownSymbol, Nat, Symbol, natVal, symbolVal)
+import GHC.TypeLits (ErrorMessage (..), KnownNat, KnownSymbol, Nat, Symbol, symbolVal)
 import qualified GHC.TypeLits as GL
 import HSql.Core.Conv (Conv, conv)
 import HSql.Core.ErrorHandler (ConvE (cvMessage), DE, DE', DecodingE (..), failDE, liftCE)
+import HSql.Core.One
 import HSql.Core.Raw
-import Utils.Error
-import Utils.Fold
-import Utils.One
-import qualified Utils.TypeLevel as TP (FailUnless, Snds)
+import Primus.Error
+import Primus.Fold
+import qualified Primus.TypeLevel as TP (FailUnless, Snds, pnat)
 
 -- | stateful parser for decoding sql values
 newtype Dec a = Dec {unDec :: [SqlValue] -> Either DE (a, [SqlValue])}
@@ -149,7 +149,7 @@ decPred p = Dec $ \case
 -- | adds error context to a decoder
 decAddError :: String -> String -> String -> Dec a -> Dec a
 decAddError s t u (Dec d) =
-  Dec $ \xs -> left' (decAddError' s t u xs) (d xs)
+  Dec $ \xs -> left (decAddError' s t u xs) (d xs)
 
 -- | adds error context to a decoder including 'SqlValue's
 decAddError' :: String -> String -> String -> [SqlValue] -> DE -> DE
@@ -172,14 +172,14 @@ instance Monad Dec where
 -- | convert a single decoder to work on a list
 decAlle :: forall a. Dec a -> Dec (DecAlle a)
 decAlle (Dec d) =
-  Dec $ \hhs -> left' (decAddError' "Dec DecAlle" "" "" hhs) $ do
-    as <- unfoldM (\hhs' -> if null hhs' then return Nothing else Just <$> d hhs') hhs
+  Dec $ \hhs -> left (decAddError' "Dec DecAlle" "" "" hhs) $ do
+    as <- unfoldrM (\hhs' -> if null hhs' then return Nothing else Just <$> d hhs') hhs
     return (DecAlle as, [])
 
 -- | generic decoder
 decGeneric :: Conv a => Dec a
 decGeneric = Dec $ \case
-  (c : cs) -> left' (decAddError' "decGeneric" "leftovers" "" (c : cs)) $ left' liftCE ((,cs) <$> conv [c])
+  (c : cs) -> left (decAddError' "decGeneric" "leftovers" "" (c : cs)) $ left liftCE ((,cs) <$> conv [c])
   [] -> failDE "decGeneric" "no data" "" []
 
 -- | xlates a vinyl record of decoders and returns a single decoder on a vinyl list [sequence]
@@ -200,7 +200,7 @@ class DecH rs where
 instance DecH '[] where
   decH RNil = Dec $ \xs -> Right (RNil, xs)
 instance (KnownSymbol s, DecH rs) => DecH ('(s, t) ': rs) where
-  decH (d :& ds) = (\a b -> V.Field @s a :& b) <$> d <*> decH ds
+  decH (d :& ds) = (\a b -> V.Field a :& b) <$> d <*> decH ds
 
 -- we dont need to specify rs as ElFieldDec drives inference
 
@@ -212,7 +212,7 @@ class DecI rs where
 instance DecI '[] where
   decI RNil = Dec $ \xs -> Right (RNil, xs)
 instance (KnownSymbol s, DecI rs) => DecI ('(s, t) ': rs) where
-  decI (FieldDec (d :: Dec t) :& ds) = (\a b -> V.Field @s a :& b) <$> d <*> decI ds
+  decI (FieldDec (d :: Dec t) :& ds) = (\a b -> V.Field a :& b) <$> d <*> decI ds
 
 -- | simple wrapper around 'ElField' that holds a decoder
 data ElFieldDec (field :: (Symbol, Type)) where
@@ -230,7 +230,7 @@ class DecList rs where
   decList :: HasCallStack => Rec Dec rs -> Dec (DecTuples rs)
 
 instance GL.TypeError ( 'GL.Text "DecList not defined for the empty list") => DecList '[] where
-  decList RNil = programmerError "decList empty case!"
+  decList RNil = programmError "decList empty case!"
 instance DecList '[d1] where
   decList (d1 :& RNil) = One <$> d1
 instance DecList '[d1, d2] where
@@ -337,7 +337,7 @@ instance
     ) =>
   DefDec (Dec ())
   where
-  defDec = programmerError "defDec: unreachable"
+  defDec = programmError "defDec: unreachable"
 
 -- | failure decoder for a conversion or decoder error
 decFail :: String -> String -> String -> Dec a
@@ -430,7 +430,7 @@ instance DefDec (Dec LocalTime)
 
 -- could write in terms of decMaybe but this is good as is and direct
 instance DefDec (Dec a) => DefDec (Dec (Maybe a)) where
-  defDec = Dec $ \hs -> left' (decAddError' "DefDec (Dec Maybe)" "" "" hs) $
+  defDec = Dec $ \hs -> left (decAddError' "DefDec (Dec Maybe)" "" "" hs) $
     case hs of
       SqlNull : cs -> Right (Nothing, cs)
       cs -> unDec (Just <$> defDec) cs
@@ -441,7 +441,7 @@ instance DefDec (Dec a) => DefDec (Dec (Either String a)) where
 
 -- | assumes that we will consume one value only
 instance DefDec (Dec a) => DefDec (Dec (Either DE a)) where
-  defDec = Dec $ \hs -> left' (decAddError' "DefDec (Dec Either)" "" "" hs) $
+  defDec = Dec $ \hs -> left (decAddError' "DefDec (Dec Either)" "" "" hs) $
     case hs of
       [] -> failDE "Either" "no data" "" hs
       c : cs -> case unDec (defDec @(Dec a)) [c] of
@@ -455,9 +455,9 @@ newtype EitherN n e a = EitherN (Either e a) deriving stock (Functor, Generic)
 -- | a more generic version of Either that allows you to specify how many fields are expected to be decoded
 instance (KnownNat n, DefDec (Dec a)) => DefDec (Dec (EitherN n DE a)) where
   defDec =
-    let n = fromIntegral (natVal (Proxy @n))
+    let n = TP.pnat @n
         nm = "EitherN(" ++ show n ++ ")"
-     in Dec $ \hs -> left' (decAddError' ("DefDec (Dec " ++ nm ++ ")") "" "" hs) $
+     in Dec $ \hs -> left (decAddError' ("DefDec (Dec " ++ nm ++ ")") "" "" hs) $
           case splitAt n hs of
             (xs, ys)
               | length xs < n -> failDE nm ("not enough data need >=" ++ show n ++ " but found " ++ show (length xs)) "" hs
@@ -482,16 +482,16 @@ instance
   where
   defDec = decNE defDec
 
--- | decoder for a non empty list of decoders
+-- | decoder for a nonempty list of decoders
 decNE ::
   forall n a.
   KnownNat n =>
   Dec a ->
   Dec (DecNE n a)
 decNE (Dec d) =
-  let n = fromIntegral (natVal (Proxy @n))
+  let n = TP.pnat @n
       nm = "Dec (DecNE " ++ show n ++ ")"
-   in Dec $ \hhs -> left' (decAddError' nm "" "" hhs) $ do
+   in Dec $ \hhs -> left (decAddError' nm "" "" hhs) $ do
         (as, lft) <- runStateT (replicateM n (StateT d)) hhs
         case as of
           [] -> failDE nm "expected at least one decoder" "" hhs
@@ -503,8 +503,8 @@ instance (KnownNat n, DefDec (Dec a)) => DefDec (Dec (DecN n a)) where
 -- | creates a decoder for a fixed number of decoders given by "n"
 decN :: forall n a. KnownNat n => Dec a -> Dec (DecN n a)
 decN (Dec d) =
-  let n = fromIntegral (natVal (Proxy @n))
-   in Dec $ \hhs -> left' (decAddError' ("Dec (DecN " ++ show n ++ ")") "" "" hhs) $ do
+  let n = TP.pnat @n
+   in Dec $ \hhs -> left (decAddError' ("Dec (DecN " ++ show n ++ ")") "" "" hhs) $ do
         (as, lft) <- runStateT (replicateM n (StateT d)) hhs
         return (DecN as, lft)
 

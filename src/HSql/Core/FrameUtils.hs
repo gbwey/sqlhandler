@@ -1,8 +1,8 @@
+{-# OPTIONS -Wno-missing-local-signatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
 {- |
@@ -44,7 +44,7 @@ postscanF ::
   FS.Scan (Rec V.ElField us) (Rec V.ElField ((s1 :-> b) ': us))
 postscanF (FL.Fold step begin done) = FS.Scan (S.state . step') begin
  where
-  step' a x = (V.Field @s1 b :& a, x')
+  step' a x = (V.Field b :& a, x')
    where
     x' = step x a
     b = done x'
@@ -57,7 +57,7 @@ prescanF ::
   FS.Scan (Rec V.ElField us) (Rec V.ElField ((s1 :-> b) ': us))
 prescanF (FL.Fold step begin done) = FS.Scan (S.state . step') begin
  where
-  step' a x = (V.Field @s1 b :& a, x')
+  step' a x = (V.Field b :& a, x')
    where
     x' = step x a
     b = done x

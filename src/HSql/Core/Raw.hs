@@ -4,7 +4,7 @@
 
 {- |
 Module      : HSql.Core.Raw
-Description : holds all the sql values untranlated in a list
+Description : holds all the sql values untranslated in a list
 Copyright   : (c) Grant Weyburne, 2016
 License     : BSD-3
 -}

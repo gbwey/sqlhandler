@@ -24,11 +24,11 @@ import Database.HDBC (SqlValue (..))
 import GHC.TypeLits (KnownNat)
 import HSql.Core.Common
 import HSql.Core.Decoder
+import HSql.Core.One
 import HSql.Core.Operator
 import HSql.Core.Sql
-import Utils.Error
-import Utils.One
-import qualified Utils.TypeLevel as TP (pnat)
+import Primus.Error
+import qualified Primus.TypeLevel as TP (pnat)
 
 -- | convenience method to create rows in a vinyl record so we can use wprint directly with it
 mkSelRecords :: DefDec (Dec a) => [String] -> [a] -> Rec RState '[Sel a]

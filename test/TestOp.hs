@@ -1,4 +1,4 @@
-{-# OPTIONS -fno-warn-orphans #-}
+{-# OPTIONS -Wno-orphans #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -154,37 +154,37 @@ suite =
     zipWith
       (\i -> testCase ("tst" ++ show i))
       [1 :: Int ..]
-      [ evalC @( 'OGT ( 'Pos 4)) (Just 10) @?= OpRet (Just True) "10 > 4" []
-      , evalC @( 'OGT ( 'Pos 4) ':&&: 'OLE ( 'Pos 10)) (Just 11) @?= OpRet (Just False) "(11 > 4 && 11 <= 10)" ["11 <= 10"]
-      , evalC @( 'OGT ( 'Pos 4) ':&&: 'OLE ( 'Pos 10)) (Just 10) @?= OpRet (Just True) "(10 > 4 && 10 <= 10)" []
-      , evalC @( 'OElem ( 'Pos 2 ':| '[ 'Pos 7, 'Pos 19])) (Just 10) @?= OpRet (Just False) "10 `elem` [2,7,19]" ["10 `elem` [2,7,19]"]
-      , evalC @( 'OElem ( 'Pos 2 ':| '[ 'Pos 7, 'Pos 19])) (Just 7) @?= OpRet (Just True) "7 `elem` [2,7,19]" []
-      , evalC @( 'OElem ( 'Neg 2 ':| '[ 'Neg 7, 'Neg 19])) (Just (-7)) @?= OpRet (Just True) "-7 `elem` [-2,-7,-19]" []
-      , evalC @( 'OEQ ( 'Neg 10)) (Just 10) @?= OpRet (Just False) "10 == -10" ["10 == -10"]
-      , evalC @( 'OEQ ( 'Neg 10)) (Just (-10)) @?= OpRet (Just True) "-10 == -10" []
-      , evalC @( 'OLT ( 'Neg 10)) (Just (-14)) @?= OpRet (Just True) "-14 < -10" []
-      , testOks @( 'OGE ( 'Neg 10)) (map Just [4, -4, 9, -9, -10])
-      , testFails @( 'OGE ( 'Neg 10)) (map Just [-11, -12])
-      , evalC @( 'OGT ( 'Neg 10)) (Just (-14)) @?= OpRet (Just False) "-14 > -10" ["-14 > -10"]
-      , evalC @( 'OElem ( 'Neg 14 ':| '[ 'Neg 13])) (Just (-14)) @?= OpRet (Just True) "-14 `elem` [-14,-13]" []
-      , testOks @( 'OGT ( 'Pos 4) ':&&: 'OLT ( 'Pos 7)) (map Just [5 .. 6])
-      , testFails @( 'OGT ( 'Pos 4) ':&&: 'OLT ( 'Pos 7)) (map Just [3, 4, 7, 8])
-      , testOks @( 'OEQ ( 'Pos 4) ':||: 'OElem ( 'Pos 7 ':| '[ 'Pos 8, 'Pos 9])) (map Just [4, 7, 8, 9])
-      , testFails @( 'ONot ( 'OEQ ( 'Pos 4) ':||: 'OElem ( 'Pos 7 ':| '[ 'Pos 8, 'Pos 9]))) (map Just [4, 7, 8, 9])
+      [ evalC @( 'OGT ( 'SPos 4)) (Just 10) @?= OpRet (Just True) "10 > 4" []
+      , evalC @( 'OGT ( 'SPos 4) ':&&: 'OLE ( 'SPos 10)) (Just 11) @?= OpRet (Just False) "(11 > 4 && 11 <= 10)" ["11 <= 10"]
+      , evalC @( 'OGT ( 'SPos 4) ':&&: 'OLE ( 'SPos 10)) (Just 10) @?= OpRet (Just True) "(10 > 4 && 10 <= 10)" []
+      , evalC @( 'OElem ( 'SPos 2 ':| '[ 'SPos 7, 'SPos 19])) (Just 10) @?= OpRet (Just False) "10 `elem` [2,7,19]" ["10 `elem` [2,7,19]"]
+      , evalC @( 'OElem ( 'SPos 2 ':| '[ 'SPos 7, 'SPos 19])) (Just 7) @?= OpRet (Just True) "7 `elem` [2,7,19]" []
+      , evalC @( 'OElem ( 'SNeg 2 ':| '[ 'SNeg 7, 'SNeg 19])) (Just (-7)) @?= OpRet (Just True) "-7 `elem` [-2,-7,-19]" []
+      , evalC @( 'OEQ ( 'SNeg 10)) (Just 10) @?= OpRet (Just False) "10 == -10" ["10 == -10"]
+      , evalC @( 'OEQ ( 'SNeg 10)) (Just (-10)) @?= OpRet (Just True) "-10 == -10" []
+      , evalC @( 'OLT ( 'SNeg 10)) (Just (-14)) @?= OpRet (Just True) "-14 < -10" []
+      , testOks @( 'OGE ( 'SNeg 10)) (map Just [4, -4, 9, -9, -10])
+      , testFails @( 'OGE ( 'SNeg 10)) (map Just [-11, -12])
+      , evalC @( 'OGT ( 'SNeg 10)) (Just (-14)) @?= OpRet (Just False) "-14 > -10" ["-14 > -10"]
+      , evalC @( 'OElem ( 'SNeg 14 ':| '[ 'SNeg 13])) (Just (-14)) @?= OpRet (Just True) "-14 `elem` [-14,-13]" []
+      , testOks @( 'OGT ( 'SPos 4) ':&&: 'OLT ( 'SPos 7)) (map Just [5 .. 6])
+      , testFails @( 'OGT ( 'SPos 4) ':&&: 'OLT ( 'SPos 7)) (map Just [3, 4, 7, 8])
+      , testOks @( 'OEQ ( 'SPos 4) ':||: 'OElem ( 'SPos 7 ':| '[ 'SPos 8, 'SPos 9])) (map Just [4, 7, 8, 9])
+      , testFails @( 'ONot ( 'OEQ ( 'SPos 4) ':||: 'OElem ( 'SPos 7 ':| '[ 'SPos 8, 'SPos 9]))) (map Just [4, 7, 8, 9])
       , evalC @ 'OTrue (Just 1) @?= OpRet (Just True) "True" []
       , evalC @ 'OFalse (Just 1) @?= OpRet (Just False) "False" ["False"]
-      , evalC @( 'ONE ( 'Pos 7)) (Just 1) @?= OpRet (Just True) "1 /= 7" []
-      , evalC @( 'OGroup "test" ( 'ONE ( 'Pos 7))) (Just 7) @?= OpRet (Just False) "{test}(7 /= 7)" ["7 /= 7"]
-      , testFails @( 'OLT ( 'Pos 4) ':==: 'OElem ( 'Pos 1 ':| '[ 'Pos 7, 'Pos 8, 'Pos 9, 'Pos 2])) (map Just [3, 7, 8])
-      , testOks @( 'OLT ( 'Pos 4) ':==: 'OElem ( 'Pos 1 ':| '[ 'Pos 7, 'Pos 8, 'Pos 9, 'Pos 2])) (map Just [1, 2])
-      , testOks @( 'OLT ( 'Pos 4) ':/=: 'OElem ( 'Pos 1 ':| '[ 'Pos 7, 'Pos 8, 'Pos 9, 'Pos 2])) (map Just [3, 7, 8])
-      , testFails @( 'OLT ( 'Pos 4) ':/=: 'OElem ( 'Pos 1 ':| '[ 'Pos 7, 'Pos 8, 'Pos 9, 'Pos 2])) (map Just [1, 2])
+      , evalC @( 'ONE ( 'SPos 7)) (Just 1) @?= OpRet (Just True) "1 /= 7" []
+      , evalC @( 'OGroup "test" ( 'ONE ( 'SPos 7))) (Just 7) @?= OpRet (Just False) "{test}(7 /= 7)" ["7 /= 7"]
+      , testFails @( 'OLT ( 'SPos 4) ':==: 'OElem ( 'SPos 1 ':| '[ 'SPos 7, 'SPos 8, 'SPos 9, 'SPos 2])) (map Just [3, 7, 8])
+      , testOks @( 'OLT ( 'SPos 4) ':==: 'OElem ( 'SPos 1 ':| '[ 'SPos 7, 'SPos 8, 'SPos 9, 'SPos 2])) (map Just [1, 2])
+      , testOks @( 'OLT ( 'SPos 4) ':/=: 'OElem ( 'SPos 1 ':| '[ 'SPos 7, 'SPos 8, 'SPos 9, 'SPos 2])) (map Just [3, 7, 8])
+      , testFails @( 'OLT ( 'SPos 4) ':/=: 'OElem ( 'SPos 1 ':| '[ 'SPos 7, 'SPos 8, 'SPos 9, 'SPos 2])) (map Just [1, 2])
       , evalC @(OGT 4 ':&&: OLE 10) (Just 11) @?= OpRet (Just False) "(11 > 4 && 11 <= 10)" ["11 <= 10"]
       , evalC @(OGT 3 ':||: ONE 7) (Just 4) @?= OpRet (Just True) "(4 > 3 || 4 /= 7)" []
       , evalC @(OGT 3 ':||: ONE 7) Nothing @?= OpRet Nothing "(rc > 3 || rc /= 7)" []
-      , testOks @( 'Neg 4 ':-: 'Pos 7) (map Just [-4 .. 7])
-      , testFails @( 'Neg 4 ':-: 'Pos 7) (map Just ([-7 .. -5] ++ [8 .. 10]))
-      , evalC @( 'Neg 4 ':-: 'Pos 7) (Just (-5)) @?= OpRet (Just False) "-4 <= -5 <= 7" ["-5 >= -4"]
+      , testOks @( 'SNeg 4 ':-: 'SPos 7) (map Just [-4 .. 7])
+      , testFails @( 'SNeg 4 ':-: 'SPos 7) (map Just ([-7 .. -5] ++ [8 .. 10]))
+      , evalC @( 'SNeg 4 ':-: 'SPos 7) (Just (-5)) @?= OpRet (Just False) "-4 <= -5 <= 7" ["-5 >= -4"]
       , evalC @(4 :-: 7) (Just 5) @?= OpRet (Just True) "4 <= 5 <= 7" []
       , evalC @(4 :-: 7) (Just 1) @?= OpRet (Just False) "4 <= 1 <= 7" ["1 >= 4"]
       , evalC @(4 :-: 7) (Just 8) @?= OpRet (Just False) "4 <= 8 <= 7" ["8 <= 7"]
