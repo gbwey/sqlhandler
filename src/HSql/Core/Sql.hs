@@ -70,6 +70,9 @@ import Primus.Error
 import Primus.Fold
 import Primus.List
 import qualified Primus.TypeLevel as TP
+import Text.Shakespeare (RenderUrl)
+import qualified Data.Text.Internal.Builder as B
+import qualified Data.Text.Lazy as TL
 import Text.Shakespeare.Text (ToText (toText))
 
 {- | 'Sql' is the core ADT that holds a vinyl record of encoders for the input
@@ -1229,3 +1232,6 @@ handleSomeResultSets mn msg one sc0 = StateT $ \z -> go (0 :: Int) z sc0
 -- | turn off/on checkRss
 _CheckRss :: Bool
 _CheckRss = False
+
+renderFn :: (RenderUrl url -> B.Builder) -> Text
+renderFn k = TL.toStrict $ B.toLazyText (k mempty)

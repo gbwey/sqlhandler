@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b90a949f6495c2f76fe2282a0060e46a3e9f781de13073d5bf867a2c42a1f556
+-- hash: dcca781c9488893693c9712ed11946aaf99f12aa341a5a33303a4d2b6267c6f7
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -65,10 +65,10 @@ library
     , mtl
     , one-liner
     , parser-combinators
-    , pos >=0.2.0.0
+    , pos >=0.3.0.0
     , pretty-simple
     , prettyprinter
-    , primus >=0.2.0.0
+    , primus >=0.3.0.0
     , safe
     , semigroupoids
     , shakespeare
@@ -110,10 +110,10 @@ test-suite doctests
     , mtl
     , one-liner
     , parser-combinators
-    , pos >=0.2.0.0
+    , pos >=0.3.0.0
     , pretty-simple
     , prettyprinter
-    , primus >=0.2.0.0
+    , primus >=0.3.0.0
     , safe
     , semigroupoids
     , shakespeare
@@ -171,10 +171,10 @@ test-suite spec
     , one-liner
     , parser-combinators
     , pipes
-    , pos >=0.2.0.0
+    , pos >=0.3.0.0
     , pretty-simple
     , prettyprinter
-    , primus >=0.2.0.0
+    , primus >=0.3.0.0
     , quickcheck-instances
     , safe
     , semigroupoids

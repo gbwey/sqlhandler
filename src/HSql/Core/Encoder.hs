@@ -53,7 +53,7 @@ import GHC.Generics (Generic)
 import qualified Generics.OneLiner as GO
 import HSql.Core.Raw
 import HSql.Core.VinylUtils (pattern I1, pattern I2, pattern I3, pattern I4)
-import Primus.Extra
+import Primus.Error ((.@))
 
 {-
 import Predicate.Refined (Refined, unRefined)
