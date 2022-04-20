@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dcca781c9488893693c9712ed11946aaf99f12aa341a5a33303a4d2b6267c6f7
+-- hash: 8b77c63c470fedbeb824cf242b83661d0fe8e0172a09a7685be459ee2e948555
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -47,6 +47,7 @@ library
   build-depends:
       Frames >=0.6.1
     , base
+    , baseutils
     , bytestring
     , containers
     , contravariant
@@ -91,6 +92,7 @@ test-suite doctests
   build-depends:
       Frames >=0.6.1
     , base
+    , baseutils
     , bytestring
     , containers
     , contravariant
@@ -151,6 +153,7 @@ test-suite spec
       Frames >=0.6.1
     , QuickCheck
     , base
+    , baseutils
     , bytestring
     , containers
     , contravariant

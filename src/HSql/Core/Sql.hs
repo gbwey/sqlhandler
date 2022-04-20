@@ -1233,5 +1233,6 @@ handleSomeResultSets mn msg one sc0 = StateT $ \z -> go (0 :: Int) z sc0
 _CheckRss :: Bool
 _CheckRss = False
 
+{-# INLINEABLE renderFn #-}
 renderFn :: (RenderUrl url -> B.Builder) -> Text
 renderFn k = TL.toStrict $ B.toLazyText (k mempty)

@@ -4,6 +4,7 @@ packages:
 extra-deps:
 - Frames-0.7.2
 - discrimination-0.4.1
+- ../baseutils
 - ../pos
 - ../primus
 # - pos-0.3.0.0
