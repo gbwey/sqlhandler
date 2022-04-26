@@ -88,25 +88,5 @@ tests:
       - tasty-hunit
       - tasty-quickcheck
       - tasty
-  doctests:
-    main: doctests.hs
-    source-dirs: doctest
-    ghc-options:
-    - -Wall
-    - -threaded
-    - -Wcompat
-    - -Wno-star-is-type
-    - -Wincomplete-record-updates
-    - -Wincomplete-uni-patterns
-    - -Wpartial-fields
-    - -Wredundant-constraints
-    - -Wunused-type-patterns
-    - -Wmissing-deriving-strategies
-    - -Widentities
-    dependencies:
-    - base
-    - sqlhandler
-    - doctest
-
 
 data-files: []

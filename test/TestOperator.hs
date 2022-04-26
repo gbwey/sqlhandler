@@ -15,7 +15,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module TestOp where
+module TestOperator where
 
 import Control.Arrow
 import Control.Monad
@@ -150,7 +150,7 @@ testSimplify e0 e1 = do
 
 suite :: TestTree
 suite =
-  testGroup "TestOp" $
+  testGroup "TestOperator" $
     zipWith
       (\i -> testCase ("tst" ++ show i))
       [1 :: Int ..]
@@ -208,6 +208,87 @@ suite =
       , simplifyC @(3 :-: 7 ':&&: OLT 1) @?= EFalseP
       , simplifyC @(3 :-: 7 ':||: OLT 1) @?= EOrP (EBetweenP 3 7) (ELTP 1)
       , simplifyC @(OGT 7 ':&&: OLT 1) @?= EFalseP
+     ] ++
+     [ testCase "op1" $
+          opBool (evalE (Just 4) (EBetweenP 4 11 `EAndP` EGTP 7 `EAndP` EElemP (9:|[10])))
+          @?= Just False
+
+      , testCase "EBetween" $
+          simplifyAll (EGTP 4 `EAndP` EBetweenP 3 5)
+           @?= Fix (EBetween 5 5) :| [Fix (EEQ 5)]
+
+      , testCase "EBetween" $
+           simplifyAll (EBetweenP 4 11 `EAndP` EGTP 7 `EAndP` EElemP (12:|[10,11]))
+            @?= Fix (EBetween 10 11) :| []
+
+      , testCase "EBetween" $
+            simplifyE ((EGTP 4 `EAndP` EBetweenP 3 5) `EAndP` ELTP 20)
+              @?= Fix (EEQ 5)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EBetweenP 4 10 `EAndP` ELTP 7)
+           @?= Fix (EBetween 4 6)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EBetweenP 4 10 `EOrP` ELTP 7)
+           @?= Fix (ELE 10)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EBetweenP 4 10 `EOrP` ELTP 7)
+           @?= Fix (ELE 10)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EBetweenP 4 10 `EOrP` ELTP 11)
+           @?= Fix (ELE 10)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EBetweenP 4 10 `EOrP` ELTP 12)
+           @?= Fix (ELE 11)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EBetweenP 4 10 `EOrP` EBetweenP 1 2)
+           @?= Fix (EOr (Fix (EBetween 4 10)) (Fix (EBetween 1 2)))
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EBetweenP 4 10 `EOrP` EBetweenP 1 3)
+           @?= Fix (EBetween 1 10)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EBetweenP 4 10 `EOrP` EBetweenP 1 6)
+           @?= Fix (EBetween 1 10)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EBetweenP 4 10 `EOrP` EBetweenP 1 2)
+           @?= Fix (EOr (Fix (EBetween 4 10)) (Fix (EBetween 1 2)))
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EBetweenP 4 10 `EOrP` EBetweenP 1 3)
+           @?= Fix (EBetween 1 10)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (ELEP 21 `EOrP` EGEP 17)
+           @?= Fix (EOr (Fix (ELE 21)) (Fix (EGE 17)))
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (ELTP 21 `EAndP` EGTP 17)
+           @?= Fix (EBetween 18 20)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (EGTP 4 `EAndP` EBetweenP 3 5)
+           @?= Fix (EBetween 5 5)
+
+      , testCase "foldFix" $
+               foldFix simplifyAlg (foldFix simplifyAlg (EGTP 4 `EAndP` EBetweenP 3 5))
+           @?= Fix (EEQ 5)
+
+      , testCase "foldFix" $
+          foldFix (evalAlg Nothing) (ENotP (EElemP (1:|[2..10])) :|| EGTP 12)
+            @?= OpRet {opBool = Nothing, opExpr = "(not (rc `elem` [1,2,3,4,5,6,7,8,9,10]) || rc > 12)", opFailures = []}
+
+      , testCase "foldFix" $
+          foldFix (evalAlg Nothing) (foldFix simplifyAlg (ENotP (EElemP (1:|[2..10])) :|| EGTP 12))
+             @?= OpRet {opBool = Nothing, opExpr = "(not (1 <= rc <= 10) || rc > 12)", opFailures = []}
+
       ]
       ++ [testCase "assertSimplify" $ assertSimplify 1_000]
       ++ [ adj' 4 10_000 10 $ TQ.testProperty "simplifyResult" simplifyResult

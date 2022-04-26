@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8b77c63c470fedbeb824cf242b83661d0fe8e0172a09a7685be459ee2e948555
+-- hash: d24cd2b50edc104145a7d22df131b2ff6a19fe82e8731f2d5df056e2a5e5c557
 
 name:           sqlhandler
 version:        0.1.0.0
@@ -81,53 +81,6 @@ library
     , vinyl >=0.10.0.1
   default-language: Haskell2010
 
-test-suite doctests
-  type: exitcode-stdio-1.0
-  main-is: doctests.hs
-  other-modules:
-      Paths_sqlhandler
-  hs-source-dirs:
-      doctest
-  ghc-options: -Wall -threaded -Wcompat -Wno-star-is-type -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -Wunused-type-patterns -Wmissing-deriving-strategies -Widentities
-  build-depends:
-      Frames >=0.6.1
-    , base
-    , baseutils
-    , bytestring
-    , containers
-    , contravariant
-    , data-fix
-    , deepseq
-    , deriving-compat
-    , doctest
-    , docutils
-    , extra
-    , foldl
-    , generic-lens
-    , generic-lens-core
-    , generics-sop
-    , hdbc-odbc2
-    , lens
-    , megaparsec
-    , mtl
-    , one-liner
-    , parser-combinators
-    , pos >=0.3.0.0
-    , pretty-simple
-    , prettyprinter
-    , primus >=0.3.0.0
-    , safe
-    , semigroupoids
-    , shakespeare
-    , sqlhandler
-    , table-layout
-    , text
-    , these >=1.0.0
-    , time
-    , validation-selective
-    , vinyl >=0.10.0.1
-  default-language: Haskell2010
-
 test-suite spec
   type: exitcode-stdio-1.0
   main-is: Spec.hs
@@ -136,7 +89,7 @@ test-suite spec
       TestConv
       TestDecoder
       TestEncoder
-      TestOp
+      TestOperator
       TestRStateBuilder
       TestSql
       TestSqlDeferred

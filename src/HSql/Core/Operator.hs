@@ -84,10 +84,6 @@ instance KnownNat n => SignedC ( 'SNeg n) where
 instance KnownNat n => SignedC ( 'SPos n) where
   toSign = TP.pnat @n
 
-{- $setup
- >>> :m + Control.Lens
--}
-
 -- | list of expressions for the dsl
 data ExprF a
   = EBool !Bool
@@ -148,12 +144,6 @@ type Expr = Fix ExprF
 prettyE :: Maybe Int -> Expr -> String
 prettyE = foldFix . prettyAlg
 
-{- | evaluate the expression
-
- >>> opBool (evalE (Just 4) (EBetweenP 4 11 `EAndP` EGTP 7 `EAndP` EElemP (9:|[10])))
- Just False
--}
-
 -- | evaluate an expression given an optional initial value
 evalE :: Maybe Int -> Expr -> OpRet
 evalE = foldFix . evalAlg
@@ -166,14 +156,6 @@ evalC mi = foldFix (evalAlg mi) (toExpr @op)
 unFix :: Fix f -> f (Fix f)
 unFix = coerce
 
-{- | repeatedly simplify until no change returning all the results
-
- >>> simplifyAll (EGTP 4 `EAndP` EBetweenP 3 5)
- Fix (EBetween 5 5) :| [Fix (EEQ 5)]
-
- >>> simplifyAll (EBetweenP 4 11 `EAndP` EGTP 7 `EAndP` EElemP (12:|[10,11]))
- Fix (EBetween 10 11) :| []
--}
 simplifyAll :: Expr -> NonEmpty Expr
 simplifyAll = go . foldFix simplifyAlg
  where
@@ -187,11 +169,6 @@ simplifyAll = go . foldFix simplifyAlg
 simplifyC :: forall op. ExprC op => Expr
 simplifyC = simplifyE (toExpr @op)
 
-{- | repeatedly simplifyAlg until no change returning all the results
-
- >>> simplifyE ((EGTP 4 `EAndP` EBetweenP 3 5) `EAndP` ELTP 20)
- Fix (EEQ 5)
--}
 simplifyE :: Expr -> Expr
 simplifyE = N.last . simplifyAll
 
@@ -199,50 +176,6 @@ simplifyE = N.last . simplifyAll
 simplifyEvalC :: forall op. ExprC op => Maybe Int -> OpRet
 simplifyEvalC mi = foldFix (evalAlg mi) $ simplifyC @op
 
-{- | simplifyAlg one layer of the expression
-
- >>> foldFix simplifyAlg (EBetweenP 4 10 `EAndP` ELTP 7)
- Fix (EBetween 4 6)
-
- >>> foldFix simplifyAlg (EBetweenP 4 10 `EOrP` ELTP 7)
- Fix (ELE 10)
-
- >>> foldFix simplifyAlg (EBetweenP 4 10 `EOrP` ELTP 7)
- Fix (ELE 10)
-
- >>> foldFix simplifyAlg (EBetweenP 4 10 `EOrP` ELTP 11)
- Fix (ELE 10)
-
- >>> foldFix simplifyAlg (EBetweenP 4 10 `EOrP` ELTP 12)
- Fix (ELE 11)
-
- >>> foldFix simplifyAlg (EBetweenP 4 10 `EOrP` EBetweenP 1 2)
- Fix (EOr (Fix (EBetween 4 10)) (Fix (EBetween 1 2)))
-
- >>> foldFix simplifyAlg (EBetweenP 4 10 `EOrP` EBetweenP 1 3)
- Fix (EBetween 1 10)
-
- >>> foldFix simplifyAlg (EBetweenP 4 10 `EOrP` EBetweenP 1 6)
- Fix (EBetween 1 10)
-
- >>> foldFix simplifyAlg (EBetweenP 4 10 `EOrP` EBetweenP 1 2)
- Fix (EOr (Fix (EBetween 4 10)) (Fix (EBetween 1 2)))
-
- >>> foldFix simplifyAlg (EBetweenP 4 10 `EOrP` EBetweenP 1 3)
- Fix (EBetween 1 10)
-
- >>> foldFix simplifyAlg (ELEP 21 `EOrP` EGEP 17)
- Fix (EOr (Fix (ELE 21)) (Fix (EGE 17)))
-
- >>> foldFix simplifyAlg (ELTP 21 `EAndP` EGTP 17)
- Fix (EBetween 18 20)
-
- >>> foldFix simplifyAlg (EGTP 4 `EAndP` EBetweenP 3 5)
- Fix (EBetween 5 5)
-
- >>> foldFix simplifyAlg (foldFix simplifyAlg (EGTP 4 `EAndP` EBetweenP 3 5))
- Fix (EEQ 5)
--}
 simplifyAlg :: ExprF Expr -> Expr
 -- simplifyAlg :: Algebra ExprF Expr
 simplifyAlg = \case
@@ -381,14 +314,6 @@ pattern (:-) i j = Fix (EBetween i j)
 
 infixl 4 :-
 
-{- | algebra for evaluating an expression
-
- >>> foldFix (evalAlg Nothing) (ENotP (EElemP (1:|[2..10])) :|| EGTP 12)
- OpRet {opBool = Nothing, opExpr = "(not (rc `elem` [1,2,3,4,5,6,7,8,9,10]) || rc > 12)", opFailures = []}
-
- >>> foldFix (evalAlg Nothing) $ foldFix simplifyAlg (ENotP (EElemP (1:|[2..10])) :|| EGTP 12)
- OpRet {opBool = Nothing, opExpr = "(not (1 <= rc <= 10) || rc > 12)", opFailures = []}
--}
 evalAlg :: Maybe Int -> ExprF OpRet -> OpRet
 evalAlg mi = \case
   EBool b -> exprOp0 b

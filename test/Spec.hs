@@ -6,7 +6,7 @@ import Test.Tasty
 import qualified TestConv
 import qualified TestDecoder
 import qualified TestEncoder
-import qualified TestOp
+import qualified TestOperator
 import qualified TestRStateBuilder
 import qualified TestSql
 import qualified TestSqlDeferred
@@ -27,7 +27,7 @@ main = do
       , TestEncoder.suite
       , TestDecoder.suite
       , TestSql.suite
-      , TestOp.suite
+      , TestOperator.suite
       , TestRStateBuilder.suite
       , TestVinyl.suite
       , TestSqlParserMS.suite
