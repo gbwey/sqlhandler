@@ -1,4 +1,4 @@
-packages: *.cabal ../{table-layout,hdbc-odbc2,pos,primus,docutils}
--- packages: *.cabal ../{table-layout,hdbc-odbc2,docutils}
+packages: *.cabal ../{baseutils,table-layout,hdbc-odbc2,pos,primus,docutils}
+-- packages: *.cabal ../{baseutils,table-layout,hdbc-odbc2,docutils}
 
 tests: True

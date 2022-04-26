@@ -47,6 +47,8 @@ import Data.String (IsString (fromString))
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Internal.Builder (fromText)
+import qualified Data.Text.Internal.Builder as B
+import qualified Data.Text.Lazy as TL
 import Data.These.Combinators
 import qualified Data.Type.Bool as BT
 import Data.Vinyl
@@ -71,8 +73,6 @@ import Primus.Fold
 import Primus.List
 import qualified Primus.TypeLevel as TP
 import Text.Shakespeare (RenderUrl)
-import qualified Data.Text.Internal.Builder as B
-import qualified Data.Text.Lazy as TL
 import Text.Shakespeare.Text (ToText (toText))
 
 {- | 'Sql' is the core ADT that holds a vinyl record of encoders for the input

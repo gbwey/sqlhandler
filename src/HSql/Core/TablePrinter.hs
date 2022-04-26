@@ -1217,8 +1217,8 @@ instance ZPrint (RState SelRaw) where
   zprintV z@RState{rsOut = SelRaw _ meta} o fn pos =
     ( pos + 1
     , fn ("SelRaw", pos)
-      <> dumpMeta o meta
-      <> concat (prtHRetCol o [Right @Int (meta, rsOutUnwrap z)])
+        <> dumpMeta o meta
+        <> concat (prtHRetCol o [Right @Int (meta, rsOutUnwrap z)])
     )
 
 instance ZPrint (RState Upd) where
@@ -1264,7 +1264,7 @@ instance (ZPrint (RState a), ZPrint (RState b)) => ZPrint (RState (a :*: b)) whe
   zprintV (RState (x :*: y) (Both lhs rhs)) o fn pos =
     ( pos + 2
     , snd (zprintV (RState x lhs) o (prefixMessage fn "Both(lhs) ") pos)
-      <> snd (zprintV (RState y rhs) o (prefixMessage fn "Both(rhs) ") (pos + 1))
+        <> snd (zprintV (RState y rhs) o (prefixMessage fn "Both(rhs) ") (pos + 1))
     )
 
 instance ZPrint (RState a) => ZPrint (RState (Rev a)) where
